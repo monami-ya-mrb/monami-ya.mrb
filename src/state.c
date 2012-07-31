@@ -4,6 +4,8 @@
 ** See Copyright Notice in mruby.h
 */
 
+#include "tlsf.h"
+
 #include "mruby.h"
 #include "mruby/irep.h"
 #include <string.h>
@@ -11,6 +13,9 @@
 void mrb_init_heap(mrb_state*);
 void mrb_init_core(mrb_state*);
 void mrb_init_ext(mrb_state*);
+
+#define POOL_SIZE 1024 * 650
+static char memory_pool[POOL_SIZE];
 
 mrb_state*
 mrb_open_allocf(mrb_allocf f)
@@ -32,18 +37,21 @@ static void*
 allocf(mrb_state *mrb, void *p, size_t size)
 {
   if (size == 0) {
-    free(p);
+    free_ex(p, memory_pool);
     return NULL;
   }
   else {
-    return realloc(p, size);
+    return realloc_ex(p, size, memory_pool);
   }
 }
 
 mrb_state*
 mrb_open()
 {
-  mrb_state *mrb = mrb_open_allocf(allocf);
+  mrb_state *mrb;
+
+  init_memory_pool(POOL_SIZE, memory_pool);
+  mrb = mrb_open_allocf(allocf);
 
   return mrb;
 }
