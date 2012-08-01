@@ -14,7 +14,7 @@ void mrb_init_heap(mrb_state*);
 void mrb_init_core(mrb_state*);
 void mrb_init_ext(mrb_state*);
 
-#define POOL_SIZE 1024 * 650
+#define POOL_SIZE 1024 * 630
 static char memory_pool[POOL_SIZE];
 
 mrb_state*

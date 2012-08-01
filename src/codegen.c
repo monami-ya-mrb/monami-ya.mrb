@@ -188,7 +188,6 @@ genop_peep(codegen_scope *s, mrb_code i, int val)
       case OP_GETSPECIAL:
       case OP_LOADL:
       case OP_STRING:
-      case OP_GETMCNST:
         if (GETARG_B(i) == GETARG_A(i0) && GETARG_A(i0) >= s->nlocals) {
           s->iseq[s->pc-1] = MKOP_ABx(c0, GETARG_A(i), GETARG_Bx(i0));
           return;
@@ -607,7 +606,7 @@ gen_call(codegen_scope *s, node *tree, mrb_sym name, int sp, int val)
 {
   mrb_sym sym = name ? name : (mrb_sym)tree->cdr->car;
   int idx;
-  int n = 0, noop = 0, sendv = 0;
+  int n = 0, noop = 0, sendv = 0, blk = 0;
 
   codegen(s, tree->car, VAL); /* receiver */
   idx = new_msym(s, sym);
@@ -637,40 +636,44 @@ gen_call(codegen_scope *s, node *tree, mrb_sym name, int sp, int val)
     pop();
   }
   else {
-    genop(s, MKOP_A(OP_LOADNIL, cursp()));
+    blk = cursp();
   }
   pop_n(n+1);
   {
-    const char *name = mrb_sym2name(s->mrb, sym);
+    int len;
+    const char *name = mrb_sym2name_len(s->mrb, sym, &len);
 
-    if (!noop && name[0] == '+' && name[1] == '\0')  {
+    if (!noop && len == 1 && name[0] == '+')  {
       genop(s, MKOP_ABC(OP_ADD, cursp(), idx, n));
     }
-    else if (!noop && name[0] == '-' && name[1] == '\0')  {
+    else if (!noop && len == 1 && name[0] == '-')  {
       genop(s, MKOP_ABC(OP_SUB, cursp(), idx, n));
     }
-    else if (!noop && name[0] == '*' && name[1] == '\0')  {
+    else if (!noop && len == 1 && name[0] == '*')  {
       genop(s, MKOP_ABC(OP_MUL, cursp(), idx, n));
     }
-    else if (!noop && name[0] == '/' && name[1] == '\0')  {
+    else if (!noop && len == 1 && name[0] == '/')  {
       genop(s, MKOP_ABC(OP_DIV, cursp(), idx, n));
     }
-    else if (!noop && name[0] == '<' && name[1] == '\0')  {
+    else if (!noop && len == 1 && name[0] == '<')  {
       genop(s, MKOP_ABC(OP_LT, cursp(), idx, n));
     }
-    else if (!noop && name[0] == '<' && name[1] == '=' && name[2] == '\0')  {
+    else if (!noop && len == 2 && name[0] == '<' && name[1] == '=')  {
       genop(s, MKOP_ABC(OP_LE, cursp(), idx, n));
     }
-    else if (!noop && name[0] == '>' && name[1] == '\0')  {
+    else if (!noop && len == 1 && name[0] == '>')  {
       genop(s, MKOP_ABC(OP_GT, cursp(), idx, n));
     }
-    else if (!noop && name[0] == '>' && name[1] == '=' && name[2] == '\0')  {
+    else if (!noop && len == 2 && name[0] == '>' && name[1] == '=')  {
       genop(s, MKOP_ABC(OP_GE, cursp(), idx, n));
     }
-    else if (!noop && name[0] == '=' && name[1] == '=' && name[2] == '\0')  {
+    else if (!noop && len == 2 && name[0] == '=' && name[1] == '=')  {
       genop(s, MKOP_ABC(OP_EQ, cursp(), idx, n));
     }
     else {
+      if (blk > 0) {		 /* no block */
+	genop(s, MKOP_A(OP_LOADNIL, blk));
+      }
       if (sendv) n = CALL_MAXARGS;
       genop(s, MKOP_ABC(OP_SEND, cursp(), idx, n));
     }
@@ -806,11 +809,11 @@ raise_error(codegen_scope *s, const char *msg)
   genop(s, MKOP_ABx(OP_ERR, 0, idx));
 }
 
-static mrb_float
+static double
 readint_float(codegen_scope *s, const char *p, int base)
 {
   const char *e = p + strlen(p);
-  mrb_float f = 0;
+  double f = 0;
   int n;
 
   if (*p == '+') p++;
@@ -1027,13 +1030,14 @@ codegen(codegen_scope *s, node *tree, int val)
       struct loopinfo *lp = loop_push(s, LOOP_NORMAL);
 
       lp->pc1 = new_label(s);
+      genop(s, MKOP_sBx(OP_JMP, 0));
+      lp->pc2 = new_label(s);
+      codegen(s, tree->cdr, NOVAL);
+      dispatch(s, lp->pc1);
       codegen(s, tree->car, VAL);
       pop();
-      lp->pc2 = new_label(s);
-      genop(s, MKOP_AsBx(OP_JMPNOT, cursp(), 0));
-      codegen(s, tree->cdr, NOVAL);
-      genop(s, MKOP_sBx(OP_JMP, lp->pc1 - s->pc));
-      dispatch(s, lp->pc2);
+      genop(s, MKOP_AsBx(OP_JMPIF, cursp(), lp->pc2 - s->pc));
+
       loop_pop(s, val);
     }
     break;
@@ -1043,13 +1047,14 @@ codegen(codegen_scope *s, node *tree, int val)
       struct loopinfo *lp = loop_push(s, LOOP_NORMAL);
 
       lp->pc1 = new_label(s);
+      genop(s, MKOP_sBx(OP_JMP, 0));
+      lp->pc2 = new_label(s);
+      codegen(s, tree->cdr, NOVAL);
+      dispatch(s, lp->pc1);
       codegen(s, tree->car, VAL);
       pop();
-      lp->pc2 = new_label(s);
-      genop(s, MKOP_AsBx(OP_JMPIF, cursp(), 0));
-      codegen(s, tree->cdr, NOVAL);
-      genop(s, MKOP_sBx(OP_JMP, lp->pc1 - s->pc));
-      dispatch(s, lp->pc2);
+      genop(s, MKOP_AsBx(OP_JMPNOT, cursp(), lp->pc2 - s->pc));
+
       loop_pop(s, val);
     }
     break;
@@ -1587,7 +1592,7 @@ codegen(codegen_scope *s, node *tree, int val)
     if (val) {
       char *p = (char*)tree->car;
       int base = (intptr_t)tree->cdr->car;
-      mrb_float f;
+      double f;
       mrb_int i;
       mrb_code co;
 
