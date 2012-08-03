@@ -14,8 +14,7 @@ void mrb_init_heap(mrb_state*);
 void mrb_init_core(mrb_state*);
 void mrb_init_ext(mrb_state*);
 
-#define POOL_SIZE 1024 * 650
-static char memory_pool[POOL_SIZE];
+static char memory_pool[TLSF_HEAP_SIZE];
 
 mrb_state*
 mrb_open_allocf(mrb_allocf f)
@@ -48,7 +47,10 @@ allocf(mrb_state *mrb, void *p, size_t size)
 mrb_state*
 mrb_open()
 {
-  mrb_state *mrb = mrb_open_allocf(allocf);
+  mrb_state *mrb;
+
+  init_memory_pool(TLSF_HEAP_SIZE, memory_pool);
+  mrb = mrb_open_allocf(allocf);
 
   return mrb;
 }

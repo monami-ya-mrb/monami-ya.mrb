@@ -31,6 +31,9 @@
 /* page size of memory pool */
 //#define POOL_PAGE_SIZE 16000
 
+/* heap size for tlsf memory allocator. */
+#define TLSF_HEAP_SIZE	(1024 * 630)
+
 /* -DDISABLE_XXXX to drop the feature */
 #define DISABLE_REGEXP	        /* regular expression classes */
 //#define DISABLE_SPRINTF	/* Kernel.sprintf method */
