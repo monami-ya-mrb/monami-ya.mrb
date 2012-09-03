@@ -99,6 +99,7 @@ cons_gen(parser_state *p, node *car, node *cdr)
 
   c->car = car;
   c->cdr = cdr;
+  c->lineno = p->lineno;
   return c;
 }
 #define cons(a,b) cons_gen(p,(a),(b))
@@ -1026,14 +1027,11 @@ top_stmts	: none
 top_stmt	: stmt
 		| keyword_BEGIN
 		    {
-		      if (p->in_def || p->in_single) {
-			yyerror(p, "BEGIN in method");
-		      }
 		      $<nd>$ = local_switch(p);
 		    }
 		  '{' top_compstmt '}'
 		    {
-		      p->begin_tree = push(p->begin_tree, $4);
+		      yyerror(p, "BEGIN not supported");
 		      local_resume(p, $<nd>2);
 		      $$ = 0;
 		    }
@@ -1119,9 +1117,7 @@ stmt		: keyword_alias fsym {p->lstate = EXPR_FNAME;} fsym
 		    }
 		| keyword_END '{' compstmt '}'
 		    {
-		      if (p->in_def || p->in_single) {
-			yywarn(p, "END in method; use at_exit");
-		      }
+		      yyerror(p, "END not suported");
 		      $$ = new_postexe(p, $3);
 		    }
 		| command_asgn
@@ -2920,7 +2916,7 @@ opt_terms	: /* none */
 		;
 
 opt_nl		: /* none */
-		| '\n'
+		| nl
 		;
 
 rparen		: opt_nl ')'
@@ -2930,13 +2926,19 @@ rbracket	: opt_nl ']'
 		;
 
 trailer		: /* none */
-		| '\n'
+		| nl
 		| ','
 		;
 
 term		: ';' {yyerrok;}
-		| '\n'
+		| nl
 		;
+
+nl		: '\n'
+		    {
+		      p->lineno++;
+		      p->column = 0;
+		    }
 
 terms		: term
 		| terms ';' {yyerrok;}
@@ -3519,14 +3521,14 @@ parser_yylex(parser_state *p)
     skip(p, '\n');
     /* fall through */
   case '\n':
-    p->lineno++;
-    p->column = 0;
     switch (p->lstate) {
     case EXPR_BEG:
     case EXPR_FNAME:
     case EXPR_DOT:
     case EXPR_CLASS:
     case EXPR_VALUE:
+      p->lineno++;
+      p->column = 0;
       goto retry;
     default:
       break;
@@ -4714,12 +4716,10 @@ void parser_dump(mrb_state *mrb, node *tree, int offset);
 void
 mrb_parser_parse(parser_state *p, mrbc_context *c)
 {
-  node *tree;
-
   if (setjmp(p->jmp) != 0) {
     yyerror(p, "memory allocation error");
     p->nerr++;
-    p->tree = p->begin_tree = 0;
+    p->tree = 0;
     return;
   }
 
@@ -4730,22 +4730,10 @@ mrb_parser_parse(parser_state *p, mrbc_context *c)
 
   parser_init_cxt(p, c);
   yyparse(p);
-  tree = p->tree;
-  if (!tree) {
-    if (p->begin_tree) {
-      tree = p->begin_tree;
-    }
-    else {
-      tree = new_nil(p);
-    }
+  if (!p->tree) {
+    p->tree = new_nil(p);
   }
-  else {
-    parser_update_cxt(p, c);
-    if (p->begin_tree) {
-      tree = new_begin(p, p->begin_tree);
-      append(tree, p->tree);
-    }
-  }
+  parser_update_cxt(p, c);
   if (c && c->dump_result) {
     parser_dump(p->mrb, p->tree, 0);
   }
@@ -4801,7 +4789,6 @@ void
 mrbc_context_free(mrb_state *mrb, mrbc_context *cxt)
 {
   mrb_free(mrb, cxt->syms);
-  mrb_free(mrb, cxt->filename);
   mrb_free(mrb, cxt);
 }
 
@@ -4810,10 +4797,9 @@ mrbc_filename(mrb_state *mrb, mrbc_context *c, const char *s)
 {
   if (s) {
     int len = strlen(s);
-    char *p = (char *)mrb_malloc(mrb, len);
+    char *p = (char *)mrb_alloca(mrb, len + 1);
 
-    memcpy(p, s, len);
-    if (c->filename) mrb_free(mrb, c->filename);
+    memcpy(p, s, len + 1);
     c->filename = p;
     c->lineno = 1;
   }
@@ -4881,7 +4867,7 @@ load_exec(mrb_state *mrb, parser_state *p, mrbc_context *c)
       return mrb_nil_value();
     }
   }
-  n = mrb_generate_code(mrb, p->tree);
+  n = mrb_generate_code(mrb, p);
   mrb_parser_free(p);
   if (n < 0) {
     static const char msg[] = "codegen error";
@@ -5187,10 +5173,11 @@ parser_dump(mrb_state *mrb, node *tree, int offset)
       if (n2  && (n2->car || n2->cdr)) {
 	dump_prefix(offset+1);
 	printf("local variables:\n");
+	dump_prefix(offset+2);
 	while (n2) {
 	  if (n2->car) {
-	    dump_prefix(offset+2);
-	    printf("%s ", mrb_sym2name(mrb, (mrb_sym)n2->car));
+	    if (n2 != tree->car) printf(", ");
+	    printf("%s", mrb_sym2name(mrb, (mrb_sym)n2->car));
 	  }
 	  n2 = n2->cdr;
 	}
@@ -5532,11 +5519,11 @@ parser_dump(mrb_state *mrb, node *tree, int offset)
       if (n2 && (n2->car || n2->cdr)) {
 	dump_prefix(offset+1);
 	printf("local variables:\n");
-
+	dump_prefix(offset+2);
 	while (n2) {
 	  if (n2->car) {
-	    dump_prefix(offset+2);
-	    printf("%s ", mrb_sym2name(mrb, (mrb_sym)n2->car));
+	    if (n2 != tree->car) printf(", ");
+	    printf("%s", mrb_sym2name(mrb, (mrb_sym)n2->car));
 	  }
 	  n2 = n2->cdr;
 	}

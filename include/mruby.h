@@ -41,7 +41,7 @@ typedef int32_t mrb_code;
 
 struct mrb_state;
 
-typedef void* (*mrb_allocf) (struct mrb_state *mrb, void*, size_t);
+typedef void* (*mrb_allocf) (struct mrb_state *mrb, void*, size_t, void *ud);
 
 #ifndef MRB_ARENA_SIZE
 #define MRB_ARENA_SIZE 1024
@@ -106,8 +106,8 @@ typedef struct mrb_state {
   struct RClass *false_class;
   struct RClass *nil_class;
   struct RClass *symbol_class;
-
   struct RClass *kernel_module;
+
   struct heap_page *heaps;
   struct heap_page *sweeps;
   struct heap_page *free_heaps;
@@ -124,10 +124,10 @@ typedef struct mrb_state {
   int gc_interval_ratio;
   int gc_step_ratio;
   int gc_disabled;
+  struct alloca_header *mems;
 
   mrb_sym symidx;
   struct kh_n2s *name2sym;      /* symbol table */
-  struct kh_s2n *sym2name;      /* reverse symbol table */
 #ifdef INCLUDE_REGEXP
   struct RNode *local_svar;/* regexp */
 #endif
@@ -205,7 +205,7 @@ mrb_value mrb_str_new_cstr(mrb_state*, const char*);
 mrb_value mrb_str_new2(mrb_state *mrb, const char *p);
 
 mrb_state* mrb_open(void);
-mrb_state* mrb_open_allocf(mrb_allocf);
+mrb_state* mrb_open_allocf(mrb_allocf, void *ud);
 void mrb_close(mrb_state*);
 int mrb_checkstack(mrb_state*,int);
 
@@ -362,6 +362,7 @@ void mrb_pool_close(struct mrb_pool*);
 void* mrb_pool_alloc(struct mrb_pool*, size_t);
 void* mrb_pool_realloc(struct mrb_pool*, void*, size_t oldlen, size_t newlen);
 int mrb_pool_can_realloc(struct mrb_pool*, void*, size_t);
+void* mrb_alloca(mrb_state *mrb, size_t);
 
 #if defined(__cplusplus)
 }  /* extern "C" { */

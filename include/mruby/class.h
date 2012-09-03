@@ -12,7 +12,7 @@ extern "C" {
 #endif
 
 struct RClass {
-  MRUBY_OBJECT_HEADER;
+  MRB_OBJECT_HEADER;
   struct iv_tbl *iv;
   struct kh_mt *mt;
   struct RClass *super;
@@ -39,6 +39,8 @@ mrb_class(mrb_state *mrb, mrb_value v)
     return mrb->fixnum_class;
   case MRB_TT_FLOAT:
     return mrb->float_class;
+  case MRB_TT_MAIN:
+    return mrb->object_class;
 
 #ifdef ENABLE_REGEXP
   case MRB_TT_REGEX:
