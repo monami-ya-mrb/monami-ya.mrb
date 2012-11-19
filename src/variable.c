@@ -71,13 +71,13 @@ iv_put(mrb_state *mrb, iv_tbl *t, mrb_sym sym, mrb_value val)
 	t->size++;
 	return;
       }
-      if (key == 0 && !matched_seg) {
+      if (!matched_seg && key == 0) {
 	matched_seg = seg;
 	matched_idx = i;
       }
       else if (key == sym) {
-        seg->val[i] = val;
-        return;
+	seg->val[i] = val;
+	return;
       }
     }
     prev = seg;
@@ -223,10 +223,10 @@ iv_copy(mrb_state *mrb, iv_tbl *t)
       mrb_sym key = seg->key[i];
       mrb_value val = seg->val[i];
 
-      iv_put(mrb, t2, key, val);
       if ((seg->next == NULL) && (i >= t->last_len)) {
         return t2;
       }
+      iv_put(mrb, t2, key, val);
     }
     seg = seg->next;
   }
@@ -580,7 +580,7 @@ iv_i(mrb_state *mrb, mrb_sym sym, mrb_value v, void *p)
 
   ary = *(mrb_value*)p;
   s = mrb_sym2name_len(mrb, sym, &len);
-  if (len > 1 && s[0] == '@') {
+  if (len > 1 && s[0] == '@' && s[1] != '@') {
     mrb_ary_push(mrb, ary, mrb_symbol_value(sym));
   }
   return 0;
@@ -614,6 +614,50 @@ mrb_obj_instance_variables(mrb_state *mrb, mrb_value self)
   }
   return ary;
 }
+
+static int
+cv_i(mrb_state *mrb, mrb_sym sym, mrb_value v, void *p)
+{
+  mrb_value ary;
+  const char* s;
+  int len;
+
+  ary = *(mrb_value*)p;
+  s = mrb_sym2name_len(mrb, sym, &len);
+  if (len > 2 && s[0] == '@' && s[1] == '@') {
+    mrb_ary_push(mrb, ary, mrb_symbol_value(sym));
+  }
+  return 0;
+}
+
+/* 15.2.2.4.19 */
+/*
+ *  call-seq:
+ *     mod.class_variables   -> array
+ *
+ *  Returns an array of the names of class variables in <i>mod</i>.
+ *
+ *     class One
+ *       @@var1 = 1
+ *     end
+ *     class Two < One
+ *       @@var2 = 2
+ *     end
+ *     One.class_variables   #=> [:@@var1]
+ *     Two.class_variables   #=> [:@@var2]
+ */
+mrb_value
+mrb_mod_class_variables(mrb_state *mrb, mrb_value mod)
+{
+  mrb_value ary;
+
+  ary = mrb_ary_new(mrb);
+  if (obj_iv_p(mod) && mrb_obj_ptr(mod)->iv) {
+    iv_foreach(mrb, mrb_obj_ptr(mod)->iv, cv_i, &ary);
+  }
+  return ary;
+}
+
 
 mrb_value
 mrb_vm_cv_get(mrb_state *mrb, mrb_sym sym)
@@ -674,6 +718,7 @@ mod_const_check(mrb_state *mrb, mrb_value mod)
   switch (mrb_type(mod)) {
   case MRB_TT_CLASS:
   case MRB_TT_MODULE:
+  case MRB_TT_SCLASS:
     break;
   default:
     mrb_raise(mrb, E_TYPE_ERROR, "constant look-up for non class/module");
@@ -699,7 +744,7 @@ const_get(mrb_state *mrb, struct RClass *base, mrb_sym sym)
     }
     c = c->super;
   }
-  if (!retry && base->tt == MRB_TT_MODULE) {
+  if (!retry && base && base->tt == MRB_TT_MODULE) {
     c = mrb->object_class;
     retry = 1;
     goto L_RETRY;
@@ -732,6 +777,22 @@ mrb_vm_const_get(mrb_state *mrb, mrb_sym sym)
   struct RClass *c = mrb->ci->proc->target_class;
 
   if (!c) c = mrb->ci->target_class;
+  if (c) {
+    struct RClass *c2 = c;
+    mrb_value v;
+
+    if (c->iv && iv_get(mrb, c->iv, sym, &v)) {
+      return v;
+    }
+    c2 = c;
+    for (;;) {
+      c2 = mrb_class_outer_module(mrb, c2);
+      if (!c2) break;
+      if (c2->iv && iv_get(mrb, c2->iv, sym, &v)) {
+	return v;
+      }
+    }
+  }
   return const_get(mrb, c, sym);
 }
 
@@ -910,5 +971,5 @@ mrb_class_sym(mrb_state *mrb, struct RClass *c, struct RClass *outer)
       return arg.sym;
     }
   }
-  return SYM2ID(name);
+  return mrb_symbol(name);
 }

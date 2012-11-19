@@ -53,7 +53,7 @@ mrb_alloca(mrb_state *mrb, size_t size)
 {
   struct alloca_header *p;
 
-  p = mrb_malloc(mrb, sizeof(struct alloca_header)+size);
+  p = (struct alloca_header*) mrb_malloc(mrb, sizeof(struct alloca_header)+size);
   p->next = mrb->mems;
   mrb->mems = p;
   return (void*)p->buf;
@@ -126,7 +126,7 @@ mrb_add_irep(mrb_state *mrb, int idx)
       mrb->irep_capa *= 2;
     }
     mrb->irep = (mrb_irep **)mrb_realloc(mrb, mrb->irep, sizeof(mrb_irep*)*mrb->irep_capa);
-    for (i = old_capa; i < mrb->irep_capa - old_capa; i++) {
+    for (i = old_capa; i < mrb->irep_capa; i++) {
       mrb->irep[i] = NULL;
     }
   }

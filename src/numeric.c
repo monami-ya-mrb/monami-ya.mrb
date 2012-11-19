@@ -97,7 +97,7 @@ num_pow(mrb_state *mrb, mrb_value x)
   mrb_float d;
 
   mrb_get_args(mrb, "o", &y);
-  if (FIXNUM_P(x) && FIXNUM_P(y)) both_int = TRUE;
+  if (mrb_fixnum_p(x) && mrb_fixnum_p(y)) both_int = TRUE;
   d = pow(mrb_to_flo(mrb, x), mrb_to_flo(mrb, y));
   if (both_int && FIXABLE(d))
     return mrb_fixnum_value((mrb_int)d);
@@ -523,7 +523,8 @@ static mrb_value
 flo_round(mrb_state *mrb, mrb_value num)
 {
   double number, f;
-  int ndigits = 0, i;
+  mrb_int ndigits = 0;
+  int i;
 
   mrb_get_args(mrb, "|i", &ndigits);
   number = mrb_float(num);
@@ -682,7 +683,7 @@ fix_succ(mrb_state *mrb, mrb_value num)
 static mrb_value
 int_succ(mrb_state *mrb, mrb_value num)
 {
-  if (FIXNUM_P(num)) return fix_succ(mrb, num);
+  if (mrb_fixnum_p(num)) return fix_succ(mrb, num);
   return mrb_funcall(mrb, num, "+", 1, mrb_fixnum_value(1));
 }
 
@@ -697,7 +698,7 @@ mrb_fixnum_mul(mrb_state *mrb, mrb_value x, mrb_value y)
   
   a = mrb_fixnum(x);
   if (a == 0) return x;
-  if (FIXNUM_P(y)) {
+  if (mrb_fixnum_p(y)) {
     mrb_int b, c;
 
     b = mrb_fixnum(y);
@@ -774,7 +775,7 @@ fix_mod(mrb_state *mrb, mrb_value x)
 
   mrb_get_args(mrb, "o", &y);
   a = mrb_fixnum(x);
-  if (FIXNUM_P(y) && (b=mrb_fixnum(y)) != 0) {
+  if (mrb_fixnum_p(y) && (b=mrb_fixnum(y)) != 0) {
     mrb_int mod;
 
     if (mrb_fixnum(y) == 0) {
@@ -803,7 +804,7 @@ fix_divmod(mrb_state *mrb, mrb_value x)
   mrb_value y;
   mrb_get_args(mrb, "o", &y);
 
-  if (FIXNUM_P(y)) {
+  if (mrb_fixnum_p(y)) {
     mrb_int div, mod;
 
     if (mrb_fixnum(y) == 0) {
@@ -877,8 +878,8 @@ fix_rev(mrb_state *mrb, mrb_value num)
 static mrb_value
 bit_coerce(mrb_state *mrb, mrb_value x)
 {
-    while (!FIXNUM_P(x)) {
-        if (mrb_type(x) == MRB_TT_FLOAT) {
+    while (!mrb_fixnum_p(x)) {
+        if (mrb_float_p(x)) {
             mrb_raise(mrb, E_TYPE_ERROR, "can't convert Float into Integer");
         }
         x = mrb_to_int(mrb, x);
@@ -947,7 +948,7 @@ fix_xor(mrb_state *mrb, mrb_value x)
 }
 
 static mrb_value
-lshift(mrb_state *mrb, mrb_int val, unsigned long width)
+lshift(mrb_state *mrb, mrb_int val, int width)
 {
   if (width > (sizeof(mrb_int)*CHAR_BIT-1)) {
       mrb_raisef(mrb, E_RANGE_ERROR, "width(%d) > (%d:sizeof(mrb_int)*CHAR_BIT-1)", width,
@@ -958,7 +959,7 @@ lshift(mrb_state *mrb, mrb_int val, unsigned long width)
 }
 
 static mrb_value
-rshift(mrb_int val, unsigned long i)
+rshift(mrb_int val, int i)
 {
     if (i >= sizeof(mrb_int)*CHAR_BIT-1) {
         if (val < 0) return mrb_fixnum_value(-1);
@@ -987,7 +988,7 @@ fix_lshift(mrb_state *mrb, mrb_value x)
   y = bit_coerce(mrb, y);
   width = mrb_fixnum(y);
   if (width < 0)
-      return rshift(val, (unsigned long)-width);
+      return rshift(val, -width);
   return lshift(mrb, val, width);
 }
 
@@ -1011,7 +1012,7 @@ fix_rshift(mrb_state *mrb, mrb_value x)
   i = mrb_fixnum(y);
     if (i == 0) return x;
     if (i < 0)
-        return lshift(mrb, val, (unsigned long)-i);
+        return lshift(mrb, val, -i);
     return rshift(val, i);
 }
 
@@ -1076,7 +1077,7 @@ mrb_fixnum_plus(mrb_state *mrb, mrb_value x, mrb_value y)
   
   a = mrb_fixnum(x);
   if (a == 0) return y;
-  if (FIXNUM_P(y)) {
+  if (mrb_fixnum_p(y)) {
     mrb_int b, c;
 
     b = mrb_fixnum(y);
@@ -1114,7 +1115,7 @@ mrb_fixnum_minus(mrb_state *mrb, mrb_value x, mrb_value y)
   mrb_int a;
   
   a = mrb_fixnum(x);
-  if (FIXNUM_P(y)) {
+  if (mrb_fixnum_p(y)) {
     mrb_int b, c;
 
     b = mrb_fixnum(y);

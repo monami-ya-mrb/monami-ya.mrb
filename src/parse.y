@@ -1749,7 +1749,7 @@ aref_args	: none
 		    }
 		| assocs trailer
 		    {
-		      $$ = new_hash(p, $1);
+		      $$ = cons(new_hash(p, $1), 0);
 		    }
 		;
 
@@ -3162,9 +3162,12 @@ skips(parser_state *p, const char *s)
       int len = strlen(s);
 
       while (len--) {
-	nextc(p);
+        nextc(p);
       }
       return TRUE;
+    }
+	else{
+      s--;
     }
   }
   return FALSE;

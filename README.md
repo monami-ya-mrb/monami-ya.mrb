@@ -1,4 +1,8 @@
 # !!Notice!!
+This version of mruby is forked by Monaka.
+The original version is located on http://github.com/mruby/mruby/
+
+# !!Notice!!
     This is a preliminary release for internal team review.
     The URLs and addresses described below are not available yet.
     The official release will be announced later.
@@ -18,35 +22,21 @@ This achievement was sponsored by the Regional Innovation Creation R&D Programs 
 the Ministry of Economy, Trade and Industry of Japan.
 
 
-## How to get mruby
+## How to get (forked version of) mruby
 
 The mruby distribution files can be found in the following site:
 
-  https://github.com/mruby/mruby/zipball/master
+  https://bitbucket.org/monami_ya/mruby/downloads
 
 The trunk of the mruby source tree can be checked out with the
 following command:
 
-    $ git clone https://github.com/mruby/mruby.git
+    $ git clone https://bitbucket.org/monami_ya/mruby.git
 
 There are some other branches under development. Try the following
 command and see the list of branches:
 
     $ git branch -r
-
-
-## mruby home-page
-
-mruby's website is not launched yet but we are actively working on it.
-
-The URL of the mruby home-page will be:
-
-  http://www.mruby.org/
-
-
-## Mailing list
-
-To subscribe to the mruby mailing list....[T.B.D.]
 
 
 ## How to compile and install
@@ -98,8 +88,8 @@ In the future, mruby might ask you to distribute your new code
 
 Please ask us if you want to distribute your code under another license.
 
-## How to Contribute
+## How to Contribute (to this version)
 
-Send pull request to <http://github.com/mruby/mruby>.   We consider you have granted
+Send pull request to <http://bitbucket.org/monami_ya/mruby>.   We consider you have granted
 non-exclusive right to your contributed code under MIT license.  If you want to be named
 as one of mruby developers, include update to the AUTHORS file in your pull request.

@@ -635,7 +635,6 @@ scope_body(codegen_scope *s, node *tree)
     genop(scope, MKOP_A(OP_STOP, 0));
   }
   else {
-    pop_(scope);
     if (scope->nregs == 0) {
       genop(scope, MKOP_A(OP_LOADNIL, 0));
       genop(scope, MKOP_AB(OP_RETURN, 0, OP_R_NORMAL));
@@ -1556,8 +1555,10 @@ codegen(codegen_scope *s, node *tree, int val)
       genop(s, MKOP_sBx(OP_JMP, s->loop->pc1 - s->pc));
     }
     else {
-      codegen(s, tree, VAL);
-      pop();
+      if (tree) {
+        codegen(s, tree, VAL);
+        pop();
+      }
       genop_peep(s, MKOP_AB(OP_RETURN, cursp(), OP_R_NORMAL), NOVAL);
     }
     if (val) push();
@@ -2096,6 +2097,7 @@ scope_finish(codegen_scope *s, int idx)
   mrb_add_irep(mrb, idx);
   irep = mrb->irep[idx] = (mrb_irep *)mrb_malloc(mrb, sizeof(mrb_irep));
 
+  irep->flags = 0;
   irep->idx = idx;
   if (s->iseq) {
     irep->iseq = (mrb_code *)codegen_realloc(s, s->iseq, sizeof(mrb_code)*s->pc);
