@@ -92,6 +92,20 @@ assert('Module#include', '15.2.2.4.27') do
   Test4Include2.const_get(:Const4Include) == 42
 end
 
+assert('Module#include?', '15.2.2.4.28') do
+  module Test4IncludeP
+  end
+  class Test4IncludeP2
+    include Test4IncludeP
+  end
+  class Test4IncludeP3 < Test4IncludeP2
+  end
+
+  Test4IncludeP2.include?(Test4IncludeP) &&
+  Test4IncludeP3.include?(Test4IncludeP) &&
+  ! Test4IncludeP.include?(Test4IncludeP)
+end
+
 assert('Module#included', '15.2.2.4.29') do
   module Test4Included
     Const4Included = 42
@@ -117,6 +131,26 @@ assert('Module#included_modules', '15.2.2.4.30') do
   r = Test4includedModules2.included_modules
   r.class == Array and r.include?(Test4includedModules)
 end
+
+assert('Module#instance_methods', '15.2.2.4.33') do
+   module Test4InstanceMethodsA
+     def method1()  end
+   end
+   class Test4InstanceMethodsB
+     def method2()  end
+   end
+   class Test4InstanceMethodsC < Test4InstanceMethodsB
+     def method3()  end
+   end
+
+   r = Test4InstanceMethodsC.instance_methods(true)
+
+   Test4InstanceMethodsA.instance_methods              == [:method1] and
+   Test4InstanceMethodsB.instance_methods(false)       == [:method2] and
+   Test4InstanceMethodsC.instance_methods(false)       == [:method3] and
+   r.class == Array and r.include?(:method3) and r.include?(:method2)
+end
+
 
 # Not ISO specified
 
