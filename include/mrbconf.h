@@ -11,7 +11,7 @@
 
 /* configuration options: */
 /* add -DMRB_USE_FLOAT to use float instead of double for floating point numbers */
-#define MRB_USE_FLOAT
+//#define MRB_USE_FLOAT
 
 /* add -DMRB_INT64 to use 64bit integer for mrb_int */
 //#define MRB_INT64
@@ -26,7 +26,7 @@
 //#define MRB_FUNCALL_ARGC_MAX 16 
 
 /* number of object per heap page */
-#define MRB_HEAP_PAGE_SIZE 256
+//#define MRB_HEAP_PAGE_SIZE 1024
 
 /* use segmented list for IV table */
 //#define MRB_USE_IV_SEGLIST
@@ -35,16 +35,16 @@
 //#define MRB_IVHASH_INIT_SIZE 8
 
 /* default size of khash table bucket */
-#define KHASH_DEFAULT_SIZE 8
+//#define KHASH_DEFAULT_SIZE 32
 
 /* allocated memory address alignment */
 //#define POOL_ALIGNMENT 4
 
 /* page size of memory pool */
-#define POOL_PAGE_SIZE 256
+//#define POOL_PAGE_SIZE 16000
 
 /* heap size for tlsf memory allocator. */
-#define TLSF_HEAP_SIZE	(1024 * 630)
+//#define TLSF_HEAP_SIZE	(1024 * 630)
 
 /* -DDISABLE_XXXX to drop the feature */
 #define DISABLE_REGEXP	        /* regular expression classes */
