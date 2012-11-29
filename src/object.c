@@ -14,8 +14,8 @@
 int
 mrb_obj_eq(mrb_state *mrb, mrb_value v1, mrb_value v2)
 {
-  if (v1.tt != v2.tt) return 0;
-  switch (v1.tt) {
+  if (mrb_type(v1) != mrb_type(v2)) return FALSE;
+  switch (mrb_type(v1)) {
   case MRB_TT_TRUE:
     return 1;
 
@@ -26,7 +26,7 @@ mrb_obj_eq(mrb_state *mrb, mrb_value v1, mrb_value v2)
     return (v1.value.sym == v2.value.sym);
 
   case MRB_TT_FLOAT:
-    return (v1.value.f == v2.value.f);
+    return (mrb_float(v1) == mrb_float(v2));
 
   default:
     return (v1.value.p == v2.value.p);
@@ -47,17 +47,8 @@ mrb_equal(mrb_state *mrb, mrb_value obj1, mrb_value obj2)
 
   if (mrb_obj_eq(mrb, obj1, obj2)) return TRUE;
   result = mrb_funcall(mrb, obj1, "==", 1, obj2);
-  if (mrb_nil_p(result)) {
-    return FALSE;
-  }
-  else {
-    if (mrb_type(result) == MRB_TT_TRUE) {
-      return TRUE;
-    }
-    else {
-      return FALSE;
-    }
-  }
+  if (mrb_test(result)) return TRUE;
+  return FALSE;
 }
 
 /*
@@ -91,7 +82,13 @@ mrb_true(mrb_state *mrb, mrb_value obj)
 static mrb_value
 nil_to_s(mrb_state *mrb, mrb_value obj)
 {
-    return mrb_str_new(mrb, 0, 0);
+  return mrb_str_new(mrb, 0, 0);
+}
+
+static mrb_value
+nil_inspect(mrb_state *mrb, mrb_value obj)
+{
+  return mrb_str_new(mrb, "nil", 3);
 }
 
 /***********************************************************************
@@ -281,6 +278,7 @@ mrb_init_object(mrb_state *mrb)
   mrb_define_method(mrb, n, "|",    false_or,       ARGS_REQ(1));  /* 15.2.4.3.3  */
   mrb_define_method(mrb, n, "nil?", mrb_true,       ARGS_NONE());  /* 15.2.4.3.4  */
   mrb_define_method(mrb, n, "to_s", nil_to_s,       ARGS_NONE());  /* 15.2.4.3.5  */
+  mrb_define_method(mrb, n, "inspect", nil_inspect, ARGS_NONE());
 
   t = mrb->true_class  = mrb_define_class(mrb, "TrueClass",  mrb->object_class);
   mrb_undef_class_method(mrb, t, "new");
@@ -288,6 +286,7 @@ mrb_init_object(mrb_state *mrb)
   mrb_define_method(mrb, t, "^",    true_xor,       ARGS_REQ(1));  /* 15.2.5.3.2  */
   mrb_define_method(mrb, t, "to_s", true_to_s,      ARGS_NONE());  /* 15.2.5.3.3  */
   mrb_define_method(mrb, t, "|",    true_or,        ARGS_REQ(1));  /* 15.2.5.3.4  */
+  mrb_define_method(mrb, t, "inspect", true_to_s,   ARGS_NONE());
 
   f = mrb->false_class = mrb_define_class(mrb, "FalseClass", mrb->object_class);
   mrb_undef_class_method(mrb, f, "new");
@@ -295,6 +294,7 @@ mrb_init_object(mrb_state *mrb)
   mrb_define_method(mrb, f, "^",    false_xor,      ARGS_REQ(1));  /* 15.2.6.3.2  */
   mrb_define_method(mrb, f, "to_s", false_to_s,     ARGS_NONE());  /* 15.2.6.3.3  */
   mrb_define_method(mrb, f, "|",    false_or,       ARGS_REQ(1));  /* 15.2.6.3.4  */
+  mrb_define_method(mrb, f, "inspect", false_to_s,  ARGS_NONE());
 }
 
 static mrb_value
@@ -305,7 +305,7 @@ convert_type(mrb_state *mrb, mrb_value val, const char *tname, const char *metho
   m = mrb_intern(mrb, method);
   if (!mrb_respond_to(mrb, val, m)) {
     if (raise) {
-      mrb_raise(mrb, E_TYPE_ERROR, "can't convert %s into %s",
+      mrb_raisef(mrb, E_TYPE_ERROR, "can't convert %s into %s",
          mrb_nil_p(val) ? "nil" :
          (mrb_type(val) == MRB_TT_TRUE) ? "true" :
          (mrb_type(val) == MRB_TT_FALSE) ? "false" :
@@ -317,7 +317,7 @@ convert_type(mrb_state *mrb, mrb_value val, const char *tname, const char *metho
       return mrb_nil_value();
     }
   }
-  return mrb_funcall(mrb, val, method, 0);
+  return mrb_funcall_argv(mrb, val, m, 0, 0);
 }
 
 mrb_value
@@ -327,8 +327,7 @@ mrb_check_to_integer(mrb_state *mrb, mrb_value val, const char *method)
 
     if (mrb_type(val) == MRB_TT_FIXNUM) return val;
     v = convert_type(mrb, val, "Integer", method, FALSE);
-    if (mrb_nil_p(v)) return (v);
-    if (!mrb_obj_is_kind_of(mrb, v, mrb_obj_class(mrb, v))) {
+    if (mrb_nil_p(v) || mrb_type(v) != MRB_TT_FIXNUM) {
       return mrb_nil_value();
     }
     return v;
@@ -342,8 +341,8 @@ mrb_convert_type(mrb_state *mrb, mrb_value val, mrb_int type, const char *tname,
   if (mrb_type(val) == type) return val;
   v = convert_type(mrb, val, tname, method, 1/*Qtrue*/);
   if (mrb_type(v) != type) {
-    mrb_raise(mrb, E_TYPE_ERROR, "%s cannot be converted to %s by #%s",
-     mrb_obj_classname(mrb, val), tname, method);
+    mrb_raisef(mrb, E_TYPE_ERROR, "%s cannot be converted to %s by #%s",
+	      mrb_obj_classname(mrb, val), tname, method);
   }
   return v;
 }
@@ -353,14 +352,9 @@ mrb_check_convert_type(mrb_state *mrb, mrb_value val, mrb_int type, const char *
 {
   mrb_value v;
 
-  /* always convert T_DATA */
   if (mrb_type(val) == type && type != MRB_TT_DATA) return val;
   v = convert_type(mrb, val, tname, method, 0/*Qfalse*/);
-  if (mrb_nil_p(v)) return mrb_nil_value();
-  if (mrb_type(v) != type) {
-    mrb_raise(mrb, E_TYPE_ERROR, "%s#%s should return %s",
-     mrb_obj_classname(mrb, val), method, tname);
-  }
+  if (mrb_nil_p(v) || mrb_type(v) != type) return mrb_nil_value();
   return v;
 }
 
@@ -425,12 +419,12 @@ mrb_check_type(mrb_state *mrb, mrb_value x, enum mrb_vtype t)
         else {
           etype = mrb_obj_classname(mrb, x);
         }
-        mrb_raise(mrb, E_TYPE_ERROR, "wrong argument type %s (expected %s)",
+        mrb_raisef(mrb, E_TYPE_ERROR, "wrong argument type %s (expected %s)",
 		  etype, type->name);
       }
       type++;
     }
-    mrb_raise(mrb, E_TYPE_ERROR, "unknown type 0x%x (0x%x given)", t, mrb_type(x));
+    mrb_raisef(mrb, E_TYPE_ERROR, "unknown type 0x%x (0x%x given)", t, mrb_type(x));
   }
 }
 
@@ -504,10 +498,10 @@ mrb_obj_is_kind_of(mrb_state *mrb, mrb_value obj, struct RClass *c)
 
   while (cl) {
     if (cl == c || cl->mt == c->mt)
-      return 1/* TRUE */;
+      return TRUE;
     cl = cl->super;
   }
-  return 0/* FALSE */;
+  return FALSE;
 }
 
 static mrb_value
@@ -515,11 +509,11 @@ mrb_to_integer(mrb_state *mrb, mrb_value val, const char *method)
 {
     mrb_value v;
 
-    if (FIXNUM_P(val)) return val;
+    if (mrb_fixnum_p(val)) return val;
     v = convert_type(mrb, val, "Integer", method, TRUE);
     if (!mrb_obj_is_kind_of(mrb, v, mrb->fixnum_class)) {
       const char *cname = mrb_obj_classname(mrb, val);
-      mrb_raise(mrb, E_TYPE_ERROR, "can't convert %s to Integer (%s#%s gives %s)",
+      mrb_raisef(mrb, E_TYPE_ERROR, "can't convert %s to Integer (%s#%s gives %s)",
                cname, cname, method, mrb_obj_classname(mrb, v));
     }
     return v;
@@ -609,5 +603,5 @@ int
 mrb_eql(mrb_state *mrb, mrb_value obj1, mrb_value obj2)
 {
   if (mrb_obj_eq(mrb, obj1, obj2)) return TRUE;
-  return RTEST(mrb_funcall(mrb, obj1, "eql?", 1, obj2));
+  return mrb_test(mrb_funcall(mrb, obj1, "eql?", 1, obj2));
 }

@@ -1,5 +1,5 @@
 /*
-** dump.h - mruby binary dumper (Rite binary format)
+** mruby/dump.h - mruby binary dumper (Rite binary format)
 **
 ** See Copyright Notice in mruby.h
 */
@@ -41,6 +41,7 @@ int mrb_bdump_irep(mrb_state *mrb, int n, FILE *f,const char *initname);
 #define MRB_DUMP_SIZE_OF_LONG          4
 #define MRB_DUMP_SIZE_OF_INT           4
 #define MRB_DUMP_SIZE_OF_SHORT         2
+#define MRB_DUMP_SIZE_OF_CHAR          1
 
 /* null symbol length */
 #define MRB_DUMP_NULL_SYM_LEN          0xFFFF

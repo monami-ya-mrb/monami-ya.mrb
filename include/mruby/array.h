@@ -1,5 +1,5 @@
 /*
-** array.h - Array class
+** mruby/array.h - Array class
 **
 ** See Copyright Notice in mruby.h
 */
@@ -18,7 +18,7 @@ struct mrb_shared_array {
 };
 
 struct RArray {
-  MRUBY_OBJECT_HEADER;
+  MRB_OBJECT_HEADER;
   int len;
   union {
     int capa;

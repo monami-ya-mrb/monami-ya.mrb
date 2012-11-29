@@ -1,11 +1,10 @@
 /*
-** gc.c - garbage collector for RiteVM
+** gc.c - garbage collector for mruby
 **
 ** See Copyright Notice in mruby.h
 */
 
 #include "mruby.h"
-#include "mruby/object.h"
 #include "mruby/class.h"
 #include "mruby/array.h"
 #include "mruby/string.h"
@@ -24,7 +23,7 @@
 /*
   = Tri-color Incremental Garbage Collection
 
-  RiteVM's GC is Tri-color Incremental GC with Mark & Sweep.
+  mruby's GC is Tri-color Incremental GC with Mark & Sweep.
   Algorithm details are omitted.
   Instead, the part about the implementation described below.
 
@@ -61,7 +60,7 @@
 
   = Write Barrier
 
-  RiteVM implementer, C extension library writer must write a write
+  mruby implementer, C extension library writer must write a write
   barrier when writing a pointer to an object on object's field.
   Two different write barrier:
 
@@ -77,7 +76,7 @@
 #endif
 
 struct free_obj {
-  MRUBY_OBJECT_HEADER;
+  MRB_OBJECT_HEADER;
   struct RBasic *next;
 };
 
@@ -151,13 +150,15 @@ gettimeofday_time(void)
 void*
 mrb_realloc(mrb_state *mrb, void *p, size_t len)
 {
-  p = (mrb->allocf)(mrb, p, len);
+  void *p2;
 
-  if (!p && len > 0 && mrb->heaps) {
+  p2 = (mrb->allocf)(mrb, p, len, mrb->ud);
+
+  if (!p2 && len > 0 && mrb->heaps) {
     mrb_garbage_collect(mrb);
-    p = (mrb->allocf)(mrb, p, len);
+    p2 = (mrb->allocf)(mrb, p, len, mrb->ud);
   }
-  return p;
+  return p2;
 }
 
 void*
@@ -186,7 +187,7 @@ mrb_calloc(mrb_state *mrb, size_t nelem, size_t len)
 void*
 mrb_free(mrb_state *mrb, void *p)
 {
-  return (mrb->allocf)(mrb, p, 0);
+  return (mrb->allocf)(mrb, p, 0, mrb->ud);
 }
 
 #ifndef MRB_HEAP_PAGE_SIZE
@@ -282,6 +283,26 @@ mrb_init_heap(mrb_state *mrb)
 #endif
 }
 
+static void obj_free(mrb_state *mrb, struct RBasic *obj);
+
+void
+mrb_free_heap(mrb_state *mrb)
+{
+  struct heap_page *page = mrb->heaps;
+  struct heap_page *tmp;
+  RVALUE *p, *e;
+
+  while (page) {
+    tmp = page;
+    page = page->next;
+    for (p = tmp->objects, e=p+MRB_HEAP_PAGE_SIZE; p<e; p++) {
+      if (p->as.free.tt != MRB_TT_FREE)
+	obj_free(mrb, &p->as.basic);
+    }
+    mrb_free(mrb, tmp);
+  }
+}
+
 static void
 gc_protect(mrb_state *mrb, struct RBasic *p)
 {
@@ -296,14 +317,15 @@ gc_protect(mrb_state *mrb, struct RBasic *p)
 void
 mrb_gc_protect(mrb_state *mrb, mrb_value obj)
 {
-  if (SPECIAL_CONST_P(obj)) return;
-  gc_protect(mrb, RBASIC(obj));
+  if (mrb_special_const_p(obj)) return;
+  gc_protect(mrb, mrb_basic(obj));
 }
 
 struct RBasic*
 mrb_obj_alloc(mrb_state *mrb, enum mrb_vtype ttype, struct RClass *cls)
 {
   struct RBasic *p;
+  static const RVALUE RVALUE_zero = { { { MRB_TT_FALSE } } };
 
 #ifdef MRB_GC_STRESS
   mrb_garbage_collect(mrb);
@@ -323,7 +345,7 @@ mrb_obj_alloc(mrb_state *mrb, enum mrb_vtype ttype, struct RClass *cls)
 
   mrb->live++;
   gc_protect(mrb, p);
-  memset(p, 0, sizeof(RVALUE));
+  *(RVALUE *)p = RVALUE_zero;
   p->tt = ttype;
   p->c = cls;
   paint_partial_white(mrb, p);
@@ -585,8 +607,10 @@ root_scan_phase(mrb_state *mrb)
     mrb_gc_mark(mrb, (struct RBasic*)ci->target_class);
   }
   /* mark irep pool */
-  for (i=0; i<mrb->irep_len; i++) {
-    if (mrb->irep) {
+  if (mrb->irep) {
+    size_t len = mrb->irep_len;
+    if (len > mrb->irep_capa) len = mrb->irep_capa;
+    for (i=0; i<len; i++) {
       mrb_irep *irep = mrb->irep[i];
       if (!irep) continue;
       for (j=0; j<irep->plen; j++) {
@@ -794,6 +818,7 @@ mrb_incremental_gc(mrb_state *mrb)
 {
   size_t limit = 0, result = 0;
 
+  if (mrb->gc_disabled) return;
   GC_INVOKE_TIME_REPORT;
   GC_TIME_START;
 
@@ -824,6 +849,7 @@ mrb_garbage_collect(mrb_state *mrb)
 {
   size_t max_limit = ~0;
 
+  if (mrb->gc_disabled) return;
   GC_INVOKE_TIME_REPORT;
   GC_TIME_START;
 
@@ -916,6 +942,51 @@ gc_start(mrb_state *mrb, mrb_value obj)
 
 /*
  *  call-seq:
+ *     GC.enable    -> true or false
+ *
+ *  Enables garbage collection, returning <code>true</code> if garbage
+ *  collection was previously disabled.
+ *
+ *     GC.disable   #=> false
+ *     GC.enable    #=> true
+ *     GC.enable    #=> false
+ *
+ */
+
+static mrb_value
+gc_enable(mrb_state *mrb, mrb_value obj)
+{
+  int old = mrb->gc_disabled;
+
+  mrb->gc_disabled = FALSE;
+  if (old) return mrb_true_value();
+  return mrb_false_value();
+}
+
+/*
+ *  call-seq:
+ *     GC.disable    -> true or false
+ *
+ *  Disables garbage collection, returning <code>true</code> if garbage
+ *  collection was already disabled.
+ *
+ *     GC.disable   #=> false
+ *     GC.disable   #=> true
+ *
+ */
+
+static mrb_value
+gc_disable(mrb_state *mrb, mrb_value obj)
+{
+  int old = mrb->gc_disabled;
+
+  mrb->gc_disabled = TRUE;
+  if (old) return mrb_true_value();
+  return mrb_false_value();
+}
+
+/*
+ *  call-seq:
  *     GC.interval_ratio      -> fixnum
  *
  *  Returns ratio of GC interval. Default value is 200(%).
@@ -987,6 +1058,8 @@ mrb_init_gc(mrb_state *mrb)
   gc = mrb_define_module(mrb, "GC");
 
   mrb_define_class_method(mrb, gc, "start", gc_start, ARGS_NONE());
+  mrb_define_class_method(mrb, gc, "enable", gc_enable, ARGS_NONE());
+  mrb_define_class_method(mrb, gc, "disable", gc_disable, ARGS_NONE());
   mrb_define_class_method(mrb, gc, "interval_ratio", gc_interval_ratio_get, ARGS_NONE());
   mrb_define_class_method(mrb, gc, "interval_ratio=", gc_interval_ratio_set, ARGS_REQ(1));
   mrb_define_class_method(mrb, gc, "step_ratio", gc_step_ratio_get, ARGS_NONE());
@@ -1002,8 +1075,8 @@ test_mrb_field_write_barrier(void)
   struct RBasic *obj, *value;
 
   puts("test_mrb_field_write_barrier");
-  obj = RBASIC(mrb_ary_new(mrb));
-  value = RBASIC(mrb_str_new_cstr(mrb, "value"));
+  obj = mrb_basic(mrb_ary_new(mrb));
+  value = mrb_basic(mrb_str_new_cstr(mrb, "value"));
   paint_black(obj);
   paint_partial_white(mrb,value);
 
@@ -1044,15 +1117,15 @@ test_mrb_field_write_barrier(void)
 
   {
     puts("test_mrb_field_write_barrier_value");
-    obj = RBASIC(mrb_ary_new(mrb));
+    obj = mrb_basic(mrb_ary_new(mrb));
     mrb_value value = mrb_str_new_cstr(mrb, "value");
     paint_black(obj);
-    paint_partial_white(mrb, RBASIC(value));
+    paint_partial_white(mrb, mrb_basic(value));
 
     mrb->gc_state = GC_STATE_MARK;
     mrb_field_write_barrier_value(mrb, obj, value);
 
-    gc_assert(is_gray(RBASIC(value)));
+    gc_assert(is_gray(mrb_basic(value)));
   }
 
   mrb_close(mrb);
@@ -1065,7 +1138,7 @@ test_mrb_write_barrier(void)
   struct RBasic *obj;
 
   puts("test_mrb_write_barrier");
-  obj = RBASIC(mrb_ary_new(mrb));
+  obj = mrb_basic(mrb_ary_new(mrb));
   paint_black(obj);
 
   puts("  in GC_STATE_MARK");
@@ -1093,12 +1166,12 @@ test_add_gray_list(void)
 
   puts("test_add_gray_list");
   gc_assert(mrb->gray_list == NULL);
-  obj1 = RBASIC(mrb_str_new_cstr(mrb, "test"));
+  obj1 = mrb_basic(mrb_str_new_cstr(mrb, "test"));
   add_gray_list(mrb, obj1);
   gc_assert(mrb->gray_list == obj1);
   gc_assert(is_gray(obj1));
 
-  obj2 = RBASIC(mrb_str_new_cstr(mrb, "test"));
+  obj2 = mrb_basic(mrb_str_new_cstr(mrb, "test"));
   add_gray_list(mrb, obj2);
   gc_assert(mrb->gray_list == obj2);
   gc_assert(mrb->gray_list->gcnext == obj1);
@@ -1127,12 +1200,12 @@ test_gc_gray_mark(void)
   puts("  in MRB_TT_ARRAY");
   obj_v = mrb_ary_new(mrb);
   value_v = mrb_str_new_cstr(mrb, "test");
-  paint_gray(RBASIC(obj_v));
-  paint_partial_white(mrb, RBASIC(value_v));
+  paint_gray(mrb_basic(obj_v));
+  paint_partial_white(mrb, mrb_basic(value_v));
   mrb_ary_push(mrb, obj_v, value_v);
-  gray_num = gc_gray_mark(mrb, RBASIC(obj_v));
-  gc_assert(is_black(RBASIC(obj_v)));
-  gc_assert(is_gray(RBASIC(value_v)));
+  gray_num = gc_gray_mark(mrb, mrb_basic(obj_v));
+  gc_assert(is_black(mrb_basic(obj_v)));
+  gc_assert(is_gray(mrb_basic(value_v)));
   gc_assert(gray_num == 1);
 
   mrb_close(mrb);

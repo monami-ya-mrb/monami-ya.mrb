@@ -204,6 +204,16 @@ assert('Kernel#extend', '15.3.1.3.13') do
   a.respond_to?(:test_method) == true && b.respond_to?(:test_method) == false
 end
 
+assert('Kernel#extend works on toplevel', '15.3.1.3.13') do
+  module Test4ExtendModule
+    def test_method; end
+  end
+  # This would crash... 
+  extend(Test4ExtendModule)
+
+  respond_to?(:test_method) == true
+end
+
 assert('Kernel#global_variables', '15.3.1.3.14') do
   global_variables.class == Array
 end
@@ -213,11 +223,18 @@ assert('Kernel#hash', '15.3.1.3.15') do
 end
 
 assert('Kernel#inspect', '15.3.1.3.17') do
-  inspect.class == String
+  s = inspect
+  s.class == String and s == "main"
 end
 
 assert('Kernel#instance_variables', '15.3.1.3.23') do
-  instance_variables.class == Array
+  o = Object.new
+  o.instance_eval do
+    @a = 11
+    @b = 12
+  end
+  ivars = o.instance_variables
+  ivars.class == Array and ivars.size == 2 and ivars.include?(:@a) and ivars.include?(:@b)
 end
 
 assert('Kernel#is_a?', '15.3.1.3.24') do
@@ -263,7 +280,7 @@ assert('Kernel#methods', '15.3.1.3.31') do
 end
 
 assert('Kernel#nil?', '15.3.1.3.32') do
-  nil.nil? == true
+  nil? == false
 end
 
 assert('Kernel#object_id', '15.3.1.3.33') do
@@ -330,6 +347,5 @@ assert('Kernel#singleton_methods', '15.3.1.3.45') do
 end
 
 assert('Kernel#to_s', '15.3.1.3.46') do
-  # TODO looks strange..
-  to_s == ''
+  to_s.class == String
 end

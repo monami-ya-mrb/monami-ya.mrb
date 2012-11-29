@@ -35,166 +35,17 @@ extern "C" {
 #include <stdlib.h>
 #include "mrbconf.h"
 
-enum mrb_vtype {
-  MRB_TT_FALSE = 0,   /*   0 */
-  MRB_TT_FREE,        /*   1 */
-  MRB_TT_TRUE,        /*   2 */
-  MRB_TT_FIXNUM,      /*   3 */
-  MRB_TT_SYMBOL,      /*   4 */
-  MRB_TT_UNDEF,       /*   5 */
-  MRB_TT_FLOAT,       /*   6 */
-  MRB_TT_OBJECT,      /*   7 */
-  MRB_TT_CLASS,       /*   8 */
-  MRB_TT_MODULE,      /*   9 */
-  MRB_TT_ICLASS,      /*  10 */
-  MRB_TT_SCLASS,      /*  11 */
-  MRB_TT_PROC,        /*  12 */
-  MRB_TT_ARRAY,       /*  13 */
-  MRB_TT_HASH,        /*  14 */
-  MRB_TT_STRING,      /*  15 */
-  MRB_TT_RANGE,       /*  16 */
-  MRB_TT_REGEX,       /*  17 */
-  MRB_TT_STRUCT,      /*  18 */
-  MRB_TT_EXCEPTION,   /*  19 */
-  MRB_TT_MATCH,       /*  20 */
-  MRB_TT_FILE,        /*  21 */
-  MRB_TT_ENV,         /*  22 */
-  MRB_TT_DATA,        /*  23 */
-  MRB_TT_MAXDEFINE    /*  24 */
-};
-
-typedef struct mrb_value {
-  union {
-    mrb_float f;
-    void *p;
-    mrb_int i;
-    mrb_sym sym;
-  } value;
-  enum mrb_vtype tt:8;
-} mrb_value;
-
-#define mrb_type(o)   (o).tt
-#define mrb_nil_p(o)  ((o).tt == MRB_TT_FALSE && !(o).value.i)
-#define mrb_test(o)   ((o).tt != MRB_TT_FALSE)
-#define mrb_fixnum(o) (o).value.i
-#define mrb_float(o)  (o).value.f
-#define mrb_symbol(o) (o).value.sym
-#define mrb_object(o) ((struct RBasic *) (o).value.p)
-#define FIXNUM_P(o)   ((o).tt == MRB_TT_FIXNUM)
-#define mrb_undef_p(o) ((o).tt == MRB_TT_UNDEF)
-
-#include "mruby/object.h"
-
-#define IMMEDIATE_P(x) (mrb_type(x) <= MRB_TT_FLOAT)
-#define SPECIAL_CONST_P(x) IMMEDIATE_P(x)
-#define SYMBOL_P(o) (mrb_type(o) == MRB_TT_SYMBOL)
-#define RTEST(o) mrb_test(o)
-
-#define FL_ABLE(x) (!SPECIAL_CONST_P(x))
-#define FL_TEST(x,f) (FL_ABLE(x)?(RBASIC(x)->flags&(f)):0)
-#define FL_ANY(x,f) FL_TEST(x,f)
-#define FL_ALL(x,f) (FL_TEST(x,f) == (f))
-#define FL_SET(x,f) do {if (FL_ABLE(x)) RBASIC(x)->flags |= (f);} while (0)
-#define FL_UNSET(x,f) do {if (FL_ABLE(x)) RBASIC(x)->flags &= ~(f);} while (0)
-
-static inline mrb_int
-mrb_special_const_p(mrb_value obj)
-{
-  if (SPECIAL_CONST_P(obj)) return 1;
-  return 0;
-}
-static inline mrb_value
-mrb_fixnum_value(mrb_int i)
-{
-  mrb_value v;
-
-  v.tt = MRB_TT_FIXNUM;
-  v.value.i = i;
-  return v;
-}
-
-static inline mrb_value
-mrb_float_value(mrb_float f)
-{
-  mrb_value v;
-
-  v.tt = MRB_TT_FLOAT;
-  v.value.f = f;
-  return v;
-}
-
-static inline mrb_value
-mrb_symbol_value(mrb_sym i)
-{
-  mrb_value v;
-
-  v.tt = MRB_TT_SYMBOL;
-  v.value.sym = i;
-  return v;
-}
-
-static inline mrb_value
-mrb_obj_value(void *p)
-{
-  mrb_value v;
-  struct RBasic *b = (struct RBasic*) p;
-
-  v.tt = b->tt;
-  v.value.p = p;
-  return v;
-}
-
-static inline mrb_value
-mrb_false_value(void)
-{
-  mrb_value v;
-
-  v.tt = MRB_TT_FALSE;
-  v.value.i = 1;
-  return v;
-}
-
-static inline mrb_value
-mrb_nil_value(void)
-{
-  mrb_value v;
-
-  v.tt = MRB_TT_FALSE;
-  v.value.i = 0;
-  return v;
-}
-
-static inline mrb_value
-mrb_true_value(void)
-{
-  mrb_value v;
-
-  v.tt = MRB_TT_TRUE;
-  v.value.i = 1;
-  return v;
-}
-
-static inline mrb_value
-mrb_undef_value(void)
-{
-  mrb_value v;
-
-  v.tt = MRB_TT_UNDEF;
-  v.value.i = 0;
-  return v;
-}
+#include "mruby/value.h"
 
 typedef int32_t mrb_code;
 
 struct mrb_state;
 
-typedef void* (*mrb_allocf) (struct mrb_state *mrb, void*, size_t);
+typedef void* (*mrb_allocf) (struct mrb_state *mrb, void*, size_t, void *ud);
 
 #ifndef MRB_ARENA_SIZE
 #define MRB_ARENA_SIZE 1024
 #endif
-#define ruby_debug   (mrb_nil_value())
-#define ruby_verbose (mrb_nil_value())
 
 typedef struct {
   mrb_sym mid;
@@ -233,11 +84,12 @@ typedef struct mrb_state {
   int esize;
 
   struct RObject *exc;
-  struct kh_iv *globals;
+  struct iv_tbl *globals;
 
   struct mrb_irep **irep;
   size_t irep_len, irep_capa;
 
+  mrb_sym init_sym;
   struct RClass *object_class;
   struct RClass *class_class;
   struct RClass *module_class;
@@ -252,8 +104,8 @@ typedef struct mrb_state {
   struct RClass *false_class;
   struct RClass *nil_class;
   struct RClass *symbol_class;
-
   struct RClass *kernel_module;
+
   struct heap_page *heaps;
   struct heap_page *sweeps;
   struct heap_page *free_heaps;
@@ -267,12 +119,13 @@ typedef struct mrb_state {
   struct RBasic *variable_gray_list; /* list of objects to be traversed atomically */
   size_t gc_live_after_mark;
   size_t gc_threshold;
-  mrb_int gc_interval_ratio;
-  mrb_int gc_step_ratio;
+  int gc_interval_ratio;
+  int gc_step_ratio;
+  int gc_disabled;
+  struct alloca_header *mems;
 
   mrb_sym symidx;
   struct kh_n2s *name2sym;      /* symbol table */
-  struct kh_s2n *sym2name;      /* reverse symbol table */
 #ifdef INCLUDE_REGEXP
   struct RNode *local_svar;/* regexp */
 #endif
@@ -330,8 +183,8 @@ struct RClass * mrb_define_module_under(mrb_state *mrb, struct RClass *outer, co
 int mrb_get_args(mrb_state *mrb, const char *format, ...);
 
 mrb_value mrb_funcall(mrb_state*, mrb_value, const char*, int,...);
-mrb_value mrb_funcall_argv(mrb_state*, mrb_value, const char*, int, mrb_value*);
-mrb_value mrb_funcall_with_block(mrb_state*, mrb_value, const char*, int, mrb_value*, mrb_value);
+mrb_value mrb_funcall_argv(mrb_state*, mrb_value, mrb_sym, int, mrb_value*);
+mrb_value mrb_funcall_with_block(mrb_state*, mrb_value, mrb_sym, int, mrb_value*, mrb_value);
 mrb_sym mrb_intern(mrb_state*,const char*);
 mrb_sym mrb_intern2(mrb_state*,const char*,int);
 mrb_sym mrb_intern_str(mrb_state*,mrb_value);
@@ -350,7 +203,7 @@ mrb_value mrb_str_new_cstr(mrb_state*, const char*);
 mrb_value mrb_str_new2(mrb_state *mrb, const char *p);
 
 mrb_state* mrb_open(void);
-mrb_state* mrb_open_allocf(mrb_allocf);
+mrb_state* mrb_open_allocf(mrb_allocf, void *ud);
 void mrb_close(mrb_state*);
 int mrb_checkstack(mrb_state*,int);
 
@@ -361,6 +214,7 @@ void mrb_p(mrb_state*, mrb_value);
 mrb_int mrb_obj_id(mrb_value obj);
 mrb_sym mrb_to_id(mrb_state *mrb, mrb_value name);
 
+int mrb_obj_eq(mrb_state*, mrb_value, mrb_value);
 int mrb_obj_equal(mrb_state*, mrb_value, mrb_value);
 int mrb_equal(mrb_state *mrb, mrb_value obj1, mrb_value obj2);
 mrb_value mrb_Integer(mrb_state *mrb, mrb_value val);
@@ -374,7 +228,7 @@ int mrb_gc_arena_save(mrb_state*);
 void mrb_gc_arena_restore(mrb_state*,int);
 void mrb_gc_mark(mrb_state*,struct RBasic*);
 #define mrb_gc_mark_value(mrb,val) do {\
-  if ((val).tt >= MRB_TT_OBJECT) mrb_gc_mark((mrb), mrb_object(val));\
+  if (mrb_type(val) >= MRB_TT_OBJECT) mrb_gc_mark((mrb), mrb_object(val));\
 } while (0);
 void mrb_field_write_barrier(mrb_state *, struct RBasic*, struct RBasic*);
 #define mrb_field_write_barrier_value(mrb, obj, val) do{\
@@ -418,14 +272,16 @@ mrb_value mrb_check_funcall(mrb_state *mrb, mrb_value recv, mrb_sym mid, int arg
 #define ISALPHA(c) (ISASCII(c) && isalpha((int)(unsigned char)(c)))
 #define ISDIGIT(c) (ISASCII(c) && isdigit((int)(unsigned char)(c)))
 #define ISXDIGIT(c) (ISASCII(c) && isxdigit((int)(unsigned char)(c)))
+#define TOUPPER(c) (ISASCII(c) ? toupper((int)(unsigned char)(c)) : (c))
+#define TOLOWER(c) (ISASCII(c) ? tolower((int)(unsigned char)(c)) : (c))
 #endif
 
 mrb_value mrb_exc_new(mrb_state *mrb, struct RClass *c, const char *ptr, long len);
 void mrb_exc_raise(mrb_state *mrb, mrb_value exc);
 
 int mrb_block_given_p(void);
-void mrb_raise(mrb_state *mrb, struct RClass *c, const char *fmt, ...);
-void rb_raise(struct RClass *c, const char *fmt, ...);
+void mrb_raise(mrb_state *mrb, struct RClass *c, const char *msg);
+void mrb_raisef(mrb_state *mrb, struct RClass *c, const char *fmt, ...);
 void mrb_warn(const char *fmt, ...);
 void mrb_bug(const char *fmt, ...);
 
@@ -445,23 +301,6 @@ void mrb_bug(const char *fmt, ...);
 #define E_FLOATDOMAIN_ERROR         (mrb_class_obj_get(mrb, "FloatDomainError"))
 
 #define E_KEY_ERROR                 (mrb_class_obj_get(mrb, "KeyError"))
-
-#define SYM2ID(x) ((x).value.sym)
-
-#define NUM2CHR_internal(x) (((mrb_type(x) == MRB_TT_STRING)&&(RSTRING_LEN(x)>=1))?\
-                     RSTRING_PTR(x)[0]:(char)(mrb_fixnum_number(x)&0xff))
-#ifdef __GNUC__
-# define NUM2CHR(x) __extension__ ({mrb_value num2chr_x = (x); NUM2CHR_internal(num2chr_x);})
-#else
-/* TODO: there is no definitions of RSTRING_* here, so cannot compile.
-static inline char
-NUM2CHR(mrb_value x)
-{
-    return NUM2CHR_internal(x);
-}
-*/
-#define NUM2CHR(x) NUM2CHR_internal(x)
-#endif
 
 mrb_value mrb_yield(mrb_state *mrb, mrb_value v, mrb_value blk);
 mrb_value mrb_yield_argv(mrb_state *mrb, mrb_value b, int argc, mrb_value *argv);
@@ -507,6 +346,7 @@ void mrb_pool_close(struct mrb_pool*);
 void* mrb_pool_alloc(struct mrb_pool*, size_t);
 void* mrb_pool_realloc(struct mrb_pool*, void*, size_t oldlen, size_t newlen);
 int mrb_pool_can_realloc(struct mrb_pool*, void*, size_t);
+void* mrb_alloca(mrb_state *mrb, size_t);
 
 #if defined(__cplusplus)
 }  /* extern "C" { */
