@@ -134,20 +134,23 @@ exc_inspect(mrb_state *mrb, mrb_value exc)
     mrb_str_cat2(mrb, str, ":");
     mrb_str_append(mrb, str, line);
     mrb_str_cat2(mrb, str, ": ");
-    if (RSTRING_LEN(mesg) > 0) {
+    if (!mrb_nil_p(mesg) && RSTRING_LEN(mesg) > 0) {
       mrb_str_append(mrb, str, mesg);
       mrb_str_cat2(mrb, str, " (");
     }
     mrb_str_cat2(mrb, str, mrb_obj_classname(mrb, exc));
-    if (RSTRING_LEN(mesg) > 0) {
+    if (!mrb_nil_p(mesg) && RSTRING_LEN(mesg) > 0) {
       mrb_str_cat2(mrb, str, ")");
     }
   }
   else {
     str = mrb_str_new2(mrb, mrb_obj_classname(mrb, exc));
-    if (RSTRING_LEN(mesg) > 0) {
+    if (!mrb_nil_p(mesg) && RSTRING_LEN(mesg) > 0) {
       mrb_str_cat2(mrb, str, ": ");
       mrb_str_append(mrb, str, mesg);
+    } else {
+      mrb_str_cat2(mrb, str, ": ");
+      mrb_str_cat2(mrb, str, mrb_obj_classname(mrb, exc));
     }
   }
   return str;
@@ -186,12 +189,13 @@ exc_debug_info(mrb_state *mrb, struct RObject *exc)
   mrb_callinfo *ci = mrb->ci;
   mrb_code *pc = ci->pc;
 
+  mrb_obj_iv_set(mrb, exc, mrb_intern(mrb, "ciidx"), mrb_fixnum_value(ci - mrb->cibase));
   ci--;
   while (ci >= mrb->cibase) {
     if (ci->proc && !MRB_PROC_CFUNC_P(ci->proc)) {
       mrb_irep *irep = ci->proc->body.irep;      
 
-      if (irep->lines && irep->iseq <= pc && pc < irep->iseq + irep->ilen) {
+      if (irep->filename && irep->lines && irep->iseq <= pc && pc < irep->iseq + irep->ilen) {
 	mrb_obj_iv_set(mrb, exc, mrb_intern(mrb, "file"), mrb_str_new_cstr(mrb, irep->filename));
 	mrb_obj_iv_set(mrb, exc, mrb_intern(mrb, "line"), mrb_fixnum_value(irep->lines[pc - irep->iseq - 1]));
 	return;
@@ -205,16 +209,24 @@ exc_debug_info(mrb_state *mrb, struct RObject *exc)
 void
 mrb_exc_raise(mrb_state *mrb, mrb_value exc)
 {
-    mrb->exc = (struct RObject*)mrb_object(exc);
-    exc_debug_info(mrb, mrb->exc);
-    if (!mrb->jmp) {
-      abort();
-    }
-    longjmp(*(jmp_buf*)mrb->jmp, 1);
+  mrb->exc = (struct RObject*)mrb_object(exc);
+  exc_debug_info(mrb, mrb->exc);
+  if (!mrb->jmp) {
+    abort();
+  }
+  longjmp(*(jmp_buf*)mrb->jmp, 1);
 }
 
 void
-mrb_raise(mrb_state *mrb, struct RClass *c, const char *fmt, ...)
+mrb_raise(mrb_state *mrb, struct RClass *c, const char *msg)
+{
+  mrb_value mesg;
+  mesg = mrb_str_new2(mrb, msg);
+  mrb_exc_raise(mrb, mrb_exc_new3(mrb, c, mesg));
+}
+
+void
+mrb_raisef(mrb_state *mrb, struct RClass *c, const char *fmt, ...)
 {
   va_list args;
   char buf[256];
@@ -366,7 +378,7 @@ exception_call:
 
       break;
     default:
-      mrb_raise(mrb, E_ARGUMENT_ERROR, "wrong number of arguments (%d for 0..3)", argc);
+      mrb_raisef(mrb, E_ARGUMENT_ERROR, "wrong number of arguments (%d for 0..3)", argc);
       break;
   }
   if (argc > 0) {
@@ -388,7 +400,7 @@ mrb_make_exception(mrb_state *mrb, int argc, mrb_value *argv)
 void
 mrb_sys_fail(mrb_state *mrb, const char *mesg)
 {
-  mrb_raise(mrb, E_RUNTIME_ERROR, "%s", mesg);
+  mrb_raise(mrb, E_RUNTIME_ERROR, mesg);
 }
 
 void
@@ -407,4 +419,8 @@ mrb_init_exception(mrb_state *mrb)
 
   mrb->eStandardError_class     = mrb_define_class(mrb, "StandardError",       mrb->eException_class); /* 15.2.23 */
   mrb_define_class(mrb, "RuntimeError", mrb->eStandardError_class);                                    /* 15.2.28 */
+
+  mrb_define_class(mrb, "RuntimeError", mrb->eStandardError_class);                                    /* 15.2.28 */
+  e = mrb_define_class(mrb, "ScriptError",  mrb->eException_class);                                    /* 15.2.37 */
+  mrb_define_class(mrb, "SyntaxError",  e);                                                            /* 15.2.38 */
 }

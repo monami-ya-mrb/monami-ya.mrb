@@ -46,8 +46,6 @@ typedef void* (*mrb_allocf) (struct mrb_state *mrb, void*, size_t, void *ud);
 #ifndef MRB_ARENA_SIZE
 #define MRB_ARENA_SIZE 1024
 #endif
-#define ruby_debug   (mrb_nil_value())
-#define ruby_verbose (mrb_nil_value())
 
 typedef struct {
   mrb_sym mid;
@@ -216,6 +214,7 @@ void mrb_p(mrb_state*, mrb_value);
 mrb_int mrb_obj_id(mrb_value obj);
 mrb_sym mrb_to_id(mrb_state *mrb, mrb_value name);
 
+int mrb_obj_eq(mrb_state*, mrb_value, mrb_value);
 int mrb_obj_equal(mrb_state*, mrb_value, mrb_value);
 int mrb_equal(mrb_state *mrb, mrb_value obj1, mrb_value obj2);
 mrb_value mrb_Integer(mrb_state *mrb, mrb_value val);
@@ -273,14 +272,16 @@ mrb_value mrb_check_funcall(mrb_state *mrb, mrb_value recv, mrb_sym mid, int arg
 #define ISALPHA(c) (ISASCII(c) && isalpha((int)(unsigned char)(c)))
 #define ISDIGIT(c) (ISASCII(c) && isdigit((int)(unsigned char)(c)))
 #define ISXDIGIT(c) (ISASCII(c) && isxdigit((int)(unsigned char)(c)))
+#define TOUPPER(c) (ISASCII(c) ? toupper((int)(unsigned char)(c)) : (c))
+#define TOLOWER(c) (ISASCII(c) ? tolower((int)(unsigned char)(c)) : (c))
 #endif
 
 mrb_value mrb_exc_new(mrb_state *mrb, struct RClass *c, const char *ptr, long len);
 void mrb_exc_raise(mrb_state *mrb, mrb_value exc);
 
 int mrb_block_given_p(void);
-void mrb_raise(mrb_state *mrb, struct RClass *c, const char *fmt, ...);
-void rb_raise(struct RClass *c, const char *fmt, ...);
+void mrb_raise(mrb_state *mrb, struct RClass *c, const char *msg);
+void mrb_raisef(mrb_state *mrb, struct RClass *c, const char *fmt, ...);
 void mrb_warn(const char *fmt, ...);
 void mrb_bug(const char *fmt, ...);
 
@@ -300,23 +301,6 @@ void mrb_bug(const char *fmt, ...);
 #define E_FLOATDOMAIN_ERROR         (mrb_class_obj_get(mrb, "FloatDomainError"))
 
 #define E_KEY_ERROR                 (mrb_class_obj_get(mrb, "KeyError"))
-
-#define SYM2ID(x) ((x).value.sym)
-
-#define NUM2CHR_internal(x) (((mrb_type(x) == MRB_TT_STRING)&&(RSTRING_LEN(x)>=1))?\
-                     RSTRING_PTR(x)[0]:(char)(mrb_fixnum_number(x)&0xff))
-#ifdef __GNUC__
-# define NUM2CHR(x) __extension__ ({mrb_value num2chr_x = (x); NUM2CHR_internal(num2chr_x);})
-#else
-/* TODO: there is no definitions of RSTRING_* here, so cannot compile.
-static inline char
-NUM2CHR(mrb_value x)
-{
-    return NUM2CHR_internal(x);
-}
-*/
-#define NUM2CHR(x) NUM2CHR_internal(x)
-#endif
 
 mrb_value mrb_yield(mrb_state *mrb, mrb_value v, mrb_value blk);
 mrb_value mrb_yield_argv(mrb_state *mrb, mrb_value b, int argc, mrb_value *argv);
