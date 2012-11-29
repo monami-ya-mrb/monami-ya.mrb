@@ -18,9 +18,9 @@ void mrb_init_ext(mrb_state*);
 #ifdef TLSF_HEAP_SIZE
 static char memory_pool[TLSF_HEAP_SIZE];
 #undef free(p)
-#define free(p)			do { free_ex((p), memory_pool); } while(0);
+#define free(p)			do { free_ex((p), memory_pool); } while(0)
 #undef realloc(p, size)
-#define realloc(p, size)	do { realloc_ex((p), (size), memory_pool); } while(0);
+#define realloc(p, size)	(realloc_ex((p), (size), memory_pool))
 #endif
 
 mrb_state*
