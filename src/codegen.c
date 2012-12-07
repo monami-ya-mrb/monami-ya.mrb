@@ -1412,7 +1412,6 @@ codegen(codegen_scope *s, node *tree, int val)
 	codegen(s, tree->cdr->cdr->car, VAL);
 	pop();
 	gen_assignment(s, tree->car, cursp(), val);
-	if (val) pop();
 	dispatch(s, pos);
 	break;
       }
@@ -2080,6 +2079,10 @@ scope_new(mrb_state *mrb, codegen_scope *prev, node *lv)
   p->nlocals = p->sp;
   p->ai = mrb->arena_idx;
 
+  //because of a potential bad memory access in case of gc let's allocate the irep right now
+  mrb_add_irep(mrb, mrb->irep_len);
+  mrb->irep[mrb->irep_len] = (mrb_irep *)mrb_malloc(mrb, sizeof(mrb_irep));
+    mrb->irep[mrb->irep_len]->plen = 0;
   p->idx = mrb->irep_len++;
   p->filename = prev->filename;
   if (p->filename) {
@@ -2093,10 +2096,12 @@ scope_finish(codegen_scope *s, int idx)
 {
   mrb_state *mrb = s->mrb;
   mrb_irep *irep;
-
-  mrb_add_irep(mrb, idx);
-  irep = mrb->irep[idx] = (mrb_irep *)mrb_malloc(mrb, sizeof(mrb_irep));
-
+    
+  //Comment out these instructions already done in scope_new
+  //mrb_add_irep(mrb, idx);
+  //irep = mrb->irep[idx] = (mrb_irep *)mrb_malloc(mrb, sizeof(mrb_irep));
+  irep = mrb->irep[idx];
+    
   irep->flags = 0;
   irep->idx = idx;
   if (s->iseq) {
