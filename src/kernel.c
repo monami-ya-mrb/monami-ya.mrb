@@ -564,7 +564,7 @@ check_iv_name(mrb_state *mrb, mrb_sym id)
   int len;
 
   s = mrb_sym2name_len(mrb, id, &len);
-  if (len < 2 || s[0] != '@') {
+  if (len < 2 || !(s[0] == '@' && s[1] != '@')) {
     mrb_name_error(mrb, id, "`%s' is not allowed as an instance variable name", s);
   }
 }
@@ -920,8 +920,9 @@ mrb_obj_public_methods(mrb_state *mrb, mrb_value self)
 mrb_value
 mrb_f_raise(mrb_state *mrb, mrb_value self)
 {
-  mrb_value a[2];
+  mrb_value a[2], exc;
   int argc;
+  
 
   argc = mrb_get_args(mrb, "|oo", &a[0], &a[1]);
   switch (argc) {
@@ -936,7 +937,9 @@ mrb_f_raise(mrb_state *mrb, mrb_value self)
     }
     /* fall through */
   default:
-    mrb_exc_raise(mrb, mrb_make_exception(mrb, argc, a));
+    exc = mrb_make_exception(mrb, argc, a);
+    mrb_obj_iv_set(mrb, mrb_obj_ptr(exc), mrb_intern(mrb, "lastpc"), mrb_voidp_value(mrb->ci->pc));
+    mrb_exc_raise(mrb, exc);
   }
   return mrb_nil_value();            /* not reached */
 }

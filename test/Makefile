@@ -3,9 +3,29 @@
 
 # project-specific macros
 # extension of the executable-file is modifiable(.exe .out ...)
+MRUBY_ROOT := ..
 BASEDIR = .
 TARGET := mrbtest
 LIBR := ../lib/libmruby.a
+
+ifeq ($(strip $(ENABLE_GEMS)),)
+  # by default GEMs are deactivated
+  ENABLE_GEMS = false
+endif
+
+ifeq ($(ENABLE_GEMS),false)
+  GEM_ARCHIVE_FILES =
+else
+  GEMDIR := ../mrbgems
+  GEMDLIB := $(GEMDIR)/g/mrbgemtest.ctmp
+  MAKEFILE_GEM_LIST := $(MRUBY_ROOT)/mrbgems/g/MakefileGemList
+  ifeq ($(wildcard $(MAKEFILE_GEM_LIST)),)
+    GEM_ARCHIVE_FILES =
+  else
+    include $(MAKEFILE_GEM_LIST)
+  endif
+endif
+
 MLIB := $(TARGET).o
 CLIB := $(TARGET).c
 INIT := init_$(TARGET).c
@@ -42,9 +62,9 @@ endif
 
 ALL_CFLAGS = -Wall -Werror-implicit-function-declaration $(CFLAGS)
 ifeq ($(OS),Windows_NT)
-  MAKE_FLAGS = CC=$(CC) LL=$(LL) ALL_CFLAGS="$(ALL_CFLAGS)"
+  MAKE_FLAGS = CC=$(CC) LL=$(LL) ALL_CFLAGS='$(ALL_CFLAGS)' LDFLAGS='$(LDFLAGS)' 
 else
-  MAKE_FLAGS = CC='$(CC)' LL='$(LL)' ALL_CFLAGS='$(ALL_CFLAGS)'
+  MAKE_FLAGS = CC='$(CC)' LL='$(LL)' ALL_CFLAGS='$(ALL_CFLAGS)' LDFLAGS='$(LDFLAGS)' 
 endif
 
 # mruby compiler and test driver
@@ -57,6 +77,8 @@ MRBC = ../bin/mrbc
 MRUBY= ../bin/mruby
 EXE := $(TARGET)
 endif
+
+RAKE = ../minirake
 
 
 ##############################
@@ -75,8 +97,8 @@ all : $(EXE) $(MRUBY) $(TESTRB) $(TESTMRB)
 	@echo
 
 # executable constructed using linker from object files
-$(EXE) : $(OBJS) $(LIBR)
-	$(LL) -o $@ $(CFLAGS) $(OBJS) $(LIBR) $(LIBS)
+$(EXE) : $(OBJS) $(LIBR) $(GEM_ARCHIVE_FILES)
+	$(LL) -o $@ $(LDFLAGS) $(OBJS) $(LIBR) $(GEM_ARCHIVE_FILES) $(LIBS)
 
 -include $(OBJS:.o=.d)
 
@@ -85,8 +107,14 @@ $(OBJS) : %.o : %.c
 	$(CC) $(ALL_CFLAGS) -MMD $(INCLUDES) -c $< -o $@
 
 # Compile C source from merged mruby source
-$(CLIB) : $(RLIB) $(MRBC) $(INIT)
-	$(MRBC) -Bmrbtest_irep -o$(DLIB) $(RLIB); $(CAT) $(INIT) $(DLIB) > $@
+$(CLIB) : $(DLIB) $(INIT)
+ifeq ($(ENABLE_GEMS),true)
+	@$(RAKE) mrbgems_prepare_test
+endif
+	$(CAT) $(INIT) $(DLIB) $(GEMDLIB) > $@
+
+$(DLIB) : $(RLIB) $(MRBC)
+	$(MRBC) -Bmrbtest_irep -o$@ $(RLIB)
 
 # merge mruby sources
 $(RLIB) : $(ASSLIB) $(MRBS)
