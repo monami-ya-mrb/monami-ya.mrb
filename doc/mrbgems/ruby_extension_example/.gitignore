@@ -1,0 +1,4 @@
+# mrbgems
+*.d
+gem_init.c
+gem_test.c
