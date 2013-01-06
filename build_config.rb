@@ -51,3 +51,26 @@ MRuby::CrossBuild.new('i386') do |conf|
   # conf.gem 'doc/mrbgems/c_and_ruby_extension_example'
 end
 =end
+
+=begin
+MRuby::CrossBuild.new('arm-linux-androideabi') do |conf|
+  conf.cc = ENV['CC'] || 'arm-linux-androideabi-gcc'
+  conf.ld = ENV['LD'] || 'arm-linux-androideabi-gcc'
+  conf.ar = ENV['AR'] || 'arm-linux-androideabi-ar'
+  # conf.cxx = 'gcc'
+  # conf.objcc = 'gcc'
+  # conf.asm = 'gcc'
+  # conf.yacc = 'bison'
+  # conf.gperf = 'gperf'
+  # conf.cat = 'cat'
+  # conf.git = 'git'
+  conf.cflags << %w(-O3 -Wall -Werror-implicit-function-declaration)
+  # conf.cxxflags << []
+  # conf.objccflags << []
+  # conf.asmflags << []
+
+  # conf.gem 'doc/mrbgems/ruby_extension_example'
+  # conf.gem 'doc/mrbgems/c_extension_example'
+  # conf.gem 'doc/mrbgems/c_and_ruby_extension_example'
+end
+=end
