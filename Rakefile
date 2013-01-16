@@ -8,7 +8,8 @@ load 'tasks/mruby_gem_spec.rake'
 
 ##############################
 # compile flags
-load File.expand_path(ENV['CONFIG'] || './build_config.rb')
+MRUBY_CONFIG = File.expand_path(ENV['MRUBY_CONFIG'] || './build_config.rb')
+load MRUBY_CONFIG
 
 load 'tasks/rules.rake'
 load 'src/mruby_core.rake'
@@ -27,18 +28,22 @@ load 'test/mrbtest.rake'
 # generic build targets, rules
 task :default => :all
 
-binfiles = MRuby.targets['host'].bins.map do |bin|
+depfiles = MRuby.targets['host'].bins.map do |bin|
   install_path = exefile("bin/#{bin}")
   
   file install_path => exefile("build/host/bin/#{bin}") do |t|
     FileUtils.cp t.prerequisites.first, t.name
   end
-
+   
   install_path
 end
 
+depfiles += MRuby.targets.reject {|n,t| n == 'host' }.map { |n, t|
+  ["#{t.build_dir}/lib/libmruby.a"] + t.bins.map { |bin| exefile("#{t.build_dir}/bin/#{bin}") }
+}.flatten
+
 desc "build all targets, install (locally) in-repo"
-task :all => binfiles + MRuby.targets.values.map { |t| [exefile("#{t.build_dir}/bin/mruby"), exefile("#{t.build_dir}/bin/mirb"), exefile("#{t.build_dir}/bin/mrbc")] }.flatten
+task :all => depfiles
 
 desc "run all mruby tests"
 task :test => MRuby.targets.values.map { |t| exefile("#{t.build_dir}/test/mrbtest") } do
@@ -53,5 +58,5 @@ task :clean do
   MRuby.each_target do |t|
     FileUtils.rm_rf t.build_dir
   end
-  FileUtils.rm_f binfiles
+  FileUtils.rm_f depfiles
 end
