@@ -77,33 +77,51 @@ end
 #   conf.gem 'doc/mrbgems/c_and_ruby_extension_example'
 # end
 
+
 =begin
 MRuby::CrossBuild.new('arm-linux-androideabi') do |conf|
   conf.cc do |cc|
     cc.command = 'arm-linux-androideabi-gcc'
-    cc.cflags << %w(-O3 -Wall -Werror-implicit-function-declaration)
+    cc.flags << %w(-O3 -Wall -W)
   end
   conf.linker.command = 'arm-linux-androideabi-ld'
   conf.archiver.command = 'arm-linux-androideabi-ar'
+end
 =end
 
 =begin
 MRuby::CrossBuild.new('mipsel-linux-android') do |conf|
   conf.cc do |cc|
     cc.command = 'mipsel-linux-android-gcc'
-    cc.cflags << %w(-O3 -Wall -Werror-implicit-function-declaration)
+    cc.flags << %w(-O3 -Wall -W)
   end
   conf.linker.command = 'mipsel-linux-android-ld'
   conf.archiver.command = 'mipsel-linux-android-ar'
+end
 =end
 
 =begin
 MRuby::CrossBuild.new('i686-linux-android') do |conf|
   conf.cc do |cc|
-    cc.command = 'i686-linux-android'
-    cc.cflags << %w(-O3 -Wall -Werror-implicit-function-declaration)
+    cc.command = 'i686-linux-android-gcc'
+    cc.flags << %w(-O3 -Wall -W)
   end
   conf.linker.command = 'mipsel-linux-android-ld'
   conf.archiver.command = 'mipsel-linux-android-ar'
+end
 =end
+
+#=begin
+MRuby::CrossBuild.new('sh-pizzafactory-elf') do |conf|
+  conf.bins = %w(mirb)
+
+  conf.cc do |cc|
+    cc.command = 'sh-pizzafactory-elf-gcc'
+    cc.flags << %w(-m2a-nofpu -O3 -Wall -W -DHAVE_STRING_H)
+  end
+  conf.linker.command = 'sh-pizzafactory-elf-gcc'
+  conf.linker.libraries << 'm'
+  conf.archiver.command = 'sh-pizzafactory-elf-ar'
+end
+#=end
 
