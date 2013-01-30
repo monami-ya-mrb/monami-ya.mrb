@@ -1,5 +1,5 @@
 MRuby::Toolchain.new(:gcc) do |conf|
-  [conf.cc, conf.cxx, conf.objc].each do |cc|
+  [conf.cc, conf.cxx, conf.objc, conf.asm].each do |cc|
     cc.command = ENV['CC'] || 'gcc'
     cc.flags = [ENV['CFLAGS'] || %w(-g -O3 -Wall -Werror-implicit-function-declaration)]
     cc.include_paths = ["#{root}/include"]
@@ -16,6 +16,6 @@ MRuby::Toolchain.new(:gcc) do |conf|
     linker.library_paths = []
     linker.option_library = '-l%s'
     linker.option_library_path = '-L%s'
-    linker.link_options = '%{flags} -o %{outfile} %{objs} %{libs}'
+    linker.link_options = '%{flags} -o %{outfile} %{objs} %{flags_before_libraries} %{libs} %{flags_after_libraries}'
   end
 end
