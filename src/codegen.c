@@ -838,7 +838,6 @@ gen_assignment(codegen_scope *s, node *node, int sp, int val)
         lv++;
         up = up->prev;
       }
-      //      assert(up!=0);
     }
     break;
   case NODE_IVAR:
@@ -1571,15 +1570,20 @@ codegen(codegen_scope *s, node *tree, int val)
     break;
 
   case NODE_RETURN:
-    codegen(s, tree, VAL);
-    pop();
+    if (tree) {
+      codegen(s, tree, VAL);
+      pop();
+    }
+    else {
+      genop(s, MKOP_A(OP_LOADNIL, cursp()));
+    }
     if (s->loop) {
       genop(s, MKOP_AB(OP_RETURN, cursp(), OP_R_RETURN));
     }
     else {
       genop_peep(s, MKOP_AB(OP_RETURN, cursp(), OP_R_NORMAL), NOVAL);
     }
-    push();
+    if (val) push();
     break;
 
   case NODE_YIELD:
@@ -1630,6 +1634,9 @@ codegen(codegen_scope *s, node *tree, int val)
       if (tree) {
         codegen(s, tree, VAL);
         pop();
+      }
+      else {
+        genop(s, MKOP_A(OP_LOADNIL, cursp()));
       }
       genop_peep(s, MKOP_AB(OP_RETURN, cursp(), OP_R_NORMAL), NOVAL);
     }
@@ -2125,6 +2132,7 @@ codegen(codegen_scope *s, node *tree, int val)
       genop(s, MKOP_AB(OP_METHOD, cursp(), sym));
       if (val) {
         genop(s, MKOP_A(OP_LOADNIL, cursp()));
+        push();
       }
     }
     break;
@@ -2144,6 +2152,7 @@ codegen(codegen_scope *s, node *tree, int val)
       genop(s, MKOP_AB(OP_METHOD, cursp(), sym));
       if (val) {
         genop(s, MKOP_A(OP_LOADNIL, cursp()));
+        push();
       }
     }
     break;

@@ -6,7 +6,6 @@
 
 
 #include "mruby.h"
-#ifdef ENABLE_TIME
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
@@ -132,7 +131,7 @@ static struct mrb_data_type mrb_time_type = { "Time", mrb_time_free };
 
 /** Updates the datetime of a mrb_time based on it's timezone and
 seconds setting. Returns self on cussess, NULL of failure. */
-struct mrb_time*
+static struct mrb_time*
 mrb_time_update_datetime(struct mrb_time *self)
 {
   struct tm *aid;
@@ -691,7 +690,7 @@ mrb_time_utcp(mrb_state *mrb, mrb_value self)
 
 
 void
-mrb_init_time(mrb_state *mrb)
+mrb_mruby_time_gem_init(mrb_state* mrb)
 {
   struct RClass *tc;
   /* ISO 15.2.19.2 */
@@ -749,4 +748,8 @@ mrb_init_time(mrb_state *mrb)
       utc_offset(15.2.19.7.29)
   */
 }
-#endif
+
+void
+mrb_mruby_time_gem_final(mrb_state* mrb)
+{
+}
