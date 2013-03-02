@@ -41,7 +41,7 @@ typedef int32_t mrb_aspec;
 
 struct mrb_state;
 
-typedef void* (*mrb_allocf) (struct mrb_state *mrb, void*, size_t, void *ud);
+typedef void* (*mrb_allocf) (struct mrb_state *mrb, void*, size_t, uintptr_t ud);
 
 #ifndef MRB_ARENA_SIZE
 #define MRB_ARENA_SIZE 100
@@ -138,7 +138,7 @@ typedef struct mrb_state {
   struct RClass *eException_class;
   struct RClass *eStandardError_class;
 
-  void *ud; /* auxiliary data */
+  uintptr_t ud; /* auxiliary data */
 
 } mrb_state;
 
@@ -216,7 +216,7 @@ mrb_value mrb_str_new(mrb_state *mrb, const char *p, size_t len);
 mrb_value mrb_str_new_cstr(mrb_state*, const char*);
 
 mrb_state* mrb_open(void);
-mrb_state* mrb_open_allocf(mrb_allocf, void *ud);
+mrb_state* mrb_open_allocf(mrb_allocf, uintptr_t ud);
 void mrb_irep_free(mrb_state*, struct mrb_irep*);
 void mrb_close(mrb_state*);
 
