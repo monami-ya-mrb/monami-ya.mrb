@@ -5,9 +5,7 @@
 */
 
 #include "mruby.h"
-#include <string.h>
 #include "mruby/string.h"
-#include <stdio.h>
 #include "mruby/class.h"
 #include "mruby/numeric.h"
 #include "error.h"
@@ -379,7 +377,6 @@ static const struct types {
   {MRB_TT_HASH,   "Hash"},
   {MRB_TT_STRING, "String"},
   {MRB_TT_RANGE,  "Range"},
-  {MRB_TT_STRUCT, "Struct"},
 //    {MRB_TT_BIGNUM,  "Bignum"},
   {MRB_TT_FILE,   "File"},
   {MRB_TT_DATA,   "Data"},  /* internal use: wrapped C pointers */

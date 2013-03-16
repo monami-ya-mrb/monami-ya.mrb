@@ -8,7 +8,6 @@
 #include "mruby/class.h"
 #include "mruby/range.h"
 #include "mruby/string.h"
-#include <string.h>
 
 #define RANGE_CLASS (mrb_class_obj_get(mrb, "Range"))
 
@@ -16,8 +15,8 @@ static void
 range_check(mrb_state *mrb, mrb_value a, mrb_value b)
 {
   mrb_value ans;
-  int ta;
-  int tb;
+  enum mrb_vtype ta;
+  enum mrb_vtype tb;
 
   ta = mrb_type(a);
   tb = mrb_type(b);
@@ -40,7 +39,7 @@ mrb_range_new(mrb_state *mrb, mrb_value beg, mrb_value end, int excl)
 
   r = (struct RRange*)mrb_obj_alloc(mrb, MRB_TT_RANGE, RANGE_CLASS);
   range_check(mrb, beg, end);
-  r->edges = (struct mrb_range_edges *)mrb_malloc(mrb, sizeof(struct mrb_range_edges));
+  r->edges = (mrb_range_edges *)mrb_malloc(mrb, sizeof(mrb_range_edges));
   r->edges->beg = beg;
   r->edges->end = end;
   r->excl = excl;
@@ -103,7 +102,7 @@ range_init(mrb_state *mrb, mrb_value range, mrb_value beg, mrb_value end, int ex
   range_check(mrb, beg, end);
   r->excl = exclude_end;
   if (!r->edges) {
-    r->edges = (struct mrb_range_edges *)mrb_malloc(mrb, sizeof(struct mrb_range_edges));
+    r->edges = (mrb_range_edges *)mrb_malloc(mrb, sizeof(mrb_range_edges));
   }
   r->edges->beg = beg;
   r->edges->end = end;
@@ -181,7 +180,7 @@ r_le(mrb_state *mrb, mrb_value a, mrb_value b)
   /* output :a < b => -1, a = b =>  0, a > b => +1 */
 
   if (mrb_type(r) == MRB_TT_FIXNUM) {
-    int c = mrb_fixnum(r);
+    mrb_int c = mrb_fixnum(r);
     if (c == 0 || c == -1) return TRUE;
   }
 
@@ -208,7 +207,7 @@ r_ge(mrb_state *mrb, mrb_value a, mrb_value b)
   /* output :a < b => -1, a = b =>  0, a > b => +1 */
 
   if (mrb_type(r) == MRB_TT_FIXNUM) {
-    int c = mrb_fixnum(r);
+    mrb_int c = mrb_fixnum(r);
     if (c == 0 || c == 1) return TRUE;
   }
 
