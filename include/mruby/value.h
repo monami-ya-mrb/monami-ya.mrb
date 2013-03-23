@@ -154,12 +154,13 @@ mrb_float_value(mrb_float f)
 #define mrb_string_p(o) (mrb_type(o) == MRB_TT_STRING)
 #define mrb_hash_p(o) (mrb_type(o) == MRB_TT_HASH)
 #define mrb_voidp_p(o) (mrb_type(o) == MRB_TT_VOIDP)
-#define mrb_test(o)   (mrb_type(o) != MRB_TT_FALSE)
+#define mrb_bool(o)   (mrb_type(o) != MRB_TT_FALSE)
+#define mrb_test(o)   mrb_bool(o)
 
 #define MRB_OBJECT_HEADER \
   enum mrb_vtype tt:8;\
-  unsigned int color:3;\
-  unsigned int flags:21;\
+  uint32_t color:3;\
+  uint32_t flags:21;\
   struct RClass *c;\
   struct RBasic *gcnext
 
@@ -271,6 +272,22 @@ mrb_undef_value(void)
   mrb_value v;
 
   MRB_SET_VALUE(v, MRB_TT_UNDEF, value.i, 0);
+  return v;
+}
+
+static inline mrb_value
+mrb_bool_value(mrb_bool boolean)
+{
+  mrb_value v;
+
+  v.value.i = 1;
+  if (boolean) {
+    v.tt = MRB_TT_TRUE;
+  }
+  else {
+    v.tt = MRB_TT_FALSE;
+  }
+
   return v;
 }
 

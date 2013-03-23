@@ -9,16 +9,13 @@
 #include "mruby/string.h"
 #include "mruby/array.h"
 
+#include <float.h>
 #include <math.h>
 #include <assert.h>
 #include <stdlib.h>
 
 #if defined(__FreeBSD__) && __FreeBSD__ < 4
 #include <floatingpoint.h>
-#endif
-
-#ifdef HAVE_FLOAT_H
-#include <float.h>
 #endif
 
 #ifdef HAVE_IEEEFP_H
@@ -166,6 +163,99 @@ num_abs(mrb_state *mrb, mrb_value num)
  *  representation.
  */
 
+mrb_value
+mrb_flo_to_str(mrb_state *mrb, mrb_float n, int max_digit)
+{
+  mrb_value result;
+
+  if (max_digit > 40) {
+    mrb_raise(mrb, E_RANGE_ERROR, "Too large max_digit.");
+  }
+
+  if (isnan(n)) {
+    result = mrb_str_new(mrb, "NaN", 3);
+  }
+  else if (isinf(n)) {
+    if (n < 0) {
+      result = mrb_str_new(mrb, "-inf", 4);
+    }
+    else {
+      result = mrb_str_new(mrb, "inf", 3);
+    }
+  }
+  else {
+    int digit;
+    int m;
+    int exp;
+    int e = 0;
+    char s[48];
+    char *c = &s[0];
+
+    if (n < 0) {
+      n = -n;
+      *(c++) = '-';
+    }
+
+    exp = log10(n);
+
+    if ((exp < 0 ? -exp : exp) > max_digit) {
+      /* exponent representation */
+      e = 1;
+      m = exp;
+      if (m < 0) {
+        m -= 1;
+      }
+      n = n / pow(10.0, m);
+      m = 0;
+    }
+    else {
+      /* un-exponent (normal) representation */
+      m = exp;
+      if (m < 0) {
+        m = 0;
+      }
+    }
+
+    /* puts digits */
+    while (max_digit >= 0) {
+      mrb_float weight = pow(10.0, m);
+      digit = floor(n / weight + FLT_EPSILON);
+      *(c++) = '0' + digit;
+      n -= (digit * weight);
+      max_digit--;
+      if (m-- == 0) {
+        *(c++) = '.';
+      }
+      else if (m < -1 && n < FLT_EPSILON) {
+        break;
+      }
+    }
+
+    if (e) {
+      *(c++) = 'e';
+      if (exp > 0) {
+        *(c++) = '+';
+      } else {
+        *(c++) = '-';
+        exp = -exp;
+      }
+
+      if (exp >= 100) {
+        mrb_raise(mrb, E_RANGE_ERROR, "Too large expornent.");
+      }
+
+      *(c++) = '0' + exp / 10;
+      *(c++) = '0' + exp % 10;
+    }
+
+    *c = '\0';
+
+    result = mrb_str_new(mrb, &s[0], c - &s[0]);
+  }
+
+  return result;
+}
+
 /* 15.2.9.3.16(x) */
 /*
  *  call-seq:
@@ -180,27 +270,11 @@ num_abs(mrb_state *mrb, mrb_value num)
 static mrb_value
 flo_to_s(mrb_state *mrb, mrb_value flt)
 {
-  char buf[32];
-  int n;
-
-  mrb_float value = mrb_float(flt);
-
-  if (isinf(value)) {
-    static const char s[2][5] = { "-inf", "inf" };
-    static const int n[] = { 4, 3 };
-    int idx;
-    idx = (value < 0) ? 0 : 1;
-    return mrb_str_new(mrb, s[idx], n[idx]);
-  } else if(isnan(value))
-    return mrb_str_new(mrb, "NaN", 3);
-
 #ifdef MRB_USE_FLOAT
-  n = sprintf(buf, "%.7g", value);
+  return mrb_flo_to_str(mrb, mrb_float(flt), 7);
 #else
-  n = sprintf(buf, "%.14g", value);
+  return mrb_flo_to_str(mrb, mrb_float(flt), 14);
 #endif
-  assert(n >= 0);
-  return mrb_str_new(mrb, buf, n);
 }
 
 /* 15.2.9.3.2  */
@@ -306,15 +380,17 @@ static mrb_value
 num_eql(mrb_state *mrb, mrb_value x)
 {
   mrb_value y;
+  mrb_bool eql_p;
 
   mrb_get_args(mrb, "o", &y);
-  if (mrb_type(x) != mrb_type(y)) return mrb_false_value();
-  if (mrb_equal(mrb, x, y)) {
-      return mrb_true_value();
+  if (mrb_type(x) != mrb_type(y)) {
+    eql_p = 0;
   }
   else {
-      return mrb_false_value();
+    eql_p = mrb_equal(mrb, x, y);
   }
+
+  return mrb_bool_value(eql_p);
 }
 
 static mrb_value
@@ -356,7 +432,7 @@ flo_eq(mrb_state *mrb, mrb_value x)
     return num_equal(mrb, x, y);
   }
   a = mrb_float(x);
-  return (a == b)?mrb_true_value():mrb_false_value();
+  return mrb_bool_value(a == b);
 }
 
 /* 15.2.8.3.18 */
@@ -437,10 +513,11 @@ static mrb_value
 flo_finite_p(mrb_state *mrb, mrb_value num)
 {
   mrb_float value = mrb_float(num);
+  mrb_bool finite_p;
 
-  if (isinf(value) || isnan(value))
-    return mrb_false_value();
-  return mrb_true_value();
+  finite_p = !(isinf(value) || isnan(value));
+
+  return mrb_bool_value(finite_p);
 }
 
 /* 15.2.9.3.10 */
@@ -849,19 +926,15 @@ static mrb_value
 fix_equal(mrb_state *mrb, mrb_value x)
 {
   mrb_value y;
+  mrb_bool equal_p;
 
   mrb_get_args(mrb, "o", &y);
 
-  if (mrb_obj_equal(mrb, x, y)) return mrb_true_value();
-  switch (mrb_type(y)) {
-  case MRB_TT_FLOAT:
-    if ((mrb_float)mrb_fixnum(x) == mrb_float(y))
-      return mrb_true_value();
-    /* fall through */
-  case MRB_TT_FIXNUM:
-  default:
-    return mrb_false_value();
-  }
+  equal_p = mrb_obj_equal(mrb, x, y) ||
+      (mrb_type(y) == MRB_TT_FLOAT &&
+       (mrb_float)mrb_fixnum(x) == mrb_float(y));
+
+  return mrb_bool_value(equal_p);
 }
 
 /* 15.2.8.3.8  */

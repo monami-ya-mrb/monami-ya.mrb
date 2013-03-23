@@ -23,6 +23,9 @@ MRuby::Build.new do |conf|
   # Use standard Kernel#sprintf method
   conf.gem "#{root}/mrbgems/mruby-sprintf"
 
+  # Use extensional Enumerable module
+  conf.gem "#{root}/mrbgems/mruby-enum-ext"
+
   # Use extensional String class
   conf.gem "#{root}/mrbgems/mruby-string-ext"
 
@@ -32,9 +35,15 @@ MRuby::Build.new do |conf|
   # Use extensional Array class
   conf.gem "#{root}/mrbgems/mruby-array-ext"
 
+  # Use extensional Hash class
+  conf.gem "#{root}/mrbgems/mruby-hash-ext"
+
+  # No use eval method
+  # conf.gem "#{root}/mrbgems/mruby-eval
+
   # Generate binaries
   # conf.bins = %w(mrbc mruby mirb)
-  
+
   # C compiler settings
   # conf.cc do |cc|
   #   cc.command = ENV['CC'] || 'gcc'
