@@ -16,6 +16,7 @@
 #include "mruby/class.h"
 #include "mruby/numeric.h"
 #include "error.h"
+#include "value_array.h"
 
 #include <string.h>
 #include <setjmp.h>
@@ -53,27 +54,6 @@ The value below allows about 60000 recursive calls in the simplest case. */
 #else
 # define DEBUG(x)
 #endif
-
-static inline void
-value_move(mrb_value *s1, const mrb_value *s2, size_t n)
-{
-  if (s1 > s2 && s1 < s2 + n)
-  {
-    s1 += n;
-    s2 += n;
-    while (n-- > 0) {
-      *--s1 = *--s2;
-    }
-  }
-  else if (s1 != s2) {
-    while (n-- > 0) {
-      *s1++ = *s2++;
-    }
-  }
-  else {
-    /* nothing to do. */
-  }
-}
 
 static inline void
 stack_clear(mrb_value *from, size_t count)
@@ -116,7 +96,7 @@ envadjust(mrb_state *mrb, mrb_value *oldbase, mrb_value *newbase)
   while (ci <= mrb->ci) {
     struct REnv *e = ci->env;
     if (e && e->cioff >= 0) {
-      int off = e->stack - oldbase;
+      ptrdiff_t off = e->stack - oldbase;
 
       e->stack = newbase + off;
     }
@@ -154,8 +134,8 @@ stack_extend(mrb_state *mrb, int room, int keep)
     envadjust(mrb, oldbase, mrb->stbase);
     /* Raise an exception if the new stack size will be too large,
     to prevent infinite recursion. However, do this only after resizing the stack, so mrb_raisef has stack space to work with. */
-    if(size > MRB_STACK_MAX) {
-      mrb_raisef(mrb, E_RUNTIME_ERROR, "stack level too deep. (limit=%d)", MRB_STACK_MAX);
+    if (size > MRB_STACK_MAX) {
+      mrb_raisef(mrb, E_RUNTIME_ERROR, "stack level too deep. (limit=%S)", mrb_fixnum_value(MRB_STACK_MAX));
     }
   }
 
@@ -195,7 +175,7 @@ is_strict(mrb_state *mrb, struct REnv *e)
   return 0;
 }
 
-inline struct REnv*
+static inline struct REnv*
 top_env(mrb_state *mrb, struct RProc *proc)
 {
   struct REnv *e = proc->env;
@@ -222,7 +202,7 @@ cipush(mrb_state *mrb)
     mrb->ciend = mrb->cibase + size * 2;
   }
   mrb->ci++;
-  mrb->ci->nregs = 2;		/* protect method_missing arg and block */
+  mrb->ci->nregs = 2;   /* protect method_missing arg and block */
   mrb->ci->eidx = eidx;
   mrb->ci->ridx = ridx;
   mrb->ci->env = 0;
@@ -234,7 +214,7 @@ cipop(mrb_state *mrb)
 {
   if (mrb->ci->env) {
     struct REnv *e = mrb->ci->env;
-    int len = (int)e->flags;
+    size_t len = (size_t)e->flags;
     mrb_value *p = (mrb_value *)mrb_malloc(mrb, sizeof(mrb_value)*len);
 
     e->cioff = -1;
@@ -295,7 +275,7 @@ mrb_funcall(mrb_state *mrb, mrb_value self, const char *name, int argc, ...)
     int i;
 
     if (argc > MRB_FUNCALL_ARGC_MAX) {
-      mrb_raisef(mrb, E_ARGUMENT_ERROR, "Too long arguments. (limit=%d)", MRB_FUNCALL_ARGC_MAX);
+      mrb_raisef(mrb, E_ARGUMENT_ERROR, "Too long arguments. (limit=%S)", mrb_fixnum_value(MRB_FUNCALL_ARGC_MAX));
     }
 
     va_start(ap, argc);
@@ -316,7 +296,7 @@ mrb_funcall_with_block(mrb_state *mrb, mrb_value self, mrb_sym mid, int argc, mr
     jmp_buf c_jmp;
     mrb_callinfo *old_ci = mrb->ci;
 
-    if (setjmp(c_jmp) != 0) {	/* error */
+    if (setjmp(c_jmp) != 0) { /* error */
       while (old_ci != mrb->ci) {
         mrb->stack = mrb->stbase + mrb->ci->stackidx;
         cipop(mrb);
@@ -343,7 +323,7 @@ mrb_funcall_with_block(mrb_state *mrb, mrb_value self, mrb_sym mid, int argc, mr
     }
     n = mrb->ci->nregs;
     if (argc < 0) {
-      mrb_raisef(mrb, E_ARGUMENT_ERROR, "negative argc for funcall (%d)", argc);
+      mrb_raisef(mrb, E_ARGUMENT_ERROR, "negative argc for funcall (%S)", mrb_fixnum_value(argc));
     }
     c = mrb_class(mrb, self);
     p = mrb_method_search_vm(mrb, &c, mid);
@@ -484,20 +464,19 @@ localjump_error(mrb_state *mrb, localjump_error_kind kind)
 static void
 argnum_error(mrb_state *mrb, int num)
 {
-  char buf[256];
-  int len;
   mrb_value exc;
+  mrb_value str;
 
   if (mrb->ci->mid) {
-    len = snprintf(buf, sizeof(buf), "'%s': wrong number of arguments (%d for %d)",
-                  mrb_sym2name(mrb, mrb->ci->mid),
-                  mrb->ci->argc, num);
+    str = mrb_format(mrb, "'%S': wrong number of arguments (%S for %S)",
+                  mrb_sym2str(mrb, mrb->ci->mid),
+                  mrb_fixnum_value(mrb->ci->argc), mrb_fixnum_value(num));
   }
   else {
-    len = snprintf(buf, sizeof(buf), "wrong number of arguments (%d for %d)",
-                  mrb->ci->argc, num);
+    str = mrb_format(mrb, "wrong number of arguments (%S for %S)",
+                  mrb_fixnum_value(mrb->ci->argc), mrb_fixnum_value(num));
   }
-  exc = mrb_exc_new(mrb, E_ARGUMENT_ERROR, buf, len);
+  exc = mrb_exc_new3(mrb, E_ARGUMENT_ERROR, str);
   mrb->exc = mrb_obj_ptr(exc);
 }
 

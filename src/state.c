@@ -9,6 +9,7 @@
 #include "mruby.h"
 #include "mruby/irep.h"
 #include "mruby/variable.h"
+#include "mruby/class.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -23,6 +24,12 @@ static char memory_pool[TLSF_HEAP_SIZE];
 #undef realloc(p, size)
 #define realloc(p, size)	(realloc_ex((p), (size), memory_pool))
 #endif
+
+static mrb_value
+inspect_main(mrb_state *mrb, mrb_value mod)
+{
+  return mrb_str_new(mrb, "main", 4);
+}
 
 mrb_state*
 mrb_open_allocf(mrb_allocf f, void *ud)
@@ -55,7 +62,7 @@ allocf(mrb_state *mrb, void *p, size_t size, void *ud)
 
 struct alloca_header {
   struct alloca_header *next;
-  char buf[0];
+  char buf[];
 };
 
 void*
@@ -154,7 +161,7 @@ mrb_add_irep(mrb_state *mrb)
     mrb->irep_capa = max;
   }
   else if (mrb->irep_capa <= mrb->irep_len) {
-    int i;
+    size_t i;
     size_t old_capa = mrb->irep_capa;
     while (mrb->irep_capa <= mrb->irep_len) {
       mrb->irep_capa *= 2;
@@ -175,8 +182,10 @@ mrb_add_irep(mrb_state *mrb)
 mrb_value
 mrb_top_self(mrb_state *mrb)
 {
-  mrb_value v;
-
-  MRB_SET_VALUE(v, MRB_TT_MAIN, value.i, 0);
-  return v;
+  if (!mrb->top_self) {
+    mrb->top_self = (struct RObject*)mrb_obj_alloc(mrb, MRB_TT_OBJECT, mrb->object_class);  
+    mrb_define_singleton_method(mrb, mrb->top_self, "inspect", inspect_main, ARGS_NONE());
+    mrb_define_singleton_method(mrb, mrb->top_self, "to_s", inspect_main, ARGS_NONE());
+  }
+  return mrb_obj_value(mrb->top_self);
 }

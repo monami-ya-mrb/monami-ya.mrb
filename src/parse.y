@@ -395,15 +395,6 @@ new_fcall(parser_state *p, mrb_sym b, node *c)
   return list4((node*)NODE_FCALL, new_self(p), nsym(b), c);
 }
 
-#if 0
-// (:vcall self mid)
-static node*
-new_vcall(parser_state *p, mrb_sym b)
-{
-  return list3((node*)NODE_VCALL, new_self(p), (node*)b);
-}
-#endif
-
 // (:super . c)
 static node*
 new_super(parser_state *p, node *c)
@@ -1790,11 +1781,6 @@ arg		: lhs '=' arg
 		| arg tMATCH arg
 		    {
 		      $$ = call_bin_op(p, $1, "=~", $3);
-#if 0
-		      if (nd_type($1) == NODE_LIT && TYPE($1->nd_lit) == T_REGEXP) {
-			$$ = reg_named_capture_assign($1->nd_lit, $$);
-		      }
-#endif
 		    }
 		| arg tNMATCH arg
 		    {
@@ -3241,12 +3227,15 @@ nextc(parser_state *p)
     cons_free(tmp);
   }
   else {
+#ifdef ENABLE_STDIO
     if (p->f) {
       if (feof(p->f)) return -1;
       c = fgetc(p->f);
       if (c == EOF) return -1;
     }
-    else if (!p->s || p->s >= p->send) {
+    else
+#endif
+    if (!p->s || p->s >= p->send) {
       return -1;
     }
     else {
@@ -3304,6 +3293,7 @@ peeks(parser_state *p, const char *s)
 {
   int len = strlen(s);
 
+#ifdef ENABLE_STDIO
   if (p->f) {
     int n = 0;
     while (*s) {
@@ -3311,7 +3301,9 @@ peeks(parser_state *p, const char *s)
     }
     return TRUE;
   }
-  else if (p->s && p->s + len >= p->send) {
+  else
+#endif
+  if (p->s && p->s + len >= p->send) {
     if (memcmp(p->s, s, len) == 0) return TRUE;
   }
   return FALSE;
@@ -5079,7 +5071,9 @@ mrb_parser_new(mrb_state *mrb)
   p->in_def = p->in_single = 0;
 
   p->s = p->send = NULL;
+#ifdef ENABLE_STDIO
   p->f = NULL;
+#endif
 
   p->cmd_start = TRUE;
   p->in_def = p->in_single = FALSE;
@@ -5132,6 +5126,7 @@ mrbc_filename(mrb_state *mrb, mrbc_context *c, const char *s)
   return c->filename;
 }
 
+#ifdef ENABLE_STDIO
 parser_state*
 mrb_parse_file(mrb_state *mrb, FILE *f, mrbc_context *c)
 {
@@ -5145,6 +5140,7 @@ mrb_parse_file(mrb_state *mrb, FILE *f, mrbc_context *c)
   mrb_parser_parse(p, c);
   return p;
 }
+#endif
 
 parser_state*
 mrb_parse_nstring(mrb_state *mrb, const char *s, int len, mrbc_context *c)
@@ -5208,6 +5204,7 @@ load_exec(mrb_state *mrb, parser_state *p, mrbc_context *c)
   return v;
 }
 
+#ifdef ENABLE_STDIO
 mrb_value
 mrb_load_file_cxt(mrb_state *mrb, FILE *f, mrbc_context *c)
 {
@@ -5219,6 +5216,7 @@ mrb_load_file(mrb_state *mrb, FILE *f)
 {
   return mrb_load_file_cxt(mrb, f, NULL);
 }
+#endif
 
 mrb_value
 mrb_load_nstring_cxt(mrb_state *mrb, const char *s, int len, mrbc_context *c)

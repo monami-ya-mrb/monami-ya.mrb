@@ -447,7 +447,8 @@ flo_hash(mrb_state *mrb, mrb_value num)
 {
   mrb_float d;
   char *c;
-  int i, hash;
+  size_t i;
+  int hash;
 
   d = (mrb_float)mrb_fixnum(num);
   /* normalize -0.0 to 0.0 */
@@ -894,7 +895,7 @@ fix_divmod(mrb_state *mrb, mrb_value x)
 
     if (mrb_fixnum(y) == 0) {
       return mrb_assoc_new(mrb, mrb_float_value(str_to_mrb_float("inf")),
-			        mrb_float_value(str_to_mrb_float("nan")));
+        mrb_float_value(str_to_mrb_float("nan")));
     }
     fixdivmod(mrb, mrb_fixnum(x), mrb_fixnum(y), &div, &mod);
     return mrb_assoc_new(mrb, mrb_fixnum_value(div), mrb_fixnum_value(mod));
@@ -1032,14 +1033,15 @@ fix_xor(mrb_state *mrb, mrb_value x)
   return mrb_fixnum_value(val);
 }
 
-#define NUMERIC_SHIFT_WIDTH_MAX		(sizeof(mrb_int)*CHAR_BIT-1)
+#define NUMERIC_SHIFT_WIDTH_MAX (sizeof(mrb_int)*CHAR_BIT-1)
 
 static mrb_value
 lshift(mrb_state *mrb, mrb_int val, int width)
 {
   if (width > NUMERIC_SHIFT_WIDTH_MAX) {
-      mrb_raisef(mrb, E_RANGE_ERROR, "width(%d) > (%d:sizeof(mrb_int)*CHAR_BIT-1)", width,
-		NUMERIC_SHIFT_WIDTH_MAX);
+    mrb_raisef(mrb, E_RANGE_ERROR, "width(%S) > (%S:sizeof(mrb_int)*CHAR_BIT-1)",
+               mrb_fixnum_value(width),
+               mrb_fixnum_value(NUMERIC_SHIFT_WIDTH_MAX));
   }
   val = val << width;
   return mrb_fixnum_value(val);
@@ -1282,7 +1284,7 @@ mrb_fix2str(mrb_state *mrb, mrb_value x, int base)
   mrb_int val = mrb_fixnum(x);
 
   if (base < 2 || 36 < base) {
-    mrb_raisef(mrb, E_ARGUMENT_ERROR, "invalid radix %d", base);
+    mrb_raisef(mrb, E_ARGUMENT_ERROR, "invalid radix %S", mrb_fixnum_value(base));
   }
 
   if (val == 0) {

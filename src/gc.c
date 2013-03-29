@@ -542,7 +542,9 @@ obj_free(mrb_state *mrb, struct RBasic *obj)
 static void
 root_scan_phase(mrb_state *mrb)
 {
-  int i, j, e;
+  int j;
+  size_t i;
+  size_t e;
   mrb_callinfo *ci;
 
   if (!is_minor_gc(mrb)) {
@@ -557,6 +559,8 @@ root_scan_phase(mrb_state *mrb)
   }
   /* mark class hierarchy */
   mrb_gc_mark(mrb, (struct RBasic*)mrb->object_class);
+  /* mark top_self */
+  mrb_gc_mark(mrb, (struct RBasic*)mrb->top_self);
   /* mark exception */
   mrb_gc_mark(mrb, (struct RBasic*)mrb->exc);
   /* mark stack */

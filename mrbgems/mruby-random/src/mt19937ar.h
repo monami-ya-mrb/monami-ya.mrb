@@ -1,12 +1,4 @@
-LEGAL NOTICE INFORMATION
-------------------------
-
-All the files in this distribution are covered under the MIT license
-(see the file MITL) except some files mentioned below:
-
-
-mrbgems/mruby-random/src/mt19937ar.[ch]
-
+/* 
    A C-program for MT19937, with initialization improved 2002/1/26.
    Coded by Takuji Nishimura and Makoto Matsumoto.
 
@@ -14,9 +6,9 @@ mrbgems/mruby-random/src/mt19937ar.[ch]
    or init_by_array(init_key, key_length).
 
    Copyright (C) 1997 - 2002, Makoto Matsumoto and Takuji Nishimura,
-   All rights reserved.                          
-   Copyright (C) 2005, Mutsuo Saito,
-   All rights reserved.                          
+   All rights reserved.
+   Copyright (C) 2005, Mutsuo Saito
+   All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
@@ -44,3 +36,52 @@ mrbgems/mruby-random/src/mt19937ar.[ch]
    LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
    NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+   Any feedback is very welcome.
+   http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/emt.html
+   email: m-mat @ math.sci.hiroshima-u.ac.jp (remove space)
+*/
+
+#define N 624
+
+typedef struct {
+  unsigned long mt[N];
+  int mti;
+  union {
+    unsigned long gen_int;
+    double gen_dbl;
+  };
+} mt_state;
+
+void mrb_random_init_genrand(mt_state *, unsigned long);
+unsigned long mrb_random_genrand_int32(mt_state *);
+double mrb_random_genrand_real1(mt_state *t);
+
+/* initializes mt[N] with a seed */
+void init_genrand(unsigned long s);
+
+/* initialize by an array with array-length */
+/* init_key is the array for initializing keys */
+/* key_length is its length */
+/* slight change for C++, 2004/2/26 */
+void init_by_array(unsigned long init_key[], int key_length);
+
+/* generates a random number on [0,0xffffffff]-interval */
+unsigned long genrand_int32(void);
+
+/* generates a random number on [0,0x7fffffff]-interval */
+long genrand_int31(void);
+
+/* These real versions are due to Isaku Wada, 2002/01/09 added */
+/* generates a random number on [0,1]-real-interval */
+double genrand_real1(void);
+
+/* generates a random number on [0,1)-real-interval */
+double genrand_real2(void);
+
+/* generates a random number on (0,1)-real-interval */
+double genrand_real3(void);
+
+/* generates a random number on [0,1) with 53-bit resolution*/
+double genrand_res53(void);

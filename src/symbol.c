@@ -91,7 +91,7 @@ mrb_sym2name_len(mrb_state *mrb, mrb_sym sym, size_t *lenp)
     }
   }
   *lenp = 0;
-  return NULL;	/* missing */
+  return NULL;  /* missing */
 }
 
 void
@@ -346,6 +346,21 @@ sym_inspect(mrb_state *mrb, mrb_value sym)
     memcpy(RSTRING(str)->ptr, ":\"", 2);
   }
   return str;
+}
+
+mrb_value
+mrb_sym2str(mrb_state *mrb, mrb_sym sym)
+{
+  size_t len;
+  const char *name = mrb_sym2name_len(mrb, sym, &len);
+
+  if (!name) return mrb_undef_value(); /* can't happen */
+  if (symname_p(name) && strlen(name) == len) {
+    return mrb_str_new(mrb, name, len);
+  }
+  else {
+    return mrb_str_dump(mrb, mrb_str_new(mrb, name, len));
+  }
 }
 
 const char*
