@@ -192,9 +192,26 @@ assert('String#eql?', '15.2.10.5.17') do
   'abc'.eql?('abc') and not 'abc'.eql?('cba')
 end
 
-# TODO ATM broken assert('String#gsub', '15.2.10.5.18') do
+assert('String#gsub', '15.2.10.5.18') do
+  assert_equal('aBcaBc', 'abcabc'.gsub('b', 'B'), 'gsub without block')
+  assert_equal('aBcaBc', 'abcabc'.gsub('b'){|w| w.capitalize }, 'gsub with block')
+  assert_equal('$a$a$',  '#a#a#'.gsub('#', '$'), 'mruby/mruby#847')
+  assert_equal('$a$a$',  '#a#a#'.gsub('#'){|w| '$' }, 'mruby/mruby#847 with block')
+  assert_equal('$$a$$',  '##a##'.gsub('##', '$$'), 'mruby/mruby#847 another case')
+  assert_equal('$$a$$',  '##a##'.gsub('##'){|w| '$$' }, 'mruby/mruby#847 another case with block')
+  assert_equal('A',      'a'.gsub('a', 'A'))
+  assert_equal('A',      'a'.gsub('a'){|w| w.capitalize })
+end
 
-# TODO ATM broken assert('String#gsub!', '15.2.10.5.19') do
+assert('String#gsub!', '15.2.10.5.19') do
+  a = 'abcabc'
+  a.gsub!('b', 'B')
+
+  b = 'abcabc'
+  b.gsub!('b') { |w| w.capitalize }
+
+  a == 'aBcaBc' && b == 'aBcaBc'
+end
 
 assert('String#hash', '15.2.10.5.20') do
   a = 'abc'
@@ -307,9 +324,22 @@ assert('String#split', '15.2.10.5.35') do
     'abc'.split("") == ['a', 'b', 'c']
 end
 
-# TODO ATM broken assert('String#sub', '15.2.10.5.36') do
+assert('String#sub', '15.2.10.5.36') do
+  'abcabc'.sub('b', 'B') == 'aBcabc' and
+    'abcabc'.sub('b') { |w| w.capitalize } == 'aBcabc' and
+    'aa#'.sub('#', '$') == 'aa$'
+end
 
-# TODO ATM broken assert('String#sub!', '15.2.10.5.37') do
+assert('String#sub!', '15.2.10.5.37') do
+  a = 'abcabc'
+  a.sub!('b', 'B')
+
+  b = 'abcabc'
+  b.sub!('b') { |w| w.capitalize }
+
+  a == 'aBcabc' && b == 'aBcabc'
+end
+
 
 assert('String#to_i', '15.2.10.5.38') do
   a = ''.to_i

@@ -4,28 +4,22 @@
 ** See Copyright Notice in mruby.h
 */
 
+#include <assert.h>
+#include <float.h>
+#if defined(__FreeBSD__) && __FreeBSD__ < 4
+# include <floatingpoint.h>
+#endif
+#ifdef HAVE_IEEEFP_H
+# include <ieeefp.h>
+#endif
+#include <limits.h>
+#include <math.h>
+#include <stdlib.h>
+
 #include "mruby.h"
+#include "mruby/array.h"
 #include "mruby/numeric.h"
 #include "mruby/string.h"
-#include "mruby/array.h"
-
-#include <math.h>
-#include <stdio.h>
-#include <assert.h>
-
-#if defined(__FreeBSD__) && __FreeBSD__ < 4
-#include <floatingpoint.h>
-#endif
-
-#ifdef HAVE_FLOAT_H
-#include <float.h>
-#endif
-
-#ifdef HAVE_IEEEFP_H
-#include <ieeefp.h>
-#endif
-
-#define RSHIFT(x,y) ((x)>>(int)(y))
 
 #ifdef MRB_USE_FLOAT
 #define floor(f) floorf(f)
@@ -168,6 +162,99 @@ num_abs(mrb_state *mrb, mrb_value num)
  *  representation.
  */
 
+mrb_value
+mrb_flo_to_str(mrb_state *mrb, mrb_float n, int max_digit)
+{
+  mrb_value result;
+
+  if (max_digit > 40) {
+    mrb_raise(mrb, E_RANGE_ERROR, "Too large max_digit.");
+  }
+
+  if (isnan(n)) {
+    result = mrb_str_new(mrb, "NaN", 3);
+  }
+  else if (isinf(n)) {
+    if (n < 0) {
+      result = mrb_str_new(mrb, "-inf", 4);
+    }
+    else {
+      result = mrb_str_new(mrb, "inf", 3);
+    }
+  }
+  else {
+    int digit;
+    int m;
+    int exp;
+    int e = 0;
+    char s[48];
+    char *c = &s[0];
+
+    if (n < 0) {
+      n = -n;
+      *(c++) = '-';
+    }
+
+    exp = log10(n);
+
+    if ((exp < 0 ? -exp : exp) > max_digit) {
+      /* exponent representation */
+      e = 1;
+      m = exp;
+      if (m < 0) {
+        m -= 1;
+      }
+      n = n / pow(10.0, m);
+      m = 0;
+    }
+    else {
+      /* un-exponent (normal) representation */
+      m = exp;
+      if (m < 0) {
+        m = 0;
+      }
+    }
+
+    /* puts digits */
+    while (max_digit >= 0) {
+      mrb_float weight = pow(10.0, m);
+      digit = floor(n / weight + FLT_EPSILON);
+      *(c++) = '0' + digit;
+      n -= (digit * weight);
+      max_digit--;
+      if (m-- == 0) {
+        *(c++) = '.';
+      }
+      else if (m < -1 && n < FLT_EPSILON) {
+        break;
+      }
+    }
+
+    if (e) {
+      *(c++) = 'e';
+      if (exp > 0) {
+        *(c++) = '+';
+      } else {
+        *(c++) = '-';
+        exp = -exp;
+      }
+
+      if (exp >= 100) {
+        mrb_raise(mrb, E_RANGE_ERROR, "Too large expornent.");
+      }
+
+      *(c++) = '0' + exp / 10;
+      *(c++) = '0' + exp % 10;
+    }
+
+    *c = '\0';
+
+    result = mrb_str_new(mrb, &s[0], c - &s[0]);
+  }
+
+  return result;
+}
+
 /* 15.2.9.3.16(x) */
 /*
  *  call-seq:
@@ -182,26 +269,11 @@ num_abs(mrb_state *mrb, mrb_value num)
 static mrb_value
 flo_to_s(mrb_state *mrb, mrb_value flt)
 {
-  char buf[32];
-  int n;
-  mrb_float value = mrb_float(flt);
-
-  if (isinf(value)) {
-    static const char s[2][5] = { "-inf", "inf" };
-    static const int n[] = { 4, 3 };
-    int idx;
-    idx = (value < 0) ? 0 : 1;
-    return mrb_str_new(mrb, s[idx], n[idx]);
-  } else if(isnan(value))
-    return mrb_str_new(mrb, "NaN", 3);
-
 #ifdef MRB_USE_FLOAT
-  n = sprintf(buf, "%.7g", value);
+  return mrb_flo_to_str(mrb, mrb_float(flt), 7);
 #else
-  n = sprintf(buf, "%.14g", value);
+  return mrb_flo_to_str(mrb, mrb_float(flt), 14);
 #endif
-  assert(n >= 0);
-  return mrb_str_new(mrb, buf, n);
 }
 
 /* 15.2.9.3.2  */
@@ -243,22 +315,25 @@ flo_mul(mrb_state *mrb, mrb_value x)
 static void
 flodivmod(mrb_state *mrb, mrb_float x, mrb_float y, mrb_float *divp, mrb_float *modp)
 {
-  mrb_float div, mod;
+  mrb_float div;
+  mrb_float mod;
 
   if (y == 0.0) {
-    *divp = str_to_mrb_float("inf");
-    *modp = str_to_mrb_float("nan");
-    return;
+    div = str_to_mrb_float("inf");
+    mod = str_to_mrb_float("nan");
   }
-  mod = fmod(x, y);
-  if (isinf(x) && !isinf(y) && !isnan(y))
-    div = x;
-  else
-    div = (x - mod) / y;
-  if (y*mod < 0) {
-    mod += y;
-    div -= 1.0;
+  else {
+    mod = fmod(x, y);
+    if (isinf(x) && !isinf(y) && !isnan(y))
+      div = x;
+    else
+      div = (x - mod) / y;
+    if (y*mod < 0) {
+      mod += y;
+      div -= 1.0;
+    }
   }
+
   if (modp) *modp = mod;
   if (divp) *divp = div;
 }
@@ -280,6 +355,7 @@ flo_mod(mrb_state *mrb, mrb_value x)
 {
   mrb_value y;
   mrb_float fy, mod;
+
   mrb_get_args(mrb, "o", &y);
 
   fy = mrb_to_flo(mrb, y);
@@ -303,15 +379,17 @@ static mrb_value
 num_eql(mrb_state *mrb, mrb_value x)
 {
   mrb_value y;
-  
+  mrb_bool eql_p;
+
   mrb_get_args(mrb, "o", &y);
-  if (mrb_type(x) != mrb_type(y)) return mrb_false_value();
-  if (mrb_equal(mrb, x, y)) {
-      return mrb_true_value();
+  if (mrb_type(x) != mrb_type(y)) {
+    eql_p = 0;
   }
   else {
-      return mrb_false_value();
+    eql_p = mrb_equal(mrb, x, y);
   }
+
+  return mrb_bool_value(eql_p);
 }
 
 static mrb_value
@@ -339,6 +417,7 @@ flo_eq(mrb_state *mrb, mrb_value x)
 {
   mrb_value y;
   volatile mrb_float a, b;
+
   mrb_get_args(mrb, "o", &y);
 
   switch (mrb_type(y)) {
@@ -352,7 +431,7 @@ flo_eq(mrb_state *mrb, mrb_value x)
     return num_equal(mrb, x, y);
   }
   a = mrb_float(x);
-  return (a == b)?mrb_true_value():mrb_false_value();
+  return mrb_bool_value(a == b);
 }
 
 /* 15.2.8.3.18 */
@@ -367,7 +446,8 @@ flo_hash(mrb_state *mrb, mrb_value num)
 {
   mrb_float d;
   char *c;
-  int i, hash;
+  size_t i;
+  int hash;
 
   d = (mrb_float)mrb_fixnum(num);
   /* normalize -0.0 to 0.0 */
@@ -433,10 +513,11 @@ static mrb_value
 flo_finite_p(mrb_state *mrb, mrb_value num)
 {
   mrb_float value = mrb_float(num);
+  mrb_bool finite_p;
 
-  if (isinf(value) || isnan(value))
-    return mrb_false_value();
-  return mrb_true_value();
+  finite_p = !(isinf(value) || isnan(value));
+
+  return mrb_bool_value(finite_p);
 }
 
 /* 15.2.9.3.10 */
@@ -695,7 +776,7 @@ mrb_value
 mrb_fixnum_mul(mrb_state *mrb, mrb_value x, mrb_value y)
 {
   mrb_int a;
-  
+
   a = mrb_fixnum(x);
   if (a == 0) return x;
   if (mrb_fixnum_p(y)) {
@@ -727,6 +808,7 @@ static mrb_value
 fix_mul(mrb_state *mrb, mrb_value x)
 {
   mrb_value y;
+
   mrb_get_args(mrb, "o", &y);
   return mrb_fixnum_mul(mrb, x, y);
 }
@@ -735,6 +817,8 @@ static void
 fixdivmod(mrb_state *mrb, mrb_int x, mrb_int y, mrb_int *divp, mrb_int *modp)
 {
   mrb_int div, mod;
+
+  /* TODO: add assert(y != 0) to make sure */
 
   if (y < 0) {
     if (x < 0)
@@ -802,6 +886,7 @@ static mrb_value
 fix_divmod(mrb_state *mrb, mrb_value x)
 {
   mrb_value y;
+
   mrb_get_args(mrb, "o", &y);
 
   if (mrb_fixnum_p(y)) {
@@ -809,7 +894,7 @@ fix_divmod(mrb_state *mrb, mrb_value x)
 
     if (mrb_fixnum(y) == 0) {
       return mrb_assoc_new(mrb, mrb_float_value(str_to_mrb_float("inf")),
-			        mrb_float_value(str_to_mrb_float("nan")));
+        mrb_float_value(str_to_mrb_float("nan")));
     }
     fixdivmod(mrb, mrb_fixnum(x), mrb_fixnum(y), &div, &mod);
     return mrb_assoc_new(mrb, mrb_fixnum_value(div), mrb_fixnum_value(mod));
@@ -841,18 +926,15 @@ static mrb_value
 fix_equal(mrb_state *mrb, mrb_value x)
 {
   mrb_value y;
+  mrb_bool equal_p;
+
   mrb_get_args(mrb, "o", &y);
 
-  if (mrb_obj_equal(mrb, x, y)) return mrb_true_value();
-  switch (mrb_type(y)) {
-  case MRB_TT_FLOAT:
-    if ((mrb_float)mrb_fixnum(x) == mrb_float(y))
-      return mrb_true_value();
-    /* fall through */
-  case MRB_TT_FIXNUM:
-  default:
-    return mrb_false_value();
-  }
+  equal_p = mrb_obj_equal(mrb, x, y) ||
+      (mrb_type(y) == MRB_TT_FLOAT &&
+       (mrb_float)mrb_fixnum(x) == mrb_float(y));
+
+  return mrb_bool_value(equal_p);
 }
 
 /* 15.2.8.3.8  */
@@ -900,6 +982,7 @@ fix_and(mrb_state *mrb, mrb_value x)
 {
   mrb_value y;
   mrb_int val;
+
   mrb_get_args(mrb, "o", &y);
 
   y = bit_coerce(mrb, y);
@@ -920,6 +1003,7 @@ fix_or(mrb_state *mrb, mrb_value x)
 {
   mrb_value y;
   mrb_int val;
+
   mrb_get_args(mrb, "o", &y);
 
   y = bit_coerce(mrb, y);
@@ -942,31 +1026,52 @@ fix_xor(mrb_state *mrb, mrb_value x)
   mrb_int val;
 
   mrb_get_args(mrb, "o", &y);
+
   y = bit_coerce(mrb, y);
   val = mrb_fixnum(x) ^ mrb_fixnum(y);
   return mrb_fixnum_value(val);
 }
 
+#define NUMERIC_SHIFT_WIDTH_MAX (sizeof(mrb_int)*CHAR_BIT-1)
+
 static mrb_value
 lshift(mrb_state *mrb, mrb_int val, int width)
 {
-  if (width > (sizeof(mrb_int)*CHAR_BIT-1)) {
-      mrb_raisef(mrb, E_RANGE_ERROR, "width(%d) > (%d:sizeof(mrb_int)*CHAR_BIT-1)", width,
-		sizeof(mrb_int)*CHAR_BIT-1);
+  if (width > NUMERIC_SHIFT_WIDTH_MAX) {
+    mrb_raisef(mrb, E_RANGE_ERROR, "width(%S) > (%S:sizeof(mrb_int)*CHAR_BIT-1)",
+               mrb_fixnum_value(width),
+               mrb_fixnum_value(NUMERIC_SHIFT_WIDTH_MAX));
   }
   val = val << width;
   return mrb_fixnum_value(val);
 }
 
 static mrb_value
-rshift(mrb_int val, int i)
+rshift(mrb_int val, int width)
 {
-    if (i >= sizeof(mrb_int)*CHAR_BIT-1) {
-        if (val < 0) return mrb_fixnum_value(-1);
-        return mrb_fixnum_value(0);
+  if (width >= NUMERIC_SHIFT_WIDTH_MAX) {
+    if (val < 0) {
+      val = -1;
     }
-    val = RSHIFT(val, i);
-    return mrb_fixnum_value(val);
+    else {
+      val = 0;
+    }
+  }
+  else {
+    val = val >> width;
+  }
+
+  return mrb_fixnum_value(val);
+}
+
+static inline void
+fix_shift_get_width(mrb_state *mrb, mrb_int *width)
+{
+  mrb_value y;
+
+  mrb_get_args(mrb, "o", &y);
+  y = bit_coerce(mrb, y);
+  *width = mrb_fixnum(y);
 }
 
 /* 15.2.8.3.12 */
@@ -980,16 +1085,27 @@ rshift(mrb_int val, int i)
 static mrb_value
 fix_lshift(mrb_state *mrb, mrb_value x)
 {
-  mrb_value y;
-  mrb_int val, width;
+  mrb_int width;
+  mrb_value result;
 
-  mrb_get_args(mrb, "o", &y);
-  val = mrb_fixnum(x);
-  y = bit_coerce(mrb, y);
-  width = mrb_fixnum(y);
-  if (width < 0)
-      return rshift(val, -width);
-  return lshift(mrb, val, width);
+  fix_shift_get_width(mrb, &width);
+
+  if (width == 0) {
+    result = x;
+  }
+  else {
+    mrb_int val;
+
+    val = mrb_fixnum(x);
+    if (width < 0) {
+      result = rshift(val, -width);
+    }
+    else {
+      result = lshift(mrb, val, width);
+    }
+  }
+
+  return result;
 }
 
 /* 15.2.8.3.13 */
@@ -1003,17 +1119,27 @@ fix_lshift(mrb_state *mrb, mrb_value x)
 static mrb_value
 fix_rshift(mrb_state *mrb, mrb_value x)
 {
-  mrb_value y;
-  mrb_int i, val;
+  mrb_int width;
+  mrb_value result;
 
-  mrb_get_args(mrb, "o", &y);
-  val = mrb_fixnum(x);
-  y = bit_coerce(mrb, y);
-  i = mrb_fixnum(y);
-    if (i == 0) return x;
-    if (i < 0)
-        return lshift(mrb, val, -i);
-    return rshift(val, i);
+  fix_shift_get_width(mrb, &width);
+
+  if (width == 0) {
+    result = x;
+  }
+  else {
+    mrb_int val;
+
+    val = mrb_fixnum(x);
+    if (width < 0) {
+      result = lshift(mrb, val, -width);
+    }
+    else {
+      result = rshift(val, width);
+    }
+  }
+
+  return result;
 }
 
 /* 15.2.8.3.23 */
@@ -1074,7 +1200,7 @@ mrb_value
 mrb_fixnum_plus(mrb_state *mrb, mrb_value x, mrb_value y)
 {
   mrb_int a;
-  
+
   a = mrb_fixnum(x);
   if (a == 0) return y;
   if (mrb_fixnum_p(y)) {
@@ -1113,7 +1239,7 @@ mrb_value
 mrb_fixnum_minus(mrb_state *mrb, mrb_value x, mrb_value y)
 {
   mrb_int a;
-  
+
   a = mrb_fixnum(x);
   if (mrb_fixnum_p(y)) {
     mrb_int b, c;
@@ -1148,48 +1274,32 @@ fix_minus(mrb_state *mrb, mrb_value self)
   return mrb_fixnum_minus(mrb, self, other);
 }
 
-/* 15.2.8.3.29 (x) */
-/*
- * call-seq:
- *   fix > other     => true or false
- *
- * Returns <code>true</code> if the value of <code>fix</code> is
- * greater than that of <code>other</code>.
- */
 
 mrb_value
 mrb_fix2str(mrb_state *mrb, mrb_value x, int base)
 {
-  char buf[64], *b = buf + sizeof buf;
+  char buf[sizeof(mrb_int)*CHAR_BIT+1];
+  char *b = buf + sizeof buf;
   mrb_int val = mrb_fixnum(x);
-  int neg = 0;
 
   if (base < 2 || 36 < base) {
-    mrb_raisef(mrb, E_ARGUMENT_ERROR, "invalid radix %d", base);
+    mrb_raisef(mrb, E_ARGUMENT_ERROR, "invalid radix %S", mrb_fixnum_value(base));
   }
+
   if (val == 0) {
-    return mrb_str_new(mrb, "0", 1);
-  }
-  if (val < 0) {
-    val = -val;
-    neg = 1;
-  }
-  *--b = '\0';
-  if (neg && val < 0) {
+    *--b = '0';
+  } else if (val < 0) {
     do {
-      *--b = mrb_digitmap[abs(val % base)];
+      *--b = mrb_digitmap[-(val % base)];
     } while (val /= base);
-  }
-  else {
+    *--b = '-';
+  } else {
     do {
       *--b = mrb_digitmap[(int)(val % base)];
     } while (val /= base);
   }
-  if (neg) {
-    *--b = '-';
-  }
 
-  return mrb_str_new2(mrb, b);
+  return mrb_str_new(mrb, b, buf + sizeof(buf) - b);
 }
 
 /* 15.2.8.3.25 */
@@ -1279,6 +1389,7 @@ void
 mrb_init_numeric(mrb_state *mrb)
 {
   struct RClass *numeric, *integer, *fixnum, *fl;
+
   /* Numeric Class */
   numeric = mrb_define_class(mrb, "Numeric",  mrb->object_class);
   mrb_include_module(mrb, numeric, mrb_class_get(mrb, "Comparable"));

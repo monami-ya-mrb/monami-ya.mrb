@@ -9,13 +9,10 @@ all :
 	$(RAKE)
 
 .PHONY : test
-test :
+test : all
 	$(RAKE) test
 
 .PHONY : clean
 clean :
 	$(RAKE) clean
 
-.PHONY : showconfig
-showconfig :
-	$(RAKE) showconfig

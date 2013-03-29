@@ -8,11 +8,6 @@
 #include "mruby/class.h"
 #include "mruby/range.h"
 #include "mruby/string.h"
-#include <string.h>
-
-#ifndef OTHER
-#define OTHER 2
-#endif
 
 #define RANGE_CLASS (mrb_class_obj_get(mrb, "Range"))
 
@@ -20,8 +15,8 @@ static void
 range_check(mrb_state *mrb, mrb_value a, mrb_value b)
 {
   mrb_value ans;
-  int ta;
-  int tb;
+  enum mrb_vtype ta;
+  enum mrb_vtype tb;
 
   ta = mrb_type(a);
   tb = mrb_type(b);
@@ -43,8 +38,8 @@ mrb_range_new(mrb_state *mrb, mrb_value beg, mrb_value end, int excl)
   struct RRange *r;
 
   r = (struct RRange*)mrb_obj_alloc(mrb, MRB_TT_RANGE, RANGE_CLASS);
-  r->edges = (struct mrb_range_edges *)mrb_malloc(mrb, sizeof(struct mrb_range_edges));
   range_check(mrb, beg, end);
+  r->edges = (mrb_range_edges *)mrb_malloc(mrb, sizeof(mrb_range_edges));
   r->edges->beg = beg;
   r->edges->end = end;
   r->excl = excl;
@@ -96,16 +91,19 @@ mrb_range_excl(mrb_state *mrb, mrb_value range)
 {
   struct RRange *r = mrb_range_ptr(range);
 
-  return r->excl ? mrb_true_value() : mrb_false_value();
+  return mrb_bool_value(r->excl);
 }
 
 static void
-range_init(mrb_state *mrb, mrb_value range, mrb_value beg, mrb_value end, mrb_int exclude_end)
+range_init(mrb_state *mrb, mrb_value range, mrb_value beg, mrb_value end, int exclude_end)
 {
   struct RRange *r = mrb_range_ptr(range);
 
   range_check(mrb, beg, end);
   r->excl = exclude_end;
+  if (!r->edges) {
+    r->edges = (mrb_range_edges *)mrb_malloc(mrb, sizeof(mrb_range_edges));
+  }
   r->edges->beg = beg;
   r->edges->end = end;
 }
@@ -122,11 +120,15 @@ mrb_value
 mrb_range_initialize(mrb_state *mrb, mrb_value range)
 {
   mrb_value beg, end;
-  mrb_value flags;
+  int exclusive;
+  int n;
 
-  mrb_get_args(mrb, "ooo", &beg, &end, &flags);
+  n = mrb_get_args(mrb, "oo|b", &beg, &end, &exclusive);
+  if (n != 3) {
+    exclusive = 0;
+  }
   /* Ranges are immutable, so that they should be initialized only once. */
-  range_init(mrb, range, beg, end, mrb_test(flags));
+  range_init(mrb, range, beg, end, exclusive);
   return range;
 }
 /*
@@ -150,25 +152,30 @@ mrb_range_eq(mrb_state *mrb, mrb_value range)
   struct RRange *rr;
   struct RRange *ro;
   mrb_value obj;
+  mrb_bool eq_p;
 
   mrb_get_args(mrb, "o", &obj);
 
-  if (mrb_obj_equal(mrb, range, obj)) return mrb_true_value();
+  if (mrb_obj_equal(mrb, range, obj)) {
+    eq_p = 1;
+  }
+  else if (!mrb_obj_is_instance_of(mrb, obj, mrb_obj_class(mrb, range))) { /* same class? */
+    eq_p = 0;
+  }
+  else {
+    rr = mrb_range_ptr(range);
+    ro = mrb_range_ptr(obj);
+    if (!mrb_obj_equal(mrb, rr->edges->beg, ro->edges->beg) ||
+        !mrb_obj_equal(mrb, rr->edges->end, ro->edges->end) ||
+        rr->excl != ro->excl) {
+      eq_p = 0;
+    }
+    else {
+      eq_p = 1;
+    }
+  }
 
-  /* same class? */
-  if (!mrb_obj_is_instance_of(mrb, obj, mrb_obj_class(mrb, range)))
-    return mrb_false_value();
-
-  rr = mrb_range_ptr(range);
-  ro = mrb_range_ptr(obj);
-  if (!mrb_obj_equal(mrb, rr->edges->beg, ro->edges->beg))
-    return mrb_false_value();
-  if (!mrb_obj_equal(mrb, rr->edges->end, ro->edges->end))
-    return mrb_false_value();
-  if (rr->excl != ro->excl)
-    return mrb_false_value();
-
-  return mrb_true_value();
+  return mrb_bool_value(eq_p);
 }
 
 static int
@@ -178,7 +185,7 @@ r_le(mrb_state *mrb, mrb_value a, mrb_value b)
   /* output :a < b => -1, a = b =>  0, a > b => +1 */
 
   if (mrb_type(r) == MRB_TT_FIXNUM) {
-    int c = mrb_fixnum(r);
+    mrb_int c = mrb_fixnum(r);
     if (c == 0 || c == -1) return TRUE;
   }
 
@@ -205,7 +212,7 @@ r_ge(mrb_state *mrb, mrb_value a, mrb_value b)
   /* output :a < b => -1, a = b =>  0, a > b => +1 */
 
   if (mrb_type(r) == MRB_TT_FIXNUM) {
-    int c = mrb_fixnum(r);
+    mrb_int c = mrb_fixnum(r);
     if (c == 0 || c == 1) return TRUE;
   }
 
@@ -225,21 +232,17 @@ mrb_range_include(mrb_state *mrb, mrb_value range)
   mrb_value val;
   struct RRange *r = mrb_range_ptr(range);
   mrb_value beg, end;
+  mrb_bool include_p;
 
   mrb_get_args(mrb, "o", &val);
 
   beg = r->edges->beg;
   end = r->edges->end;
-  if (r_le(mrb, beg, val)) {
-    /* beg <= val */
-    if (r->excl) {
-      if (r_gt(mrb, end, val)) return mrb_true_value(); /* end >  val */
-    }
-    else {
-      if (r_ge(mrb, end, val)) return mrb_true_value(); /* end >= val */
-    }
-  }
-  return mrb_false_value();
+  include_p = r_le(mrb, beg, val) && /* beg <= val */
+              ((r->excl && r_gt(mrb, end, val)) || /* end >  val */
+              (r_ge(mrb, end, val))); /* end >= val */
+
+  return mrb_bool_value(include_p);
 }
 
 /*
@@ -267,12 +270,14 @@ mrb_range_each(mrb_state *mrb, mrb_value range)
 }
 
 mrb_int
-mrb_range_beg_len(mrb_state *mrb, mrb_value range, mrb_int *begp, mrb_int *lenp, mrb_int len, mrb_int err)
+mrb_range_beg_len(mrb_state *mrb, mrb_value range, mrb_int *begp, mrb_int *lenp, mrb_int len)
 {
   mrb_int beg, end, b, e;
   struct RRange *r = mrb_range_ptr(range);
 
-  if (mrb_type(range) != MRB_TT_RANGE) return FALSE;
+  if (mrb_type(range) != MRB_TT_RANGE) {
+    mrb_raise(mrb, E_TYPE_ERROR, "expected Range.");
+  }
 
   beg = b = mrb_fixnum(r->edges->beg);
   end = e = mrb_fixnum(r->edges->end);
@@ -281,10 +286,10 @@ mrb_range_beg_len(mrb_state *mrb, mrb_value range, mrb_int *begp, mrb_int *lenp,
     beg += len;
     if (beg < 0) goto out_of_range;
   }
-  if (err == 0 || err == 2) {
-    if (beg > len) goto out_of_range;
-    if (end > len) end = len;
-  }
+
+  if (beg > len) goto out_of_range;
+  if (end > len) end = len;
+
   if (end < 0) end += len;
   if (!r->excl && end < len) end++;  /* include end point */
   len = end - beg;
@@ -295,11 +300,7 @@ mrb_range_beg_len(mrb_state *mrb, mrb_value range, mrb_int *begp, mrb_int *lenp,
   return TRUE;
 
 out_of_range:
-  if (err) {
-    mrb_raisef(mrb, E_RANGE_ERROR, "%ld..%s%ld out of range",
-      b, r->excl? "." : "", e);
-  }
-  return OTHER;
+  return FALSE;
 }
 
 /* 15.2.14.4.12(x) */
@@ -326,7 +327,7 @@ range_to_s(mrb_state *mrb, mrb_value range)
 }
 
 static mrb_value
-inspect_range(mrb_state *mrb, mrb_value range, mrb_value dummy, int recur)
+inspect_range(mrb_state *mrb, mrb_value range, int recur)
 {
   mrb_value str, str2;
   struct RRange *r = mrb_range_ptr(range);
@@ -361,7 +362,7 @@ inspect_range(mrb_state *mrb, mrb_value range, mrb_value dummy, int recur)
 static mrb_value
 range_inspect(mrb_state *mrb, mrb_value range)
 {
-    return inspect_range(mrb, range, range, 0);
+    return inspect_range(mrb, range, 0);
 }
 
 /* 15.2.14.4.14(x) */
@@ -384,23 +385,34 @@ range_eql(mrb_state *mrb, mrb_value range)
 {
   mrb_value obj;
   struct RRange *r, *o;
+  mrb_bool eql_p;
 
   mrb_get_args(mrb, "o", &obj);
-  if (mrb_obj_equal(mrb, range, obj))
-    return mrb_true_value();
-  if (!mrb_obj_is_kind_of(mrb, obj, RANGE_CLASS))
-    return mrb_false_value();
+  if (mrb_obj_equal(mrb, range, obj)) {
+    eql_p = 1;
+  }
+  else if (!mrb_obj_is_kind_of(mrb, obj, RANGE_CLASS)) {
+    eql_p = 0;
+  }
+  else {
+    r = mrb_range_ptr(range);
+    if (mrb_type(obj) != MRB_TT_RANGE) {
+      eql_p = 0;
+    }
+    else {
+      o = mrb_range_ptr(obj);
+      if (!mrb_eql(mrb, r->edges->beg, o->edges->beg) ||
+          !mrb_eql(mrb, r->edges->end, o->edges->end) ||
+          (r->excl != o->excl)) {
+        eql_p = 0;
+      }
+      else {
+        eql_p = 1;
+      }
+    }
+  }
 
-  r = mrb_range_ptr(range);
-  if (mrb_type(obj) != MRB_TT_RANGE) return mrb_false_value();
-  o = mrb_range_ptr(obj);
-  if (!mrb_eql(mrb, r->edges->beg, o->edges->beg))
-    return mrb_false_value();
-  if (!mrb_eql(mrb, r->edges->end, o->edges->end))
-    return mrb_false_value();
-  if (r->excl != o->excl)
-    return mrb_false_value();
-  return mrb_true_value();
+  return mrb_bool_value(eql_p);
 }
 
 /* 15.2.14.4.15(x) */
@@ -408,6 +420,7 @@ mrb_value
 range_initialize_copy(mrb_state *mrb, mrb_value copy)
 {
   mrb_value src;
+  struct RRange *r;
 
   mrb_get_args(mrb, "o", &src);
 
@@ -415,7 +428,9 @@ range_initialize_copy(mrb_state *mrb, mrb_value copy)
   if (!mrb_obj_is_instance_of(mrb, src, mrb_obj_class(mrb, copy))) {
     mrb_raise(mrb, E_TYPE_ERROR, "wrong argument class");
   }
-  *mrb_range_ptr(copy) = *mrb_range_ptr(src);
+
+  r = mrb_range_ptr(src);
+  range_init(mrb, copy, r->edges->beg, r->edges->end, r->excl);
 
   return copy;
 }
@@ -426,6 +441,8 @@ mrb_init_range(mrb_state *mrb)
   struct RClass *r;
 
   r = mrb_define_class(mrb, "Range", mrb->object_class);
+  MRB_SET_INSTANCE_TT(r, MRB_TT_RANGE);
+
   mrb_include_module(mrb, r, mrb_class_get(mrb, "Enumerable"));
 
   mrb_define_method(mrb, r, "begin",           mrb_range_beg,         ARGS_NONE());      /* 15.2.14.4.3  */
@@ -436,7 +453,7 @@ mrb_init_range(mrb_state *mrb)
   mrb_define_method(mrb, r, "exclude_end?",    mrb_range_excl,        ARGS_NONE());      /* 15.2.14.4.6  */
   mrb_define_method(mrb, r, "first",           mrb_range_beg,         ARGS_NONE());      /* 15.2.14.4.7  */
   mrb_define_method(mrb, r, "include?",        mrb_range_include,     ARGS_REQ(1));      /* 15.2.14.4.8  */
-  mrb_define_method(mrb, r, "initialize",      mrb_range_initialize,  ARGS_REQ(4));      /* 15.2.14.4.9  */
+  mrb_define_method(mrb, r, "initialize",      mrb_range_initialize,  ARGS_ANY());       /* 15.2.14.4.9  */
   mrb_define_method(mrb, r, "last",            mrb_range_end,         ARGS_NONE());      /* 15.2.14.4.10 */
   mrb_define_method(mrb, r, "member?",         mrb_range_include,     ARGS_REQ(1));      /* 15.2.14.4.11 */
 

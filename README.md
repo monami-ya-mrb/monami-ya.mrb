@@ -57,7 +57,7 @@ Or
 
 mruby contains a package manager called *mrbgems*. To create extensions
 in C and/or Ruby you should create a *GEM*. You will find a complete
-documentation with examples under *doc/mrbgems*.
+documentation with examples under *examples/mrbgems*.
 
 ## License
 
@@ -100,6 +100,7 @@ Please ask us if you want to distribute your code under another license.
 
 ## How to Contribute (to this version)
 
-Send pull request to <http://bitbucket.org/monami_ya/mruby>.   We consider you have granted
+See the [contribution guidelines](https://github.com/mruby/mruby/blob/master/CONTRIBUTING.md)
+then send pull request to <http://bitbucket.org/monami_ya/mruby>.  We consider you have granted
 non-exclusive right to your contributed code under MIT license.  If you want to be named
 as one of mruby developers, include update to the AUTHORS file in your pull request.

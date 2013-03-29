@@ -1,59 +1,102 @@
 # encoding: utf-8
 # Build description.
 # basic build file for mruby
+MRUBY_ROOT = File.dirname(File.expand_path(__FILE__))
+MRUBY_BUILD_HOST_IS_CYGWIN = RUBY_PLATFORM.include?('cygwin')
 
-load 'tasks/ruby_ext.rake'
-load 'tasks/mruby_build.rake'
-load 'tasks/mruby_gem_spec.rake'
+# load build systems
+load "#{MRUBY_ROOT}/tasks/ruby_ext.rake"
+load "#{MRUBY_ROOT}/tasks/mruby_build.rake"
+load "#{MRUBY_ROOT}/tasks/mrbgem_spec.rake"
 
-##############################
-# compile flags
-load File.expand_path(ENV['CONFIG'] || './build_config.rb')
+# load configuration file
+MRUBY_CONFIG = (ENV['MRUBY_CONFIG'] && ENV['MRUBY_CONFIG'] != '') ? ENV['MRUBY_CONFIG'] : "#{MRUBY_ROOT}/build_config.rb"
+load MRUBY_CONFIG
 
-load 'tasks/rules.rake'
-load 'src/mruby_core.rake'
-load 'mrblib/mrblib.rake'
-load 'tools/mrbc/mrbc.rake'
+# load basic rules
+MRuby.each_target do |build|
+  build.define_rules
+end
 
-load 'tasks/mrbgems.rake'
-load 'tasks/libmruby.rake'
-load 'tools/mruby/mruby.rake'
-load 'tools/mirb/mirb.rake'
-load 'test/mrbtest.rake'
+# load custom rules
+load "#{MRUBY_ROOT}/src/mruby_core.rake"
+load "#{MRUBY_ROOT}/mrblib/mrblib.rake"
+load "#{MRUBY_ROOT}/tools/mrbc/mrbc.rake"
+
+load "#{MRUBY_ROOT}/tasks/mrbgems.rake"
+load "#{MRUBY_ROOT}/tasks/libmruby.rake"
+load "#{MRUBY_ROOT}/tools/mruby/mruby.rake"
+load "#{MRUBY_ROOT}/tools/mirb/mirb.rake"
+
+load "#{MRUBY_ROOT}/tasks/mrbgems_test.rake"
+load "#{MRUBY_ROOT}/test/mrbtest.rake"
 
 ##############################
 # generic build targets, rules
 task :default => :all
 
-binfiles = [exefile('bin/mruby'), exefile('bin/mirb'), exefile('bin/mrbc')]
+depfiles = MRuby.targets['host'].bins.map do |bin|
+  install_path = MRuby.targets['host'].exefile("#{MRUBY_ROOT}/bin/#{bin}")
+  source_path = MRuby.targets['host'].exefile("#{MRuby.targets['host'].build_dir}/bin/#{bin}")
+
+  file install_path => source_path do |t|
+    FileUtils.rm_f t.name, { :verbose => $verbose }
+    FileUtils.cp t.prerequisites.first, t.name, { :verbose => $verbose }
+  end
+  
+  install_path
+end
+
+MRuby.each_target do
+  gems.map do | gem |
+    current_dir = gem.dir.relative_path_from(Dir.pwd)
+    relative_from_root = gem.dir.relative_path_from(MRUBY_ROOT)
+    current_build_dir = "#{build_dir}/#{relative_from_root}"
+
+    gem.bins.each do | bin |
+      exec = exefile("#{build_dir}/bin/#{bin}")
+      objs = Dir.glob("#{current_dir}/tool/#{bin}/*.c").map { |f| objfile(f.pathmap("#{current_build_dir}/tool/#{bin}/%n")) }
+
+      file exec => objs + [libfile("#{build_dir}/lib/libmruby")] do |t|
+        gem_flags = gems.map { |g| g.linker.flags }
+        gem_flags_before_libraries = gems.map { |g| g.linker.flags_before_libraries }
+        gem_flags_after_libraries = gems.map { |g| g.linker.flags_after_libraries }
+        gem_libraries = gems.map { |g| g.linker.libraries }
+        gem_library_paths = gems.map { |g| g.linker.library_paths }
+        linker.run t.name, t.prerequisites, gem_libraries, gem_library_paths, gem_flags, gem_flags_before_libraries
+      end
+
+      depfiles += [ exec ]
+    end
+  end
+end
+
+depfiles += MRuby.targets.reject { |n, t| n == 'host' }.map { |n, t|
+  [t.libfile("#{t.build_dir}/lib/libmruby")] + t.bins.map { |bin| t.exefile("#{t.build_dir}/bin/#{bin}") }
+}.flatten
 
 desc "build all targets, install (locally) in-repo"
-task :all => binfiles + MRuby.targets.map { |t| [exefile("#{t.build_dir}/bin/mruby"), exefile("#{t.build_dir}/bin/mirb"), exefile("#{t.build_dir}/bin/mrbc")] }.flatten
-
-file exefile('bin/mruby') => exefile('build/host/bin/mruby') do |t|
-  FileUtils.cp t.prerequisites.first, t.name
-end
-
-file exefile('bin/mirb') => exefile('build/host/bin/mirb') do |t|
-  FileUtils.cp t.prerequisites.first, t.name
-end
-
-file exefile('bin/mrbc') => exefile('build/host/bin/mrbc') do |t|
-  FileUtils.cp t.prerequisites.first, t.name
+task :all => depfiles do
+  puts
+  puts "Build summary:"
+  puts
+  MRuby.each_target do
+    print_build_summary
+  end
 end
 
 desc "run all mruby tests"
-task :test => MRuby.targets.map { |t| exefile("#{t.build_dir}/test/mrbtest") } do
-  sh "#{filename exefile('build/host/test/mrbtest')}"
-  if MRuby.targets.count > 1
-    puts "\nYou should run #{MRuby.targets.map{ |t| t.name == 'host' ? nil : "#{t.build_dir}/test/mrbtest" }.compact.join(', ')} on target device."
+task :test => MRuby.targets.values.map { |t| t.build_mrbtest_lib_only? ? t.libfile("#{t.build_dir}/test/mrbtest") : t.exefile("#{t.build_dir}/test/mrbtest") } do
+  MRuby.each_target do
+    run_test unless build_mrbtest_lib_only?
   end
 end
 
 desc "clean all built and in-repo installed artifacts"
 task :clean do
-  MRuby.targets.each do |t|
-    FileUtils.rm_rf t.build_dir
+  MRuby.each_target do |t|
+    FileUtils.rm_rf t.build_dir, { :verbose => $verbose }
   end
-  FileUtils.rm_f binfiles
+  FileUtils.rm_f depfiles, { :verbose => $verbose }
+  puts "Cleaned up build folder"
 end

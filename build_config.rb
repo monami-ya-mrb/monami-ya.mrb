@@ -1,122 +1,117 @@
 MRuby::Build.new do |conf|
-  conf.cc = ENV['CC'] || 'gcc'
-  conf.ld = ENV['LD'] || 'gcc'
-  conf.ar = ENV['AR'] || 'ar'
-  # conf.cxx = conf.cc
-  # conf.objcc = conf.cc
-  # conf.asm = conf.cc
-  # conf.yacc = 'bison'
-  # conf.gperf = 'gperf'
-  # conf.cat = 'cat'
-  # conf.git = 'git'
+  # load specific toolchain settings
+  toolchain :gcc
 
-  conf.cflags << (ENV['CFLAGS'] || %w(-g -O3 -Wall -Werror-implicit-function-declaration))
-  conf.ldflags << (ENV['LDFLAGS'] || %w(-lm))
-  # conf.cxxflags = []
-  # conf.objccflags = []
-  # conf.asmflags = []
+  # Use mrbgems
+  # conf.gem 'examples/mrbgems/ruby_extension_example'
+  # conf.gem 'examples/mrbgems/c_extension_example' do |g|
+  #   g.cc.flags << '-g' # append cflags in this gem
+  # end
+  # conf.gem 'examples/mrbgems/c_and_ruby_extension_example'
+  # conf.gem :github => 'masuidrive/mrbgems-example', :branch => 'master'
+  # conf.gem :git => 'git@github.com:masuidrive/mrbgems-example.git', :branch => 'master', :options => '-v'
 
-  # conf.gem 'doc/mrbgems/ruby_extension_example'
-  # conf.gem 'doc/mrbgems/c_extension_example'
-  # conf.gem 'doc/mrbgems/c_and_ruby_extension_example'
-  # conf.gem :git => 'git@github.com:masuidrive/mrbgems-example.git', :branch => 'master'
+  # Use standard Kernel#sprintf method
+  conf.gem "#{root}/mrbgems/mruby-sprintf"
+
+  # Use standard print/puts/p
+  conf.gem "#{root}/mrbgems/mruby-print"
+
+  # Use standard Math module
+  conf.gem "#{root}/mrbgems/mruby-math"
+
+  # Use standard Time class
+  conf.gem "#{root}/mrbgems/mruby-time"
+
+  # Use standard Struct class
+  conf.gem "#{root}/mrbgems/mruby-struct"
+
+  # Use extensional Enumerable module
+  conf.gem "#{root}/mrbgems/mruby-enum-ext"
+
+  # Use extensional String class
+  conf.gem "#{root}/mrbgems/mruby-string-ext"
+
+  # Use extensional Numeric class
+  conf.gem "#{root}/mrbgems/mruby-numeric-ext"
+
+  # Use extensional Array class
+  conf.gem "#{root}/mrbgems/mruby-array-ext"
+
+  # Use extensional Hash class
+  conf.gem "#{root}/mrbgems/mruby-hash-ext"
+
+  # Use Random class
+  conf.gem "#{root}/mrbgems/mruby-random"
+  
+  # No use eval method
+  # conf.gem "#{root}/mrbgems/mruby-eval"
+
+
+  # Generate binaries
+  # conf.bins = %w(mrbc mruby mirb)
+
+  # C compiler settings
+  # conf.cc do |cc|
+  #   cc.command = ENV['CC'] || 'gcc'
+  #   cc.flags = [ENV['CFLAGS'] || %w()]
+  #   cc.include_paths = ["#{root}/include"]
+  #   cc.defines = %w(DISABLE_GEMS)
+  #   cc.option_include_path = '-I%s'
+  #   cc.option_define = '-D%s'
+  #   cc.compile_options = "%{flags} -MMD -o %{outfile} -c %{infile}"
+  # end
+
+  # Linker settings
+  # conf.linker do |linker|
+  #   linker.command = ENV['LD'] || 'gcc'
+  #   linker.flags = [ENV['LDFLAGS'] || []]
+  #   linker.flags_before_libraries = []
+  #   linker.libraries = %w()
+  #   linker.flags_after_libraries = []
+  #   linker.library_paths = []
+  #   linker.option_library = '-l%s'
+  #   linker.option_library_path = '-L%s'
+  #   linker.link_options = "%{flags} -o %{outfile} %{objs} %{libs}"
+  # end
+ 
+  # Archiver settings
+  # conf.archiver do |archiver|
+  #   archiver.command = ENV['AR'] || 'ar'
+  #   archiver.archive_options = 'rs %{outfile} %{objs}'
+  # end
+ 
+  # Parser generator settings
+  # conf.yacc do |yacc|
+  #   yacc.command = ENV['YACC'] || 'bison'
+  #   yacc.compile_options = '-o %{outfile} %{infile}'
+  # end
+ 
+  # gperf settings
+  # conf.gperf do |gperf|
+  #   gperf.command = 'gperf'
+  #   gperf.compile_options = '-L ANSI-C -C -p -j1 -i 1 -g -o -t -N mrb_reserved_word -k"1,3,$" %{infile} > %{outfile}'
+  # end
+  
+  # file extensions
+  # conf.exts do |exts|
+  #   exts.object = '.o'
+  #   exts.executable = '' # '.exe' if Windows
+  #   exts.library = '.a'
+  # end
+
+  # file separetor
+  # conf.file_separator = '/'
 end
 
-=begin
-MRuby::CrossBuild.new('i386') do |conf|
-  conf.cc = ENV['CC'] || 'gcc'
-  conf.ld = ENV['LD'] || 'gcc'
-  conf.ar = ENV['AR'] || 'ar'
-  # conf.cxx = 'gcc'
-  # conf.objcc = 'gcc'
-  # conf.asm = 'gcc'
-  # conf.yacc = 'bison'
-  # conf.gperf = 'gperf'
-  # conf.cat = 'cat'
-  # conf.git = 'git'
-
-  if ENV['OS'] == 'Windows_NT' # MinGW
-    conf.cflags = %w(-g -O3 -Wall -Werror-implicit-function-declaration -Di386_MARK)
-    conf.ldflags = %w(-s -static)
-  else
-    conf.cflags << %w(-g -O3 -Wall -Werror-implicit-function-declaration -arch i386)
-    conf.ldflags << %w(-arch i386)
-  end
-  # conf.cxxflags << []
-  # conf.objccflags << []
-  # conf.asmflags << []
-
-  # conf.gem 'doc/mrbgems/ruby_extension_example'
-  # conf.gem 'doc/mrbgems/c_extension_example'
-  # conf.gem 'doc/mrbgems/c_and_ruby_extension_example'
-end
-=end
-
-#=begin
-MRuby::CrossBuild.new('arm-linux-androideabi') do |conf|
-  conf.cc = ENV['CC'] || 'arm-linux-androideabi-gcc'
-  conf.ld = ENV['LD'] || 'arm-linux-androideabi-gcc'
-  conf.ar = ENV['AR'] || 'arm-linux-androideabi-ar'
-  # conf.cxx = 'gcc'
-  # conf.objcc = 'gcc'
-  # conf.asm = 'gcc'
-  # conf.yacc = 'bison'
-  # conf.gperf = 'gperf'
-  # conf.cat = 'cat'
-  # conf.git = 'git'
-  conf.cflags << %w(-O3 -Wall -Werror-implicit-function-declaration)
-  # conf.cxxflags << []
-  # conf.objccflags << []
-  # conf.asmflags << []
-
-  # conf.gem 'doc/mrbgems/ruby_extension_example'
-  # conf.gem 'doc/mrbgems/c_extension_example'
-  # conf.gem 'doc/mrbgems/c_and_ruby_extension_example'
-end
-#=end
-
-#=begin
-MRuby::CrossBuild.new('mipsel-linux-android') do |conf|
-  conf.cc = ENV['CC'] || 'mipsel-linux-android-gcc'
-  conf.ld = ENV['LD'] || 'mipsel-linux-android-gcc'
-  conf.ar = ENV['AR'] || 'mipsel-linux-android-ar'
-  # conf.cxx = 'gcc'
-  # conf.objcc = 'gcc'
-  # conf.asm = 'gcc'
-  # conf.yacc = 'bison'
-  # conf.gperf = 'gperf'
-  # conf.cat = 'cat'
-  # conf.git = 'git'
-  conf.cflags << %w(-O3 -Wall -Werror-implicit-function-declaration)
-  # conf.cxxflags << []
-  # conf.objccflags << []
-  # conf.asmflags << []
-
-  # conf.gem 'doc/mrbgems/ruby_extension_example'
-  # conf.gem 'doc/mrbgems/c_extension_example'
-  # conf.gem 'doc/mrbgems/c_and_ruby_extension_example'
-end
-#=end
-
-#=begin
-MRuby::CrossBuild.new('i686-linux-android') do |conf|
-  conf.cc = ENV['CC'] || 'i686-linux-android-gcc'
-  conf.ld = ENV['LD'] || 'i686-linux-android-gcc'
-  conf.ar = ENV['AR'] || 'i686-linux-android-ar'
-  # conf.cxx = 'gcc'
-  # conf.objcc = 'gcc'
-  # conf.asm = 'gcc'
-  # conf.yacc = 'bison'
-  # conf.gperf = 'gperf'
-  # conf.cat = 'cat'
-  # conf.git = 'git'
-  conf.cflags << %w(-O3 -Wall -Werror-implicit-function-declaration)
-  # conf.cxxflags << []
-  # conf.objccflags << []
-  # conf.asmflags << []
-
-  # conf.gem 'doc/mrbgems/ruby_extension_example'
-  # conf.gem 'doc/mrbgems/c_extension_example'
-  # conf.gem 'doc/mrbgems/c_and_ruby_extension_example'
-end
-#=end
+# Define cross build settings
+# MRuby::CrossBuild.new('32bit') do |conf|
+#   toolchain :gcc
+#   
+#   conf.cc.flags << "-m32"
+#   conf.linker.flags << "-m32"
+#
+#   conf.build_mrbtest_lib_only
+#   
+#   conf.gem 'examples/mrbgems/c_and_ruby_extension_example'
+# end
