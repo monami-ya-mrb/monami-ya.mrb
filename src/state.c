@@ -4,15 +4,15 @@
 ** See Copyright Notice in mruby.h
 */
 
-#include "tlsf.h"
-
+#include <string.h>
 #include "mruby.h"
+#include "mruby/class.h"
 #include "mruby/irep.h"
 #include "mruby/variable.h"
-#include "mruby/class.h"
-#include <stdlib.h>
-#include <string.h>
 
+#include "tlsf.h"
+
+#include <stdlib.h>
 void mrb_init_heap(mrb_state*);
 void mrb_init_core(mrb_state*);
 void mrb_final_core(mrb_state*);

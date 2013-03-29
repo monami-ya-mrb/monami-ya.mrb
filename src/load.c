@@ -4,13 +4,18 @@
 ** See Copyright Notice in mruby.h
 */
 
+#ifndef SIZE_MAX
+ /* Some versions of VC++
+  * has SIZE_MAX in stdint.h
+  */
+# include <limits.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include "mruby/dump.h"
-
-#include "mruby/string.h"
-#include "mruby/proc.h"
 #include "mruby/irep.h"
+#include "mruby/proc.h"
+#include "mruby/string.h"
 
 #ifdef ENABLE_STDIO
 typedef struct _RiteFILE
@@ -234,9 +239,12 @@ read_rite_lineno_record(mrb_state *mrb, const uint8_t *bin, size_t irepno, uint3
   short *lines;
 
   ret = MRB_DUMP_OK;
+  *len = 0;
   bin += sizeof(uint32_t); // record size
+  *len += sizeof(uint32_t);
   fname_len = bin_to_uint16(bin);
   bin += sizeof(uint16_t);
+  *len += sizeof(uint16_t);
   fname = (char *)mrb_malloc(mrb, fname_len + 1);
   if (fname == NULL) {
     ret = MRB_DUMP_GENERAL_FAILURE;
@@ -245,15 +253,18 @@ read_rite_lineno_record(mrb_state *mrb, const uint8_t *bin, size_t irepno, uint3
   memcpy(fname, bin, fname_len);
   fname[fname_len] = '\0';
   bin += fname_len;
+  *len += fname_len;
 
   niseq = bin_to_uint32(bin);
   bin += sizeof(uint32_t); // niseq
+  *len += sizeof(uint32_t);
 
   lines = (short *)mrb_malloc(mrb, niseq * sizeof(short));
   for (i = 0; i < niseq; i++) {
     lines[i] = bin_to_uint16(bin);
-    bin += sizeof(short); // niseq
-  }
+    bin += sizeof(uint16_t); // niseq
+    *len += sizeof(uint16_t);
+ }
 
   mrb->irep[irepno]->filename = fname;
   mrb->irep[irepno]->lines = lines;
