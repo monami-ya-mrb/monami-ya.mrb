@@ -11,6 +11,8 @@
 extern "C" {
 #endif
 
+#include "mruby.h"
+
 struct RClass {
   MRB_OBJECT_HEADER;
   struct iv_tbl *iv;

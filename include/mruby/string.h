@@ -7,6 +7,8 @@
 #ifndef MRUBY_STRING_H
 #define MRUBY_STRING_H
 
+#include "mruby.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif

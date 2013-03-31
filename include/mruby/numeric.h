@@ -11,6 +11,8 @@
 extern "C" {
 #endif
 
+#include "mruby.h"
+
 #define POSFIXABLE(f) ((f) <= MRB_INT_MAX)
 #define NEGFIXABLE(f) ((f) >= MRB_INT_MIN)
 #define FIXABLE(f) (POSFIXABLE(f) && NEGFIXABLE(f))

@@ -7,6 +7,8 @@
 #ifndef MRUBY_HASH_H
 #define MRUBY_HASH_H
 
+#include "mruby.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif

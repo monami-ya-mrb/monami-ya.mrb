@@ -7,6 +7,8 @@
 #ifndef MRUBYCONF_H
 #define MRUBYCONF_H
 
+#include "mruby.h"
+
 #include <stdint.h>
 #include <stddef.h>
 

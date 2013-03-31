@@ -7,6 +7,8 @@
 #ifndef MRUBY_VARIABLE_H
 #define MRUBY_VARIABLE_H
 
+#include "mruby.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif

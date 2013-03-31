@@ -7,6 +7,8 @@
 #ifndef MRUBY_RANGE_H
 #define MRUBY_RANGE_H
 
+#include "mruby.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif

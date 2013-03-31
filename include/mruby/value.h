@@ -7,6 +7,8 @@
 #ifndef MRUBY_VALUE_H
 #define MRUBY_VALUE_H
 
+#include "mruby.h"
+
 #ifndef MRB_NAN_BOXING
 
 enum mrb_vtype {

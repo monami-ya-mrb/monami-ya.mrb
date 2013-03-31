@@ -7,6 +7,8 @@
 #ifndef MRUBY_DUMP_H
 #define MRUBY_DUMP_H
 
+#include "mruby.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
