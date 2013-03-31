@@ -101,7 +101,7 @@ mrb_open(void)
 #ifdef TLSF_HEAP_SIZE
   init_memory_pool(TLSF_HEAP_SIZE, memory_pool);
 #endif
-  mrb_state *mrb = mrb_open_allocf(allocf, (uintptr_t)NULL);
+  mrb = mrb_open_allocf(allocf, (uintptr_t)NULL);
 
   return mrb;
 }
