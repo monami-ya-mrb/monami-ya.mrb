@@ -80,7 +80,7 @@ get_pool_block_size(mrb_state *mrb, mrb_irep *irep)
 
     switch (mrb_type(irep->pool[pool_no])) {
     case MRB_TT_FIXNUM:
-      str = mrb_fix2str(mrb, irep->pool[pool_no], 10);
+      str = mrb_fixnum_to_str(mrb, irep->pool[pool_no], 10);
       size += RSTRING_LEN(str);
       break;
 
@@ -123,7 +123,7 @@ write_pool_block(mrb_state *mrb, mrb_irep *irep, uint8_t *buf)
 
     switch (mrb_type(irep->pool[pool_no])) {
     case MRB_TT_FIXNUM:
-      str = mrb_fix2str(mrb, irep->pool[pool_no], 10);
+      str = mrb_fixnum_to_str(mrb, irep->pool[pool_no], 10);
       char_ptr = RSTRING_PTR(str);
       len = RSTRING_LEN(str);
       break;
@@ -166,7 +166,7 @@ get_syms_block_size(mrb_state *mrb, mrb_irep *irep)
     size += sizeof(uint16_t); /* snl(n) */
     if (irep->syms[sym_no] != 0) {
       mrb_sym2name_len(mrb, irep->syms[sym_no], &len);
-      size += len; /* sn(n) */
+      size += len + 1; /* sn(n) + null char */
     }
   }
 
@@ -194,6 +194,7 @@ write_syms_block(mrb_state *mrb, mrb_irep *irep, uint8_t *buf)
       cur += uint16_to_bin((uint16_t)len, cur); /* length of symbol name */
       memcpy(cur, name, len); /* symbol name */
       cur += (uint16_t)len;
+      *cur++ = '\0';
     }
     else {
       cur += uint16_to_bin(MRB_DUMP_NULL_SYM_LEN, cur); /* length of symbol name */
