@@ -172,19 +172,17 @@ parse_args(mrb_state *mrb, int argc, char **argv, struct _args *args)
     case '-':
       if (strcmp((*argv) + 2, "version") == 0) {
         mrb_show_version(mrb);
-        exit(0);
+        exit(EXIT_SUCCESS);
       }
       else if (strcmp((*argv) + 2, "copyright") == 0) {
         mrb_show_copyright(mrb);
-        exit(0);
+        exit(EXIT_SUCCESS);
       }
-      else return -3;
     default:
-      return -4;
+      return EXIT_FAILURE;
     }
   }
-
-  return 0;
+  return EXIT_SUCCESS;
 }
 
 static void
@@ -240,7 +238,7 @@ main(int argc, char **argv)
   }
 
   n = parse_args(mrb, argc, argv, &args);
-  if (n < 0) {
+  if (n == EXIT_FAILURE) {
     cleanup(mrb, &args);
     usage(argv[0]);
     return n;

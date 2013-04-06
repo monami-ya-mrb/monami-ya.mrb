@@ -4726,6 +4726,10 @@ parser_yylex(parser_state *p)
     p->lstate = EXPR_END;
     token_column = newtok(p);
     c = nextc(p);
+    if (c == -1) {
+      yyerror(p, "incomplete global variable syntax");
+      return 0;
+    }
     switch (c) {
     case '_':     /* $_: last read line string */
       c = nextc(p);
@@ -4812,7 +4816,16 @@ parser_yylex(parser_state *p)
       tokadd(p, '@');
       c = nextc(p);
     }
-    if (c != -1 && isdigit(c)) {
+    if (c == -1) {
+      if (p->bidx == 1) {
+	yyerror(p, "incomplete instance variable syntax");
+      }
+      else {
+	yyerror(p, "incomplete class variable syntax");
+      }
+      return 0;
+    }
+    else if (isdigit(c)) {
       if (p->bidx == 1) {
 	yyerror_i(p, "`@%c' is not allowed as an instance variable name", c);
       }
