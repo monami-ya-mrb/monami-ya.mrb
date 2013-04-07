@@ -63,6 +63,7 @@
 
 /* -DENABLE_XXXX to enable following features */
 //#define ENABLE_DEBUG		/* hooks for debugger */
+//#define MRB_ENABLE_ROMED	/* ROMed targets support */
 
 /* end of configuration */
 
