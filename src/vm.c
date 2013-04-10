@@ -403,7 +403,7 @@ mrb_yield_internal(mrb_state *mrb, mrb_value b, int argc, mrb_value *argv, mrb_v
     ci->nregs = argc + 2;
   }
   else {
-    ci->nregs = p->body.irep->nregs + 2;
+    ci->nregs = p->body.irep->nregs + 1;
   }
   ci->acc = -1;
   mrb->stack = mrb->stack + n;
@@ -568,7 +568,7 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
   }
   stack_extend(mrb, irep->nregs, irep->nregs);
   mrb->ci->proc = proc;
-  mrb->ci->nregs = irep->nregs + 2;
+  mrb->ci->nregs = irep->nregs + 1;
   regs = mrb->stack;
   regs[0] = self;
 
@@ -873,7 +873,13 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
       else {
         ci->argc = n;
       }
-      ci->target_class = c;
+      if (c->tt == MRB_TT_ICLASS) {
+        ci->target_class = c->c;
+      }
+      else {
+        ci->target_class = c;
+      }
+
       ci->pc = pc + 1;
       ci->acc = a;
 
@@ -1189,9 +1195,11 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
       NEXT;
     }
 
+    L_RETURN:
+      i = MKOP_AB(OP_RETURN, GETARG_A(i), OP_R_NORMAL);
+      /* fall through */
     CASE(OP_RETURN) {
       /* A      return R(A) */
-    L_RETURN:
       if (mrb->exc) {
         mrb_callinfo *ci;
         int eidx;
@@ -1326,7 +1334,6 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
           regs[a+1] = sym;
         }
       }
-
 
       /* replace callinfo */
       ci = mrb->ci;
@@ -1652,7 +1659,7 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
 } while (0)
 
     CASE(OP_EQ) {
-      /* A B C  R(A) := R(A)<R(A+1) (Syms[B]=:<,C=1)*/
+      /* A B C  R(A) := R(A)<R(A+1) (Syms[B]=:==,C=1)*/
       int a = GETARG_A(i);
       if (mrb_obj_eq(mrb, regs[a], regs[a+1])) {
         SET_TRUE_VALUE(regs[a]);
@@ -1670,7 +1677,7 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
     }
 
     CASE(OP_LE) {
-      /* A B C  R(A) := R(A)<R(A+1) (Syms[B]=:<,C=1)*/
+      /* A B C  R(A) := R(A)<=R(A+1) (Syms[B]=:<=,C=1)*/
       OP_CMP(<=);
       NEXT;
     }
@@ -1682,7 +1689,7 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
     }
 
     CASE(OP_GE) {
-      /* A B C  R(A) := R(A)<R(A+1) (Syms[B]=:<,C=1)*/
+      /* A B C  R(A) := R(A)<=R(A+1) (Syms[B]=:<=,C=1)*/
       OP_CMP(>=);
       NEXT;
     }

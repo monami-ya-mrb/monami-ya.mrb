@@ -47,12 +47,12 @@ usage(const char *name)
 }
 
 static char *
-get_outfilename(char *infile, char *ext)
+get_outfilename(mrb_state *mrb, char *infile, char *ext)
 {
   char *outfile;
   char *p;
 
-  outfile = (char*)malloc(strlen(infile) + strlen(ext) + 1);
+  outfile = (char*)mrb_malloc(mrb, strlen(infile) + strlen(ext) + 1);
   strcpy(outfile, infile);
   if (*ext) {
     if ((p = strrchr(outfile, '.')) == NULL)
@@ -91,7 +91,7 @@ parse_args(mrb_state *mrb, int argc, char **argv, struct _args *args)
           result = EXIT_FAILURE;
           goto exit;
         }
-        outfile = get_outfilename((*argv) + 2, "");
+        outfile = get_outfilename(mrb, (*argv) + 2, "");
         break;
       case 'B':
         args->ext = C_EXT;
@@ -106,7 +106,7 @@ parse_args(mrb_state *mrb, int argc, char **argv, struct _args *args)
         args->check_syntax = 1;
         break;
       case 'v':
-        mrb_show_version(mrb);
+        if(!args->verbose) mrb_show_version(mrb);
         args->verbose = 1;
         break;
       case 'g':
@@ -150,7 +150,7 @@ parse_args(mrb_state *mrb, int argc, char **argv, struct _args *args)
         outfile = infile;
       }
       else {
-        outfile = get_outfilename(infile, args->ext);
+        outfile = get_outfilename(mrb, infile, args->ext);
       }
     }
     if (strcmp("-", outfile) == 0) {
@@ -163,7 +163,7 @@ parse_args(mrb_state *mrb, int argc, char **argv, struct _args *args)
     }
   }
  exit:
-  if (outfile && infile != outfile) free(outfile);
+  if (outfile && infile != outfile) mrb_free(mrb, outfile);
   return result;
 }
 
@@ -215,6 +215,10 @@ main(int argc, char **argv)
   }
   if (args.initname) {
     n = mrb_dump_irep_cfunc(mrb, n, args.debug_info, args.wfp, args.initname);
+    if (n == MRB_DUMP_INVALID_ARGUMENT) {
+      printf("%s: Invalid C language symbol name\n", args.initname);
+      return EXIT_FAILURE;
+    }
   }
   else {
     n = mrb_dump_irep_binary(mrb, n, args.debug_info, args.wfp);
