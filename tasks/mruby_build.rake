@@ -66,7 +66,7 @@ module MRuby
         @cc = Command::Compiler.new(self, %w(.c))
         @cxx = Command::Compiler.new(self, %w(.cc .cxx .cpp))
         @objc = Command::Compiler.new(self, %w(.m))
-        @asm = Command::Compiler.new(self, %w(.S .asm))
+        @asm = Command::Compiler.new(self, %w(.asm .s .S))
         @linker = Command::Linker.new(self)
         @archiver = Command::Archiver.new(self)
         @yacc = Command::Yacc.new(self)
