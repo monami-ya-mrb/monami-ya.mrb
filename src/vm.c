@@ -55,6 +55,9 @@ The value below allows about 60000 recursive calls in the simplest case. */
 # define DEBUG(x)
 #endif
 
+#define TO_STR(x) TO_STR_(x)
+#define TO_STR_(x) #x
+
 static inline void
 stack_clear(mrb_value *from, size_t count)
 {
@@ -133,9 +136,9 @@ stack_extend(mrb_state *mrb, int room, int keep)
     mrb->stend = mrb->stbase + size;
     envadjust(mrb, oldbase, mrb->stbase);
     /* Raise an exception if the new stack size will be too large,
-    to prevent infinite recursion. However, do this only after resizing the stack, so mrb_raisef has stack space to work with. */
+    to prevent infinite recursion. However, do this only after resizing the stack, so mrb_raise has stack space to work with. */
     if (size > MRB_STACK_MAX) {
-      mrb_raisef(mrb, E_RUNTIME_ERROR, "stack level too deep. (limit=%S)", mrb_fixnum_value(MRB_STACK_MAX));
+      mrb_raise(mrb, E_RUNTIME_ERROR, "stack level too deep. (limit=" TO_STR(MRB_STACK_MAX) ")");
     }
   }
 
@@ -275,7 +278,7 @@ mrb_funcall(mrb_state *mrb, mrb_value self, const char *name, int argc, ...)
     int i;
 
     if (argc > MRB_FUNCALL_ARGC_MAX) {
-      mrb_raisef(mrb, E_ARGUMENT_ERROR, "Too long arguments. (limit=%S)", mrb_fixnum_value(MRB_FUNCALL_ARGC_MAX));
+      mrb_raise(mrb, E_ARGUMENT_ERROR, "Too long arguments. (limit=" TO_STR(MRB_FUNCALL_ARGC_MAX) ")");
     }
 
     va_start(ap, argc);
@@ -302,7 +305,7 @@ mrb_funcall_with_block(mrb_state *mrb, mrb_value self, mrb_sym mid, int argc, mr
         cipop(mrb);
       }
       mrb->jmp = 0;
-      val = mrb_nil_value();
+      val = mrb_obj_value(mrb->exc);
     }
     else {
       mrb->jmp = &c_jmp;
@@ -343,7 +346,7 @@ mrb_funcall_with_block(mrb_state *mrb, mrb_value self, mrb_sym mid, int argc, mr
       ci->nregs = argc + 2;
     }
     else {
-      ci->nregs = p->body.irep->nregs + 2;
+      ci->nregs = p->body.irep->nregs + n;
     }
     ci->acc = -1;
     mrb->stack = mrb->stack + n;
@@ -400,7 +403,7 @@ mrb_yield_internal(mrb_state *mrb, mrb_value b, int argc, mrb_value *argv, mrb_v
     ci->nregs = argc + 2;
   }
   else {
-    ci->nregs = p->body.irep->nregs + 2;
+    ci->nregs = p->body.irep->nregs + 1;
   }
   ci->acc = -1;
   mrb->stack = mrb->stack + n;
@@ -565,7 +568,7 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
   }
   stack_extend(mrb, irep->nregs, irep->nregs);
   mrb->ci->proc = proc;
-  mrb->ci->nregs = irep->nregs + 2;
+  mrb->ci->nregs = irep->nregs + 1;
   regs = mrb->stack;
   regs[0] = self;
 
@@ -870,7 +873,13 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
       else {
         ci->argc = n;
       }
-      ci->target_class = c;
+      if (c->tt == MRB_TT_ICLASS) {
+        ci->target_class = c->c;
+      }
+      else {
+        ci->target_class = c;
+      }
+
       ci->pc = pc + 1;
       ci->acc = a;
 
@@ -1186,9 +1195,11 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
       NEXT;
     }
 
+    L_RETURN:
+      i = MKOP_AB(OP_RETURN, GETARG_A(i), OP_R_NORMAL);
+      /* fall through */
     CASE(OP_RETURN) {
       /* A      return R(A) */
-    L_RETURN:
       if (mrb->exc) {
         mrb_callinfo *ci;
         int eidx;
@@ -1207,6 +1218,7 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
           ci = mrb->ci;
           if (ci[1].acc < 0 && prev_jmp) {
             mrb->jmp = prev_jmp;
+            mrb->stack = mrb->stbase + ci[1].stackidx;
             longjmp(*(jmp_buf*)mrb->jmp, 1);
           }
           while (eidx > mrb->ci->eidx) {
@@ -1322,7 +1334,6 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
           regs[a+1] = sym;
         }
       }
-
 
       /* replace callinfo */
       ci = mrb->ci;
@@ -1648,7 +1659,7 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
 } while (0)
 
     CASE(OP_EQ) {
-      /* A B C  R(A) := R(A)<R(A+1) (Syms[B]=:<,C=1)*/
+      /* A B C  R(A) := R(A)<R(A+1) (Syms[B]=:==,C=1)*/
       int a = GETARG_A(i);
       if (mrb_obj_eq(mrb, regs[a], regs[a+1])) {
         SET_TRUE_VALUE(regs[a]);
@@ -1666,7 +1677,7 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
     }
 
     CASE(OP_LE) {
-      /* A B C  R(A) := R(A)<R(A+1) (Syms[B]=:<,C=1)*/
+      /* A B C  R(A) := R(A)<=R(A+1) (Syms[B]=:<=,C=1)*/
       OP_CMP(<=);
       NEXT;
     }
@@ -1678,7 +1689,7 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
     }
 
     CASE(OP_GE) {
-      /* A B C  R(A) := R(A)<R(A+1) (Syms[B]=:<,C=1)*/
+      /* A B C  R(A) := R(A)<=R(A+1) (Syms[B]=:<=,C=1)*/
       OP_CMP(>=);
       NEXT;
     }
@@ -1943,7 +1954,7 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
 #ifdef ENABLE_STDIO
       printf("OP_DEBUG %d %d %d\n", GETARG_A(i), GETARG_B(i), GETARG_C(i));
 #else
-      abort();
+      MRB_PANIC_ABORT();
 #endif
       NEXT;
     }

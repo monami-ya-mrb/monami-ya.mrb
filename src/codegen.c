@@ -12,6 +12,7 @@
 #include "mruby/irep.h"
 #include "mruby/numeric.h"
 #include "mruby/string.h"
+#include "mruby/panic.h"
 #include "node.h"
 #include "opcode.h"
 #include "re.h"
@@ -317,6 +318,14 @@ genop_peep(codegen_scope *s, mrb_code i, int val)
         s->iseq[s->pc-1] = MKOP_A(c0, 0);
         genop(s, MKOP_AB(OP_RETURN, 0, OP_R_NORMAL));
         return;
+#if 0
+      case OP_SEND:
+        if (GETARG_B(i) == OP_R_NORMAL && GETARG_A(i) == GETARG_A(i0)) {
+          s->iseq[s->pc-1] = MKOP_ABC(OP_TAILCALL, GETARG_A(i0), GETARG_B(i0), GETARG_C(i0));
+          return;
+        }
+        break;
+#endif
       default:
         break;
       }
@@ -355,7 +364,7 @@ genop_peep(codegen_scope *s, mrb_code i, int val)
 static void
 scope_error(codegen_scope *s)
 {
-  exit(1);
+  mrb_panic(s->mrb);
 }
 
 static inline void
@@ -1868,7 +1877,7 @@ codegen(codegen_scope *s, node *tree, int val)
       mrb_value str = mrb_str_buf_new(mrb, 4);
 
       mrb_str_buf_cat(mrb, str, "$", 1);
-      mrb_str_buf_append(mrb, str, mrb_fix2str(mrb, fix, 10));
+      mrb_str_buf_append(mrb, str, mrb_fixnum_to_str(mrb, fix, 10));
       sym = new_sym(s, mrb_intern_str(mrb, str));
       genop(s, MKOP_ABx(OP_GETGLOBAL, cursp(), sym));
       push();

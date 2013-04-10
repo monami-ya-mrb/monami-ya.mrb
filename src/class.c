@@ -979,7 +979,7 @@ mrb_method_search(mrb_state *mrb, struct RClass* c, mrb_sym mid)
     if (RSTRING_LEN(inspect) > 64) {
       inspect = mrb_any_to_s(mrb, mrb_obj_value(c));
     }
-    mrb_raisef(mrb, E_NAME_ERROR, "undefined method '%S' for class %S",
+    mrb_name_error(mrb, mid, "undefined method '%S' for class %S",
                mrb_sym2str(mrb, mid), inspect);
   }
   return m;
@@ -1748,6 +1748,13 @@ mrb_mod_remove_const(mrb_state *mrb, mrb_value mod)
 }
 
 static mrb_value
+mrb_mod_s_constants(mrb_state *mrb, mrb_value mod)
+{
+  mrb_raise(mrb, E_NOTIMP_ERROR, "Module.constants not implemented");
+  return mrb_nil_value();       /* not reached */
+}
+
+static mrb_value
 mrb_mod_eqq(mrb_state *mrb, mrb_value mod)
 {
   mrb_value obj;
@@ -1829,10 +1836,12 @@ mrb_init_class(mrb_state *mrb)
   mrb_define_method(mrb, mod, "const_defined?",          mrb_mod_const_defined,    ARGS_REQ(1)); /* 15.2.2.4.20 */
   mrb_define_method(mrb, mod, "const_get",               mrb_mod_const_get,        ARGS_REQ(1)); /* 15.2.2.4.21 */
   mrb_define_method(mrb, mod, "const_set",               mrb_mod_const_set,        ARGS_REQ(2)); /* 15.2.2.4.23 */
+  mrb_define_method(mrb, mod, "constants",               mrb_mod_constants,        ARGS_NONE()); /* 15.2.2.4.24 */
   mrb_define_method(mrb, mod, "remove_const",            mrb_mod_remove_const,     ARGS_REQ(1)); /* 15.2.2.4.40 */
   mrb_define_method(mrb, mod, "define_method",           mod_define_method,        ARGS_REQ(1));
   mrb_define_method(mrb, mod, "class_variables",         mrb_mod_class_variables,  ARGS_NONE()); /* 15.2.2.4.19 */
   mrb_define_method(mrb, mod, "===",                     mrb_mod_eqq,              ARGS_REQ(1));
+  mrb_define_class_method(mrb, mod, "constants",         mrb_mod_s_constants,      ARGS_ANY());  /* 15.2.2.3.1 */
 
   mrb_undef_method(mrb, cls, "append_features");
   mrb_undef_method(mrb, cls, "extend_object");

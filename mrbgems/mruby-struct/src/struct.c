@@ -11,6 +11,7 @@
 #include "mruby/string.h"
 #include "mruby/class.h"
 #include "mruby/data.h"
+#include "mruby/panic.h"
 #include "mruby/variable.h"
 
 #define RSTRUCT_ARY(st) mrb_ary_ptr(st)
@@ -125,7 +126,7 @@ mrb_struct_getmember(mrb_state *mrb, mrb_value obj, mrb_sym id)
       return ptr[i];
     }
   }
-  mrb_raisef(mrb, E_NAME_ERROR, "%S is not struct member", mrb_sym2str(mrb, id));
+  mrb_name_error(mrb, id, "%S is not struct member", mrb_sym2str(mrb, id));
   return mrb_nil_value();       /* not reached */
 }
 
@@ -204,7 +205,7 @@ mrb_struct_set(mrb_state *mrb, mrb_value obj, mrb_value val)
       return ptr[i] = val;
     }
   }
-  mrb_raisef(mrb, E_NAME_ERROR, "`%S' is not a struct member",
+  mrb_name_error(mrb, mid, "`%S' is not a struct member",
              mrb_sym2str(mrb, mid));
   return mrb_nil_value();            /* not reached */
 }
@@ -249,7 +250,7 @@ make_struct(mrb_state *mrb, mrb_value name, mrb_value members, struct RClass * k
     name = mrb_str_to_str(mrb, name);
     id = mrb_to_id(mrb, name);
     if (!mrb_is_const_id(id)) {
-      mrb_raisef(mrb, E_NAME_ERROR, "identifier %S needs to be constant", name);
+      mrb_name_error(mrb, id, "identifier %S needs to be constant", name);
     }
     if (mrb_const_defined_at(mrb, klass, id)) {
       mrb_warn("redefining constant Struct::%s", mrb_string_value_ptr(mrb, name));
@@ -544,7 +545,7 @@ mrb_struct_aref_id(mrb_state *mrb, mrb_value s, mrb_sym id)
       return ptr[i];
     }
   }
-  mrb_raisef(mrb, E_NAME_ERROR, "no member '%S' in struct", mrb_sym2str(mrb, id));
+  mrb_name_error(mrb, id, "no member '%S' in struct", mrb_sym2str(mrb, id));
   return mrb_nil_value();       /* not reached */
 }
 
@@ -619,7 +620,7 @@ mrb_struct_aset_id(mrb_state *mrb, mrb_value s, mrb_sym id, mrb_value val)
       return val;
     }
   }
-  mrb_raisef(mrb, E_NAME_ERROR, "no member '%S' in struct", mrb_sym2str(mrb, id));
+  mrb_name_error(mrb, id, "no member '%S' in struct", mrb_sym2str(mrb, id));
   return val;                   /* not reach */
 }
 
@@ -708,7 +709,7 @@ mrb_struct_equal(mrb_state *mrb, mrb_value s)
     equal_p = 0;
   }
   else if (RSTRUCT_LEN(s) != RSTRUCT_LEN(s2)) {
-    mrb_bug("inconsistent struct"); /* should never happen */
+    mrb_panic(mrb); /* inconsitent struct -- should never happen */
     equal_p = 0; /* This substuture is just to suppress warnings. never called. */
   }
   else {
@@ -752,7 +753,7 @@ mrb_struct_eql(mrb_state *mrb, mrb_value s)
     eql_p = 0;
   }
   else if (RSTRUCT_LEN(s) != RSTRUCT_LEN(s2)) {
-    mrb_bug("inconsistent struct"); /* should never happen */
+    mrb_panic(mrb); /* inconsistent struct -- should never happen */
     eql_p = 0; /* This substuture is just to suppress warnings. never called. */
   }
   else {

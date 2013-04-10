@@ -440,6 +440,7 @@ mrb_any_to_s(mrb_state *mrb, mrb_value obj)
 
   mrb_str_buf_cat(mrb, str, "#<", 2);
   mrb_str_cat2(mrb, str, cname);
+  mrb_str_cat(mrb, str, ":", 1);
   mrb_str_concat(mrb, str, mrb_ptr_to_str(mrb, mrb_voidp(obj)));
   mrb_str_buf_cat(mrb, str, ">", 1);
 
@@ -530,7 +531,7 @@ mrb_convert_to_integer(mrb_state *mrb, mrb_value val, int base)
       if (FIXABLE(mrb_float(val))) {
           break;
       }
-      return mrb_flt2big(mrb, mrb_float(val));
+      return mrb_flo_to_fixnum(mrb, val);
 
     case MRB_TT_FIXNUM:
       if (base != 0) goto arg_error;

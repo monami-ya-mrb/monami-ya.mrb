@@ -6,7 +6,7 @@ module MRuby
     class << self
       attr_accessor :current
     end
-    LinkerConfig = Struct.new(:libraries, :library_paths, :flags, :flags_before_libraries, :flags_after_libraries) 
+    LinkerConfig = Struct.new(:libraries, :library_paths, :flags, :flags_before_libraries, :flags_after_libraries, :script)
 
     class Specification
       include Rake::DSL
@@ -46,16 +46,16 @@ module MRuby
         MRuby::Build::COMMANDS.each do |command|
           instance_variable_set("@#{command}", @build.send(command).clone)
         end
-        @linker = LinkerConfig.new([], [], [], [])
+        @linker = LinkerConfig.new([], [], [], [], [])
 
         @rbfiles = Dir.glob("#{dir}/mrblib/*.rb")
-        @objs = Dir.glob("#{dir}/src/*.{c,cpp,m,asm,S}").map do |f|
+        @objs = Dir.glob("#{dir}/src/*.{c,cpp,m,asm,s,S}").map do |f|
           objfile(f.relative_path_from(@dir).to_s.pathmap("#{build_dir}/%X"))
         end
         @objs << objfile("#{build_dir}/gem_init")
 
         @test_rbfiles = Dir.glob("#{dir}/test/*.rb")
-        @test_objs = Dir.glob("#{dir}/test/*.{c,cpp,m,asm,S}").map do |f|
+        @test_objs = Dir.glob("#{dir}/test/*.{c,cpp,m,asm,s,S}").map do |f|
           objfile(f.relative_path_from(dir).to_s.pathmap("#{build_dir}/%X"))
         end
         @test_preload = 'test/assert.rb'
@@ -124,7 +124,7 @@ module MRuby
             f.puts %Q[  mrb_load_irep(mrb, gem_mrblib_irep_#{funcname});]
             f.puts %Q[  if (mrb->exc) {]
             f.puts %Q[    mrb_p(mrb, mrb_obj_value(mrb->exc));]
-            f.puts %Q[    exit(0);]
+            f.puts %Q[    exit(EXIT_FAILURE);]
             f.puts %Q[  }]
           end
           f.puts %Q[  mrb_gc_arena_restore(mrb, ai);]

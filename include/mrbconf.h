@@ -7,6 +7,8 @@
 #ifndef MRUBYCONF_H
 #define MRUBYCONF_H
 
+#include "mruby.h"
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -56,11 +58,15 @@
 /* array size for parser buffer */
 //#define MRB_PARSER_BUF_SIZE 1024
 
+/* Default panic behavior */
+//#define MRB_PANIC_ABORT() abort()
+
 /* -DDISABLE_XXXX to drop following features */
 //#define DISABLE_STDIO		/* use of stdio */
 
 /* -DENABLE_XXXX to enable following features */
 //#define ENABLE_DEBUG		/* hooks for debugger */
+//#define MRB_ENABLE_ROMED	/* ROMed targets support */
 
 /* end of configuration */
 

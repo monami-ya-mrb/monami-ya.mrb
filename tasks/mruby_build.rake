@@ -66,7 +66,7 @@ module MRuby
         @cc = Command::Compiler.new(self, %w(.c))
         @cxx = Command::Compiler.new(self, %w(.cc .cxx .cpp))
         @objc = Command::Compiler.new(self, %w(.m))
-        @asm = Command::Compiler.new(self, %w(.S .asm))
+        @asm = Command::Compiler.new(self, %w(.asm .s .S))
         @linker = Command::Linker.new(self)
         @archiver = Command::Archiver.new(self)
         @yacc = Command::Yacc.new(self)
@@ -194,10 +194,21 @@ module MRuby
   end # Build
 
   class CrossBuild < Build
+    attr_block %w(test_runner)
+
+    def initialize(name, &block)
+	@test_runner = Command::CrossTestRunner.new(self)
+	super
+    end
+
     def run_test
       mrbtest = exefile("#{build_dir}/test/mrbtest")
-      puts "You should run #{mrbtest} on target device."
-      puts 
+      if (@test_runner.command == nil)
+        puts "You should run #{mrbtest} on target device."
+        puts
+      else
+        @test_runner.run(mrbtest)
+      end
     end
   end # CrossBuild
 end # MRuby

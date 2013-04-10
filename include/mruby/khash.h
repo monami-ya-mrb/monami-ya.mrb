@@ -7,6 +7,8 @@
 #ifndef KHASH_H
 #define KHASH_H
 
+#include "mruby.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif

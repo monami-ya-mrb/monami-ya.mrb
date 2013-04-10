@@ -24,6 +24,7 @@
 #include "mruby.h"
 #include "mruby/compile.h"
 #include "mruby/proc.h"
+#include "mruby/panic.h"
 #include "node.h"
 
 #define YYLEX_PARAM p
@@ -37,6 +38,10 @@ static void yyerror(parser_state *p, const char *s);
 static void yywarn(parser_state *p, const char *s);
 static void yywarning(parser_state *p, const char *s);
 static void backref_error(parser_state *p, node *n);
+
+#ifndef isascii
+#define isascii(c) (((c) & ~0x7f) == 0)
+#endif
 
 #define identchar(c) (isalnum(c) || (c) == '_' || !isascii(c))
 
@@ -3205,7 +3210,8 @@ backref_error(parser_state *p, node *n)
   } else if (c == NODE_BACK_REF) {
     yyerror_i(p, "can't set variable $%c", (int)(intptr_t)n->cdr);
   } else {
-    mrb_bug("Internal error in backref_error() : n=>car == %d", c);
+    yyerror_i(p, "Internal error in backref_error() : n=>car == %d", c);
+    mrb_panic(p->mrb);
   }
 }
 
@@ -4726,6 +4732,10 @@ parser_yylex(parser_state *p)
     p->lstate = EXPR_END;
     token_column = newtok(p);
     c = nextc(p);
+    if (c == -1) {
+      yyerror(p, "incomplete global variable syntax");
+      return 0;
+    }
     switch (c) {
     case '_':     /* $_: last read line string */
       c = nextc(p);
@@ -4812,7 +4822,16 @@ parser_yylex(parser_state *p)
       tokadd(p, '@');
       c = nextc(p);
     }
-    if (c != -1 && isdigit(c)) {
+    if (c == -1) {
+      if (p->bidx == 1) {
+	yyerror(p, "incomplete instance variable syntax");
+      }
+      else {
+	yyerror(p, "incomplete class variable syntax");
+      }
+      return 0;
+    }
+    else if (isdigit(c)) {
       if (p->bidx == 1) {
 	yyerror_i(p, "`@%c' is not allowed as an instance variable name", c);
       }

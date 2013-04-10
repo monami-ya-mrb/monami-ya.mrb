@@ -32,7 +32,7 @@ inspect_main(mrb_state *mrb, mrb_value mod)
 }
 
 mrb_state*
-mrb_open_allocf(mrb_allocf f, void *ud)
+mrb_open_allocf(mrb_allocf f, uintptr_t ud)
 {
   static const mrb_state mrb_state_zero = { 0 };
   mrb_state *mrb = (mrb_state *)(f)(NULL, NULL, sizeof(mrb_state), ud);
@@ -49,7 +49,7 @@ mrb_open_allocf(mrb_allocf f, void *ud)
 }
 
 static void*
-allocf(mrb_state *mrb, void *p, size_t size, void *ud)
+allocf(mrb_state *mrb, void *p, size_t size, uintptr_t ud)
 {
   if (size == 0) {
     free(p);
@@ -101,7 +101,7 @@ mrb_open(void)
 #ifdef TLSF_HEAP_SIZE
   init_memory_pool(TLSF_HEAP_SIZE, memory_pool);
 #endif
-  mrb = mrb_open_allocf(allocf, NULL);
+  mrb = mrb_open_allocf(allocf, (uintptr_t)NULL);
 
   return mrb;
 }

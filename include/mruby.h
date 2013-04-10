@@ -41,7 +41,9 @@ typedef int32_t mrb_aspec;
 
 struct mrb_state;
 
-typedef void* (*mrb_allocf) (struct mrb_state *mrb, void*, size_t, void *ud);
+typedef void* (*mrb_allocf) (struct mrb_state *mrb, void*, size_t, uintptr_t ud);
+typedef void (*mrb_panic_hook) (struct mrb_state *mrb);
+typedef int (*mrb_log_printer)(const char *);
 
 #ifndef MRB_ARENA_SIZE
 #define MRB_ARENA_SIZE 100
@@ -67,8 +69,16 @@ enum gc_state {
   GC_STATE_SWEEP
 };
 
+enum mrb_log_level {
+  MRB_LOGGING_NORMAL = 0,
+  MRB_LOGGING_EXPRESS = 1
+};
+#define MRB_LOG_LEVEL_MAX 1
+
 typedef struct mrb_state {
   void *jmp;
+
+  mrb_panic_hook panic_hook;
 
   mrb_allocf allocf;
 
@@ -125,6 +135,7 @@ typedef struct mrb_state {
   mrb_bool gc_disabled:1;
   mrb_bool gc_full:1;
   mrb_bool is_generational_gc_mode:1;
+  mrb_bool out_of_memory:1;
   size_t majorgc_old_threshold;
   struct alloca_header *mems;
 
@@ -138,7 +149,9 @@ typedef struct mrb_state {
   struct RClass *eException_class;
   struct RClass *eStandardError_class;
 
-  void *ud; /* auxiliary data */
+  mrb_log_printer log_printer[MRB_LOG_LEVEL_MAX + 1];
+
+  uintptr_t ud; /* auxiliary data */
 
 } mrb_state;
 
@@ -216,7 +229,7 @@ mrb_value mrb_str_new(mrb_state *mrb, const char *p, size_t len);
 mrb_value mrb_str_new_cstr(mrb_state*, const char*);
 
 mrb_state* mrb_open(void);
-mrb_state* mrb_open_allocf(mrb_allocf, void *ud);
+mrb_state* mrb_open_allocf(mrb_allocf, uintptr_t ud);
 void mrb_irep_free(mrb_state*, struct mrb_irep*);
 void mrb_close(mrb_state*);
 
@@ -281,9 +294,15 @@ void mrb_exc_raise(mrb_state *mrb, mrb_value exc);
 
 void mrb_raise(mrb_state *mrb, struct RClass *c, const char *msg);
 void mrb_raisef(mrb_state *mrb, struct RClass *c, const char *fmt, ...);
+void mrb_name_error(mrb_state *mrb, mrb_sym id, const char *fmt, ...);
 void mrb_warn(const char *fmt, ...);
 void mrb_bug(const char *fmt, ...);
 
+/* macros to get typical exception objects
+   note:
+   + those E_* macros requires mrb_state* variable named mrb.
+   + exception objects obtained from those macros are local to mrb
+*/
 #define E_RUNTIME_ERROR             (mrb_class_obj_get(mrb, "RuntimeError"))
 #define E_TYPE_ERROR                (mrb_class_obj_get(mrb, "TypeError"))
 #define E_ARGUMENT_ERROR            (mrb_class_obj_get(mrb, "ArgumentError"))

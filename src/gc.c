@@ -157,6 +157,20 @@ mrb_realloc(mrb_state *mrb, void *p, size_t len)
     mrb_garbage_collect(mrb);
     p2 = (mrb->allocf)(mrb, p, len, mrb->ud);
   }
+
+  if (!p2 && len) {
+    if (mrb->out_of_memory) {
+      /* mrb_panic(mrb); */
+    }
+    else {
+      mrb->out_of_memory = 1;
+      mrb_raise(mrb, E_RUNTIME_ERROR, "Out of memory");
+    }
+  }
+  else {
+    mrb->out_of_memory = 0;
+  }
+
   return p2;
 }
 
@@ -363,7 +377,7 @@ add_gray_list(mrb_state *mrb, struct RBasic *obj)
 {
 #ifdef MRB_GC_STRESS
   if (obj->tt > MRB_TT_MAXDEFINE) {
-    abort();
+    mrb_panic(mrb);
   }
 #endif
   paint_gray(obj);

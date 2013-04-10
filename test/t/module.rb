@@ -129,6 +129,21 @@ assert('Module#const_get', '15.2.2.4.23') do
   Test4ConstSet.const_get(:Const4Test4ConstSet) == 23
 end
 
+assert('Module.constants', '15.2.2.4.24') do
+  $n = []
+  module TestA
+    Const = 1
+  end
+  class TestB
+    include TestA
+    Const2 = 1
+    $n = constants.sort
+  end
+
+  TestA.constants == [ :Const ] and
+  $n == [ :Const, :Const2 ]
+end
+
 assert('Module#include', '15.2.2.4.27') do
   module Test4Include
     Const4Include = 42
@@ -280,6 +295,29 @@ assert('Module#remove_method', '15.2.2.4.41') do
 
   Test4RemoveMethod::Child.instance_methods.include? :hello and
   not Test4RemoveMethod::Child.instance_methods(false).include? :hello
+end
+
+assert('Module.undef_method', '15.2.2.4.42') do
+  module Test4UndefMethod
+    class Parent
+      def hello
+      end
+     end
+
+     class Child < Parent
+      def hello
+      end
+     end
+
+     class GrandChild < Child
+     end
+  end
+
+  Test4UndefMethod::Child.class_eval{ undef_method :hello }
+
+  Test4UndefMethod::Parent.new.respond_to?(:hello) and
+  not Test4UndefMethod::Child.new.respond_to?(:hello) and
+  not Test4UndefMethod::GrandChild.new.respond_to?(:hello)
 end
 
 

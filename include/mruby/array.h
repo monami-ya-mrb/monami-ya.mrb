@@ -11,6 +11,8 @@
 extern "C" {
 #endif
 
+#include "mruby.h"
+
 typedef struct mrb_shared_array {
   int refcnt;
   mrb_value *ptr;
