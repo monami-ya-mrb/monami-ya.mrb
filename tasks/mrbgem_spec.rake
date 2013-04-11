@@ -6,7 +6,7 @@ module MRuby
     class << self
       attr_accessor :current
     end
-    LinkerConfig = Struct.new(:libraries, :library_paths, :flags, :flags_before_libraries, :flags_after_libraries, :script)
+    LinkerConfig = Struct.new(:libraries, :library_paths, :flags, :flags_before_libraries, :flags_after_libraries)
 
     class Specification
       include Rake::DSL
@@ -29,6 +29,7 @@ module MRuby
       attr_accessor :test_preload
 
       attr_accessor :bins
+      alias executables bins
 
       attr_block MRuby::Build::COMMANDS
 
@@ -36,6 +37,13 @@ module MRuby
         @name = name
         @initializer = block
         MRuby::Gem.current = self
+      end
+
+      def linker(bin = nil)
+        unless @linker.key?(bin)
+          @linker[bin] = LinkerConfig.new([], [], [], [], [])
+        end
+        @linker[bin]
       end
 
       def setup
@@ -46,7 +54,7 @@ module MRuby
         MRuby::Build::COMMANDS.each do |command|
           instance_variable_set("@#{command}", @build.send(command).clone)
         end
-        @linker = LinkerConfig.new([], [], [], [], [])
+        @linker = { }
 
         @rbfiles = Dir.glob("#{dir}/mrblib/*.rb")
         @objs = Dir.glob("#{dir}/src/*.{c,cpp,m,asm,s,S}").map do |f|

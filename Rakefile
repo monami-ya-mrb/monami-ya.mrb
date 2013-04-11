@@ -57,9 +57,8 @@ MRuby.each_target do |target|
       objs += Dir.glob("#{current_dir}/tools/#{bin}/*.c").map { |f| objfile(f.pathmap("#{current_build_dir}/tools/#{bin}/%n")) }
 
       file exec => objs + [libfile("#{build_dir}/lib/libmruby")] do |t|
-        gem_flags = gem.linker.flags
-        (gem_flags += [ "-T#{current_dir}/tools/#{bin}/#{gem.linker.script}" ]) if gem.linker.script
-        linker.run t.name, t.prerequisites, gem.linker.libraries, gem.linker.library_paths, gem_flags, gem.linker.flags_before_libraries
+        link_opt = gem.linker(bin)
+        linker.run t.name, t.prerequisites, link_opt.libraries, link_opt.library_paths, link_opt.flags, link_opt.flags_before_libraries
       end
 
       if target == MRuby.targets['host']
