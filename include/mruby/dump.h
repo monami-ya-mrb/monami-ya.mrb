@@ -44,7 +44,7 @@ mrb_value mrb_load_irep_file(mrb_state*,FILE*);
 #define MRB_DUMP_NULL_SYM_LEN         0xFFFF
 
 /* Rite Binary File header */
-#define RITE_BINARY_IDENFIFIER        "RITE"
+#define RITE_BINARY_IDENFIFIER        "RITe"
 #define RITE_BINARY_FORMAT_VER        "0001"
 #define RITE_COMPILER_NAME            "MATZ"
 #define RITE_COMPILER_VERSION         "0000"
