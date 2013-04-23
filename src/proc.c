@@ -184,7 +184,7 @@ mrb_init_proc(mrb_state *mrb)
   mrb_irep *call_irep = (mrb_irep *)mrb_alloca(mrb, sizeof(mrb_irep));
   static const mrb_irep mrb_irep_zero = { 0 };
 
-  STATIC_ASSERT(call_iseq, "call_iseq should not be NULL.");
+  STATIC_ASSERT(call_iseq != NULL, "call_iseq should not be NULL.");
 
   if ( call_irep == NULL )
     return;

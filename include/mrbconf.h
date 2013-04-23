@@ -118,7 +118,7 @@ typedef short mrb_sym;
 #endif
 
 #if defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ >= 6
-# define STATIC_ASSERT(cond, mesg) _Static_assert((cond), (mesg));
+# define STATIC_ASSERT(cond, mesg) _Static_assert((cond), mesg);
 #else
 # define STATIC_ASSERT(cond, mesg)
 #endif
