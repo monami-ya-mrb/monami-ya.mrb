@@ -11,6 +11,9 @@ MRuby::Build.new do |conf|
   # conf.gem :github => 'masuidrive/mrbgems-example', :branch => 'master'
   # conf.gem :git => 'git@github.com:masuidrive/mrbgems-example.git', :branch => 'master', :options => '-v'
 
+  # No use RITE VM debug support
+  # conf.gem "#{root}/mrbgems/mmrb-debug-ext"
+
   # Use standard Kernel#sprintf method
   conf.gem "#{root}/mrbgems/mruby-sprintf"
 
