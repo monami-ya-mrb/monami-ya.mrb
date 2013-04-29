@@ -19,7 +19,7 @@
 #include "mruby/string.h"
 #include "mruby/variable.h"
 #include "error.h"
-#include "opcode.h"
+#include "ritevm/opcode.h"
 #include "value_array.h"
 
 

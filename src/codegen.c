@@ -14,7 +14,7 @@
 #include "mruby/string.h"
 #include "mruby/panic.h"
 #include "node.h"
-#include "opcode.h"
+#include "ritevm/opcode.h"
 #include "re.h"
 
 typedef mrb_ast_node node;
