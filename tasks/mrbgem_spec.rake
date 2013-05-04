@@ -31,6 +31,9 @@ module MRuby
       attr_accessor :bins
       alias executables bins
 
+      attr_accessor :requirements
+      attr_reader :dependencies
+
       attr_block MRuby::Build::COMMANDS
 
       def initialize(name, &block)
@@ -56,7 +59,7 @@ module MRuby
         end
         @linker = { }
 
-        @rbfiles = Dir.glob("#{dir}/mrblib/*.rb")
+        @rbfiles = Dir.glob("#{dir}/mrblib/*.rb").sort
         @objs = Dir.glob("#{dir}/src/*.{c,cpp,m,asm,s,S}").map do |f|
           objfile(f.relative_path_from(@dir).to_s.pathmap("#{build_dir}/%X"))
         end
@@ -70,6 +73,9 @@ module MRuby
         @test_args = {}
 
         @bins = []
+
+        @requirements = []
+        @dependencies = []
 
         instance_eval(&@initializer)
 
@@ -86,6 +92,12 @@ module MRuby
         end
 
         define_gem_init_builder
+      end
+
+      def add_dependency(name, *requirements)
+        requirements = ['> 0.0.0'] if requirements.empty?
+        requirements.flatten!
+        @dependencies << [:gem => name, :requirements => requirements]
       end
 
       def self.bin=(bin)
@@ -165,6 +177,30 @@ module MRuby
       end
 
     end # Specification
+
+    class List
+      include Enumerable
+
+      def initialize
+        @ary = []
+      end
+
+      def each(&b)
+        @ary.each(&b)
+      end
+
+      def <<(gem)
+        unless @ary.detect {|g| g.dir == gem.dir }
+          @ary << gem
+        else
+          # GEM was already added to this list
+        end
+      end
+
+      def empty?
+        @ary.empty?
+      end
+    end # List
   end # Gem
 
   GemBox = Object.new

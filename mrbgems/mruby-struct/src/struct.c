@@ -126,7 +126,7 @@ mrb_struct_getmember(mrb_state *mrb, mrb_value obj, mrb_sym id)
       return ptr[i];
     }
   }
-  mrb_name_error(mrb, id, "%S is not struct member", mrb_sym2str(mrb, id));
+  mrb_raisef(mrb, E_INDEX_ERROR, "%S is not struct member", mrb_sym2str(mrb, id));
   return mrb_nil_value();       /* not reached */
 }
 
@@ -205,7 +205,7 @@ mrb_struct_set(mrb_state *mrb, mrb_value obj, mrb_value val)
       return ptr[i] = val;
     }
   }
-  mrb_name_error(mrb, mid, "`%S' is not a struct member",
+  mrb_raisef(mrb, E_INDEX_ERROR, "`%S' is not a struct member",
              mrb_sym2str(mrb, mid));
   return mrb_nil_value();            /* not reached */
 }
@@ -248,7 +248,7 @@ make_struct(mrb_state *mrb, mrb_value name, mrb_value members, struct RClass * k
   else {
     /* old style: should we warn? */
     name = mrb_str_to_str(mrb, name);
-    id = mrb_to_id(mrb, name);
+    id = mrb_obj_to_sym(mrb, name);
     if (!mrb_is_const_id(id)) {
       mrb_name_error(mrb, id, "identifier %S needs to be constant", name);
     }
@@ -378,7 +378,7 @@ mrb_struct_s_def(mrb_state *mrb, mrb_value klass)
       rest = mrb_ary_new_from_values(mrb, argcnt, pargv);
     }
     for (i=0; i<RARRAY_LEN(rest); i++) {
-      id = mrb_to_id(mrb, RARRAY_PTR(rest)[i]);
+      id = mrb_obj_to_sym(mrb, RARRAY_PTR(rest)[i]);
       RARRAY_PTR(rest)[i] = mrb_symbol_value(id);
     }
   }
@@ -545,7 +545,7 @@ mrb_struct_aref_id(mrb_state *mrb, mrb_value s, mrb_sym id)
       return ptr[i];
     }
   }
-  mrb_name_error(mrb, id, "no member '%S' in struct", mrb_sym2str(mrb, id));
+  mrb_raisef(mrb, E_INDEX_ERROR, "no member '%S' in struct", mrb_sym2str(mrb, id));
   return mrb_nil_value();       /* not reached */
 }
 
@@ -573,8 +573,16 @@ mrb_struct_aref_n(mrb_state *mrb, mrb_value s, mrb_value idx)
 {
   mrb_int i;
 
-  if (mrb_string_p(idx) || mrb_symbol_p(idx)) {
-    return mrb_struct_aref_id(mrb, s, mrb_to_id(mrb, idx));
+  if (mrb_string_p(idx)) {
+    mrb_value sym = mrb_check_intern_str(mrb, idx);
+
+    if (mrb_nil_p(sym)) {
+      mrb_raisef(mrb, E_INDEX_ERROR, "no member '%S' in struct", idx);
+    }
+    idx = sym;
+  }
+  if (mrb_symbol_p(idx)) {
+    return mrb_struct_aref_id(mrb, s, mrb_symbol(idx));
   }
 
   i = mrb_fixnum(idx);
@@ -620,7 +628,7 @@ mrb_struct_aset_id(mrb_state *mrb, mrb_value s, mrb_sym id, mrb_value val)
       return val;
     }
   }
-  mrb_name_error(mrb, id, "no member '%S' in struct", mrb_sym2str(mrb, id));
+  mrb_raisef(mrb, E_INDEX_ERROR, "no member '%S' in struct", mrb_sym2str(mrb, id));
   return val;                   /* not reach */
 }
 
@@ -656,7 +664,7 @@ mrb_struct_aset(mrb_state *mrb, mrb_value s)
   mrb_get_args(mrb, "oo", &idx, &val);
 
   if (mrb_string_p(idx) || mrb_symbol_p(idx)) {
-    return mrb_struct_aset_id(mrb, s, mrb_to_id(mrb, idx), val);
+    return mrb_struct_aset_id(mrb, s, mrb_obj_to_sym(mrb, idx), val);
   }
 
   i = mrb_fixnum(idx);
