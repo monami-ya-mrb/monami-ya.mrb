@@ -197,10 +197,10 @@ mrb_calloc(mrb_state *mrb, size_t nelem, size_t len)
   return p;
 }
 
-void*
+void
 mrb_free(mrb_state *mrb, void *p)
 {
-  return (mrb->allocf)(mrb, p, 0, mrb->ud);
+  (mrb->allocf)(mrb, p, 0, mrb->ud);
 }
 
 #ifndef MRB_HEAP_PAGE_SIZE
@@ -450,7 +450,7 @@ gc_mark_children(mrb_state *mrb, struct RBasic *obj)
 
   case MRB_TT_HASH:
     mrb_gc_mark_iv(mrb, (struct RObject*)obj);
-    mrb_gc_mark_ht(mrb, (struct RHash*)obj);
+    mrb_gc_mark_hash(mrb, (struct RHash*)obj);
     break;
 
   case MRB_TT_STRING:
@@ -525,14 +525,11 @@ obj_free(mrb_state *mrb, struct RBasic *obj)
 
   case MRB_TT_HASH:
     mrb_gc_free_iv(mrb, (struct RObject*)obj);
-    mrb_gc_free_ht(mrb, (struct RHash*)obj);
+    mrb_gc_free_hash(mrb, (struct RHash*)obj);
     break;
 
   case MRB_TT_STRING:
-    if (obj->flags & MRB_STR_SHARED)
-      mrb_str_decref(mrb, ((struct RString*)obj)->aux.shared);
-    else
-      mrb_free(mrb, ((struct RString*)obj)->ptr);
+    mrb_gc_free_str(mrb, (struct RString*)obj);
     break;
 
   case MRB_TT_RANGE:
@@ -654,7 +651,7 @@ gc_gray_mark(mrb_state *mrb, struct RBasic *obj)
 
   case MRB_TT_HASH:
     children += mrb_gc_mark_iv_size(mrb, (struct RObject*)obj);
-    children += mrb_gc_mark_ht_size(mrb, (struct RHash*)obj);
+    children += mrb_gc_mark_hash_size(mrb, (struct RHash*)obj);
     break;
 
   case MRB_TT_PROC:

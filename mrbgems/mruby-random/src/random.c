@@ -15,12 +15,8 @@
 #define INSTANCE_RAND_SEED_KEY  "$mrb_i_rand_seed"
 #define MT_STATE_KEY            "$mrb_i_mt_state"
 
-static void mt_state_free(mrb_state *mrb, void *p)
-{
-}
-
 static const struct mrb_data_type mt_state_type = {
-    MT_STATE_KEY, mt_state_free,
+    MT_STATE_KEY, mrb_free,
 };
 
 static mt_state *mrb_mt_get_context(mrb_state *mrb,  mrb_value self)
@@ -191,8 +187,6 @@ static mrb_value mrb_random_rand(mrb_state *mrb, mrb_value self)
   if (mrb_nil_p(seed)) {
     mrb_random_mt_srand(mrb, t, mrb_nil_value());
   }
-  mrb_iv_set(mrb, self, mrb_intern(mrb, MT_STATE_KEY),
-    mrb_obj_value(Data_Wrap_Struct(mrb, mrb->object_class, &mt_state_type, (void*) t)));
   return mrb_random_mt_rand(mrb, t, max);
 }
 
@@ -206,8 +200,7 @@ static mrb_value mrb_random_srand(mrb_state *mrb, mrb_value self)
   seed = mrb_random_mt_srand(mrb, t, seed);
   old_seed = mrb_iv_get(mrb, self, mrb_intern(mrb, INSTANCE_RAND_SEED_KEY));
   mrb_iv_set(mrb, self, mrb_intern(mrb, INSTANCE_RAND_SEED_KEY), seed);
-  mrb_iv_set(mrb, self, mrb_intern(mrb, MT_STATE_KEY),
-    mrb_obj_value(Data_Wrap_Struct(mrb, mrb->object_class, &mt_state_type, (void*) t)));
+
   return old_seed;
 }
 

@@ -690,6 +690,9 @@ mrb_include_module(mrb_state *mrb, struct RClass *c, struct RClass *m)
     struct RClass *p = c, *ic;
     int superclass_seen = 0;
 
+    if (c->mt == m->mt) {
+      mrb_raise(mrb, E_ARGUMENT_ERROR, "cyclic include detected");
+    }
     while (p) {
       if (c != p && p->tt == MRB_TT_CLASS) {
         superclass_seen = 1;
@@ -834,7 +837,7 @@ mrb_mod_included_modules(mrb_state *mrb, mrb_value self)
   return result;
 }
 
-mrb_value class_instance_method_list(mrb_state*, int, struct RClass*, int);
+mrb_value class_instance_method_list(mrb_state*, mrb_bool, struct RClass*, int);
 
 /* 15.2.2.4.33 */
 /*

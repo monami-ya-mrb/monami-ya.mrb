@@ -9,6 +9,8 @@
 
 #include "mruby.h"
 
+typedef uint8_t mrb_bool;
+
 #ifndef MRB_NAN_BOXING
 
 enum mrb_vtype {

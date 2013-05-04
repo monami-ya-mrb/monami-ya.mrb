@@ -23,6 +23,16 @@
 
 const char mrb_digitmap[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
+typedef struct mrb_shared_string {
+  mrb_bool nofree;
+  int refcnt;
+  char *ptr;
+  mrb_int len;
+} mrb_shared_string;
+
+#define MRB_STR_SHARED    1
+#define MRB_STR_NOFREE    2
+
 static mrb_value str_replace(mrb_state *mrb, struct RString *s1, struct RString *s2);
 static mrb_value mrb_str_subseq(mrb_state *mrb, mrb_value str, mrb_int beg, mrb_int len);
 
@@ -31,12 +41,14 @@ static mrb_value mrb_str_subseq(mrb_state *mrb, mrb_value str, mrb_int beg, mrb_
       s->aux.capa = capacity;\
 } while(0)
 
-void
-mrb_str_decref(mrb_state *mrb, mrb_shared_string *shared)
+static void
+str_decref(mrb_state *mrb, mrb_shared_string *shared)
 {
   shared->refcnt--;
   if (shared->refcnt == 0) {
-    mrb_free(mrb, shared->ptr);
+    if (!shared->nofree) {
+      mrb_free(mrb, shared->ptr);
+    }
     mrb_free(mrb, shared);
   }
 }
@@ -65,9 +77,21 @@ mrb_str_modify(mrb_state *mrb, struct RString *s)
       ptr[len] = 0;
       s->ptr = ptr;
       s->aux.capa = len;
-      mrb_str_decref(mrb, shared);
+      str_decref(mrb, shared);
     }
     s->flags &= ~MRB_STR_SHARED;
+    return;
+  }
+  if (s->flags & MRB_STR_NOFREE) {
+    char *p = s->ptr;
+
+    s->ptr = (char *)mrb_malloc(mrb, (size_t)s->len+1);
+    if (p) {
+      memcpy(s->ptr, p, s->len);
+    }
+    s->ptr[s->len] = '\0';
+    s->aux.capa = s->len;
+    return;
   }
 }
 
@@ -249,6 +273,28 @@ mrb_str_new_cstr(mrb_state *mrb, const char *p)
   return mrb_obj_value(s);
 }
 
+mrb_value
+mrb_str_new_static(mrb_state *mrb, const char *p, size_t len)
+{
+  struct RString *s;
+
+  s = mrb_obj_alloc_string(mrb);
+  s->len = len;
+  s->aux.capa = 0;             /* nofree */
+  s->ptr = (char *)p;
+  s->flags = MRB_STR_NOFREE;
+  return mrb_obj_value(s);
+}
+
+void
+mrb_gc_free_str(mrb_state *mrb, struct RString *str)
+{
+  if (str->flags & MRB_STR_SHARED)
+    str_decref(mrb, str->aux.shared);
+  else if ((str->flags & MRB_STR_NOFREE) == 0)
+    mrb_free(mrb, str->ptr);
+}
+
 char *
 mrb_str_to_cstr(mrb_state *mrb, mrb_value str0)
 {
@@ -272,11 +318,19 @@ str_make_shared(mrb_state *mrb, struct RString *s)
     mrb_shared_string *shared = (mrb_shared_string *)mrb_malloc(mrb, sizeof(mrb_shared_string));
 
     shared->refcnt = 1;
-    if (s->aux.capa > s->len) {
-      s->ptr = shared->ptr = (char *)mrb_realloc(mrb, s->ptr, s->len+1);
+    if (s->flags & MRB_STR_NOFREE) {
+      shared->nofree = TRUE;
+      shared->ptr = s->ptr;
+      s->flags &= ~MRB_STR_NOFREE;
     }
     else {
-      shared->ptr = s->ptr;
+      shared->nofree = FALSE;
+      if (s->aux.capa > s->len) {
+        s->ptr = shared->ptr = (char *)mrb_realloc(mrb, s->ptr, s->len+1);
+      }
+      else {
+        shared->ptr = s->ptr;
+      }
     }
     shared->len = s->len;
     s->aux.shared = shared;
@@ -300,13 +354,12 @@ mrb_str_literal(mrb_state *mrb, mrb_value str)
   s = mrb_obj_alloc_string(mrb);
   orig = mrb_str_ptr(str);
   if (!(orig->flags & MRB_STR_SHARED)) {
-    str_make_shared(mrb, mrb_str_ptr(str));
+    str_make_shared(mrb, orig);
   }
   shared = orig->aux.shared;
   shared->refcnt++;
   s->ptr = shared->ptr;
   s->len = shared->len;
-  s->aux.capa = 0;
   s->aux.shared = shared;
   s->flags |= MRB_STR_SHARED;
 
@@ -1233,7 +1286,7 @@ mrb_str_include(mrb_state *mrb, mrb_value self)
 
   mrb_get_args(mrb, "o", &str2);
   if (mrb_type(str2) == MRB_TT_FIXNUM) {
-    include_p = memchr(RSTRING_PTR(self), mrb_fixnum(str2), RSTRING_LEN(self));
+    include_p = (memchr(RSTRING_PTR(self), mrb_fixnum(str2), RSTRING_LEN(self)) != NULL);
   }
   else {
     str2 = mrb_str_to_str(mrb, str2);
@@ -1335,7 +1388,7 @@ str_replace(mrb_state *mrb, struct RString *s1, struct RString *s2)
   if (s2->flags & MRB_STR_SHARED) {
   L_SHARE:
     if (s1->flags & MRB_STR_SHARED){
-      mrb_str_decref(mrb, s1->aux.shared);
+      str_decref(mrb, s1->aux.shared);
     }
     else {
       mrb_free(mrb, s1->ptr);
@@ -1352,7 +1405,7 @@ str_replace(mrb_state *mrb, struct RString *s1, struct RString *s2)
   }
   else {
     if (s1->flags & MRB_STR_SHARED) {
-      mrb_str_decref(mrb, s1->aux.shared);
+      str_decref(mrb, s1->aux.shared);
       s1->flags &= ~MRB_STR_SHARED;
       s1->ptr = (char *)mrb_malloc(mrb, s2->len+1);
     }
