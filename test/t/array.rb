@@ -52,9 +52,16 @@ assert('Array#[]', '15.2.12.5.4') do
     e3 = e1
   end
 
+  begin
+    [1][-2] = 1
+  rescue => e1
+    e4 = e1
+  end
+
   [1,2,3].[](1) == 2 and
     e2.class == ArgumentError and
-    e3.class == ArgumentError
+    e3.class == ArgumentError and
+    e4.class == IndexError
 end
 
 assert('Array#[]=', '15.2.12.5.5') do
