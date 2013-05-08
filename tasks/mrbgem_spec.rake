@@ -144,7 +144,7 @@ module MRuby
             f.puts %Q[  mrb_load_irep(mrb, gem_mrblib_irep_#{funcname});]
             f.puts %Q[  if (mrb->exc) {]
             f.puts %Q[    mrb_p(mrb, mrb_obj_value(mrb->exc));]
-            f.puts %Q[    exit(EXIT_FAILURE);]
+            f.puts %Q[    mrb_panic(mrb);]
             f.puts %Q[  }]
           end
           f.puts %Q[  mrb_gc_arena_restore(mrb, ai);]
@@ -170,6 +170,7 @@ module MRuby
         f.puts %Q[#include "mruby/irep.h"]
         f.puts %Q[#include "mruby/dump.h"]
         f.puts %Q[#include "mruby/string.h"]
+        f.puts %Q[#include "mruby/panic.h"]
         f.puts %Q[#include "mruby/proc.h"]
         f.puts %Q[#include "mruby/variable.h"]
         f.puts %Q[#include "mruby/array.h"]
