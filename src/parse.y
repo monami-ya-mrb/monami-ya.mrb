@@ -3210,8 +3210,7 @@ backref_error(parser_state *p, node *n)
   } else if (c == NODE_BACK_REF) {
     yyerror_i(p, "can't set variable $%c", (int)(intptr_t)n->cdr);
   } else {
-    yyerror_i(p, "Internal error in backref_error() : n=>car == %d", c);
-    mrb_panic(p->mrb);
+    mrb_bug(p->mrb, "Internal error in backref_error() : n=>car == %d", c);
   }
 }
 

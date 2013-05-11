@@ -253,7 +253,7 @@ make_struct(mrb_state *mrb, mrb_value name, mrb_value members, struct RClass * k
       mrb_name_error(mrb, id, "identifier %S needs to be constant", name);
     }
     if (mrb_const_defined_at(mrb, klass, id)) {
-      mrb_warn("redefining constant Struct::%s", mrb_string_value_ptr(mrb, name));
+      mrb_warn(mrb, "redefining constant Struct::%S", name);
       //?rb_mod_remove_const(klass, mrb_sym2name(mrb, id));
     }
     c = mrb_define_class_under(mrb, klass, RSTRING_PTR(name), klass);
@@ -717,7 +717,7 @@ mrb_struct_equal(mrb_state *mrb, mrb_value s)
     equal_p = 0;
   }
   else if (RSTRUCT_LEN(s) != RSTRUCT_LEN(s2)) {
-    mrb_panic(mrb); /* inconsitent struct -- should never happen */
+    mrb_bug(mrb, "inconsistent struct"); /* should never happen */
     equal_p = 0; /* This substuture is just to suppress warnings. never called. */
   }
   else {
@@ -761,7 +761,7 @@ mrb_struct_eql(mrb_state *mrb, mrb_value s)
     eql_p = 0;
   }
   else if (RSTRUCT_LEN(s) != RSTRUCT_LEN(s2)) {
-    mrb_panic(mrb); /* inconsistent struct -- should never happen */
+    mrb_bug(mrb, "inconsistent struct"); /* should never happen */
     eql_p = 0; /* This substuture is just to suppress warnings. never called. */
   }
   else {
