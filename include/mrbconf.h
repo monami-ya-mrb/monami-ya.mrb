@@ -131,6 +131,7 @@ typedef short mrb_sym;
 #endif
 
 #ifdef _MSC_VER
+# define _ALLOW_KEYWORD_MACROS
 # include <float.h>
 # define inline __inline
 # define snprintf _snprintf
