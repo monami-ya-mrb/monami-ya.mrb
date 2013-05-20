@@ -369,7 +369,7 @@ to_hash(mrb_state *mrb, mrb_value val)
 
   returns number of arguments parsed.
 
-  fortmat specifiers:
+  format specifiers:
 
    o: Object [mrb_value]
    S: String [mrb_value]
@@ -644,7 +644,6 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
           *pl = argc-i;
           if (*pl > 0) {
             *var = sp;
-            i = argc;
           }
           i = argc;
           sp += *pl;
