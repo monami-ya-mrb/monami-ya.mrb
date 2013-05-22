@@ -63,24 +63,14 @@ typedef struct {
   struct REnv *env;
 } mrb_callinfo;
 
-enum gc_state {
-  GC_STATE_NONE = 0,
-  GC_STATE_MARK,
-  GC_STATE_SWEEP
-};
-
 enum mrb_log_level {
   MRB_LOGGING_NORMAL = 0,
   MRB_LOGGING_EXPRESS = 1
 };
 #define MRB_LOG_LEVEL_MAX 1
 
-typedef struct mrb_state {
-  void *jmp;
-
-  mrb_panic_hook panic_hook;
-
-  mrb_allocf allocf;
+struct mrb_context {
+  struct mrb_context *prev;
 
   mrb_value *stack;
   mrb_value *stbase, *stend;
@@ -93,9 +83,27 @@ typedef struct mrb_state {
   struct RProc **ensure;
   int esize;
 
+  struct RFiber *fib;
+};
+
+enum gc_state {
+  GC_STATE_NONE = 0,
+  GC_STATE_MARK,
+  GC_STATE_SWEEP
+};
+
+typedef struct mrb_state {
+  void *jmp;
+
+  mrb_panic_hook panic_hook;
+
+  mrb_allocf allocf;
+
+  struct mrb_context *c;
+  struct mrb_context *root_c;
+
   struct RObject *exc;
   struct iv_tbl *globals;
-
   struct mrb_irep **irep;
   size_t irep_len, irep_capa;
 
