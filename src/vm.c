@@ -157,9 +157,10 @@ stack_extend(mrb_state *mrb, int room, int keep)
 #ifndef MRB_NAN_BOXING
     stack_clear(&(mrb->c->stack[keep]), room - keep);
 #else
+    struct mrb_context *c = mrb->c;
     int i;
     for (i=keep; i<room; i++) {
-      SET_NIL_VALUE(mrb->stack[i]);
+      SET_NIL_VALUE(c->stack[i]);
     }
 #endif
   }
@@ -384,7 +385,6 @@ mrb_funcall_with_block(mrb_state *mrb, mrb_value self, mrb_sym mid, int argc, mr
       int ai = mrb_gc_arena_save(mrb);
       val = p->body.func(mrb, self);
       mrb_gc_arena_restore(mrb, ai);
-      mrb_gc_protect(mrb, val);
       mrb->c->stack = mrb->c->stbase + mrb->c->ci->stackidx;
       cipop(mrb);
     }
@@ -392,6 +392,7 @@ mrb_funcall_with_block(mrb_state *mrb, mrb_value self, mrb_sym mid, int argc, mr
       val = mrb_run(mrb, p, self);
     }
   }
+  mrb_gc_protect(mrb, val);
   return val;
 }
 
@@ -1301,7 +1302,14 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
               localjump_error(mrb, LOCALJUMP_ERROR_RETURN);
               goto L_RAISE;
             }
-            mrb->c = mrb->c->prev; /* automatic yield at the end */
+            if (mrb->c->prev->ci == mrb->c->prev->cibase) {
+              mrb_value exc = mrb_exc_new3(mrb, E_RUNTIME_ERROR, mrb_str_new(mrb, "double resume", 13));
+              mrb->exc = mrb_obj_ptr(exc);
+              goto L_RAISE;
+            }
+            /* automatic yield at the end */
+            mrb->c->status = MRB_FIBER_TERMINATED;
+            mrb->c = mrb->c->prev;
           }
           ci = mrb->c->ci;
           break;

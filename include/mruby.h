@@ -69,6 +69,13 @@ enum mrb_log_level {
 };
 #define MRB_LOG_LEVEL_MAX 1
 
+enum mrb_fiber_state {
+  MRB_FIBER_CREATED = 0,
+  MRB_FIBER_RUNNING,
+  MRB_FIBER_RESUMED,
+  MRB_FIBER_TERMINATED,
+};
+
 struct mrb_context {
   struct mrb_context *prev;
 
@@ -83,6 +90,7 @@ struct mrb_context {
   struct RProc **ensure;
   int esize;
 
+  uint8_t status;
   struct RFiber *fib;
 };
 
