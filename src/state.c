@@ -180,16 +180,19 @@ mrb_add_irep(mrb_state *mrb)
 {
   static const mrb_irep mrb_irep_zero = { 0 };
   mrb_irep *irep;
+  size_t i;
 
   if (!mrb->irep) {
     size_t max = MRB_IREP_ARRAY_INIT_SIZE;
 
     if (mrb->irep_len > max) max = mrb->irep_len+1;
-    mrb->irep = (mrb_irep **)mrb_calloc(mrb, max, sizeof(mrb_irep*));
+    mrb->irep = (mrb_irep **)mrb_malloc(mrb, max * sizeof(mrb_irep*));
+    for (i = 0; i < max; i++) {
+      mrb->irep[i] = NULL;
+    }
     mrb->irep_capa = max;
   }
   else if (mrb->irep_capa <= mrb->irep_len) {
-    size_t i;
     size_t old_capa = mrb->irep_capa;
     while (mrb->irep_capa <= mrb->irep_len) {
       mrb->irep_capa *= 2;

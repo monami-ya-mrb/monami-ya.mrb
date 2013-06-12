@@ -271,9 +271,12 @@ unlink_free_heap_page(mrb_state *mrb, struct heap_page *page)
 static void
 add_heap(mrb_state *mrb)
 {
-  struct heap_page *page = (struct heap_page *)mrb_calloc(mrb, 1, sizeof(struct heap_page));
+  static const struct heap_page heap_page_zero = { 0 };
+  struct heap_page *page = (struct heap_page *)mrb_malloc(mrb, sizeof(struct heap_page));
   RVALUE *p, *e;
   struct RBasic *prev = NULL;
+
+  *page = heap_page_zero;
 
   for (p = page->objects, e=p+MRB_HEAP_PAGE_SIZE; p<e; p++) {
     p->as.free.tt = MRB_TT_FREE;

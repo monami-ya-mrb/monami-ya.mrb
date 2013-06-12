@@ -110,7 +110,9 @@ kh_fill_flags(uint8_t *p, uint8_t c, size_t len)
     h->inc = sz/2-1;                                                    \
   }                                                                     \
   kh_##name##_t *kh_init_##name##_size(mrb_state *mrb, khint_t size) {  \
-    kh_##name##_t *h = (kh_##name##_t*)mrb_calloc(mrb, 1, sizeof(kh_##name##_t)); \
+    static const kh_##name##_t zero = { 0 };                            \
+    kh_##name##_t *h = (kh_##name##_t*)mrb_malloc(mrb, sizeof(kh_##name##_t)); \
+    *h = zero;                                                          \
     if (size < KHASH_MIN_SIZE)                                          \
       size = KHASH_MIN_SIZE;                                            \
     khash_power2(size);                                                 \

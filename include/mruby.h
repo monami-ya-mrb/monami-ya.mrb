@@ -253,7 +253,7 @@ mrb_sym mrb_intern(mrb_state *mrb,const char *cstr)
 }
 
 void *mrb_malloc(mrb_state*, size_t);
-void *mrb_calloc(mrb_state*, size_t, size_t);
+void *mrb_calloc(mrb_state*, size_t, size_t) __attribute__ ((deprecated));
 void *mrb_realloc(mrb_state*, void*, size_t);
 struct RBasic *mrb_obj_alloc(mrb_state*, enum mrb_vtype, struct RClass*);
 void mrb_free(mrb_state*, void*);

@@ -62,11 +62,14 @@ static mrb_value
 fiber_init(mrb_state *mrb, mrb_value self)
 {
   static const struct mrb_context mrb_context_zero = { 0 };
+  static const mrb_value mrb_value_zero = { 0 };
+  static const mrb_callinfo mrb_callinfo_zero = { 0 };
   struct RFiber *f = (struct RFiber*)self.value.p;
   struct mrb_context *c;
   struct RProc *p;
   mrb_callinfo *ci;
   mrb_value blk;
+  size_t i;
 
   mrb_get_args(mrb, "&", &blk);
   
@@ -83,7 +86,10 @@ fiber_init(mrb_state *mrb, mrb_value self)
   c = f->cxt;
 
   /* initialize VM stack */
-  c->stbase = (mrb_value *)mrb_calloc(mrb, FIBER_STACK_INIT_SIZE, sizeof(mrb_value));
+  c->stbase = (mrb_value *)mrb_malloc(mrb, FIBER_STACK_INIT_SIZE * sizeof(mrb_value));
+  for (i = 0; i < FIBER_STACK_INIT_SIZE; i++) {
+    c->stbase[i] = mrb_value_zero;
+  }
   c->stend = c->stbase + FIBER_STACK_INIT_SIZE;
   c->stack = c->stbase;
 
@@ -91,7 +97,10 @@ fiber_init(mrb_state *mrb, mrb_value self)
   c->stack[0] = mrb->c->stack[0];
 
   /* initialize callinfo stack */
-  c->cibase = (mrb_callinfo *)mrb_calloc(mrb, FIBER_CI_INIT_SIZE, sizeof(mrb_callinfo));
+  c->cibase = (mrb_callinfo *)mrb_malloc(mrb, FIBER_CI_INIT_SIZE * sizeof(mrb_callinfo));
+  for (i = 0; i < FIBER_CI_INIT_SIZE; i++) {
+    c->cibase[i] = mrb_callinfo_zero;
+  }
   c->ciend = c->cibase + FIBER_CI_INIT_SIZE;
   c->ci = c->cibase;
 

@@ -90,15 +90,24 @@ stack_copy(mrb_value *dst, const mrb_value *src, size_t size)
 static void
 stack_init(mrb_state *mrb)
 {
+  static const mrb_value mrb_value_zero = { 0 };
+  static const mrb_callinfo mrb_callinfo_zero = { 0 };
+  size_t i;
   struct mrb_context *c = mrb->c;
 
   /* assert(mrb->stack == NULL); */
-  c->stbase = (mrb_value *)mrb_calloc(mrb, STACK_INIT_SIZE, sizeof(mrb_value));
+  c->stbase = (mrb_value *)mrb_malloc(mrb, STACK_INIT_SIZE * sizeof(mrb_value));
+  for (i = 0; i < STACK_INIT_SIZE; i++) {
+    c->stbase[i] = mrb_value_zero;
+  }
   c->stend = c->stbase + STACK_INIT_SIZE;
   c->stack = c->stbase;
 
   /* assert(ci == NULL); */
-  c->cibase = (mrb_callinfo *)mrb_calloc(mrb, CALLINFO_INIT_SIZE, sizeof(mrb_callinfo));
+  c->cibase = (mrb_callinfo *)mrb_malloc(mrb, CALLINFO_INIT_SIZE * sizeof(mrb_callinfo));
+  for (i = 0; i < CALLINFO_INIT_SIZE; i++) {
+    c->cibase[i] = mrb_callinfo_zero;
+  }
   c->ciend = c->cibase + CALLINFO_INIT_SIZE;
   c->ci = c->cibase;
   c->ci->target_class = mrb->object_class;

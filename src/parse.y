@@ -5136,9 +5136,12 @@ mrb_parser_free(parser_state *p) {
 mrbc_context*
 mrbc_context_new(mrb_state *mrb)
 {
+  static mrbc_context zero = { 0 };
   mrbc_context *c;
 
-  c = (mrbc_context *)mrb_calloc(mrb, 1, sizeof(mrbc_context));
+  c = (mrbc_context *)mrb_malloc(mrb, sizeof(mrbc_context));
+  *c = zero;
+
   return c;
 }
 
