@@ -17,6 +17,7 @@
 #include "mruby/data.h"
 #include "mruby/hash.h"
 #include "mruby/proc.h"
+#include "mruby/panic.h"
 #include "mruby/range.h"
 #include "mruby/string.h"
 #include "mruby/variable.h"
@@ -161,7 +162,7 @@ mrb_realloc(mrb_state *mrb, void *p, size_t len)
 
   if (!p2 && len) {
     if (mrb->out_of_memory) {
-      /* mrb_panic(mrb); */
+      mrb_panic(mrb);
     }
     else {
       mrb->out_of_memory = 1;
