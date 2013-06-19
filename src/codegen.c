@@ -910,7 +910,7 @@ gen_assignment(codegen_scope *s, node *node, int sp, int val)
 
   default:
 #ifdef ENABLE_STDIO
-    printf("unknown lhs %d\n", type);
+    fprintf(stderr, "unknown lhs %d\n", type);
 #endif
     break;
   }
