@@ -26,6 +26,7 @@
 #include "mruby/proc.h"
 #include "mruby/panic.h"
 #include "node.h"
+#include "error.h"
 
 #define YYLEX_PARAM p
 
@@ -38,6 +39,7 @@ static void yyerror(parser_state *p, const char *s);
 static void yywarn(parser_state *p, const char *s);
 static void yywarning(parser_state *p, const char *s);
 static void backref_error(parser_state *p, node *n);
+static size_t integer_to_string(char *buf, int n);
 
 #ifndef isascii
 #define isascii(c) (((c) & ~0x7f) == 0)
@@ -2772,7 +2774,7 @@ var_ref		: variable
 		    {
 		      char buf[16];
 
-		      snprintf(buf, sizeof(buf), "%d", p->lineno);
+		      integer_to_string(buf, p->lineno);
 		      $$ = new_int(p, buf, 10);
 		    }
 		;
@@ -3148,15 +3150,6 @@ yyerror(parser_state *p, const char *s)
 }
 
 static void
-yyerror_i(parser_state *p, const char *fmt, int i)
-{
-  char buf[256];
-
-  snprintf(buf, sizeof(buf), fmt, i);
-  yyerror(p, buf);
-}
-
-static void
 yywarn(parser_state *p, const char *s)
 {
   char* c;
@@ -3190,15 +3183,6 @@ yywarning(parser_state *p, const char *s)
 }
 
 static void
-yywarning_s(parser_state *p, const char *fmt, const char *s)
-{
-  char buf[256];
-
-  snprintf(buf, sizeof(buf), fmt, s);
-  yywarning(p, buf);
-}
-
-static void
 backref_error(parser_state *p, node *n)
 {
   int c;
@@ -3206,9 +3190,16 @@ backref_error(parser_state *p, node *n)
   c = (int)(intptr_t)n->car;
 
   if (c == NODE_NTH_REF) {
-    yyerror_i(p, "can't set variable $%d", (int)(intptr_t)n->cdr);
+    static const char msg[] = "can't set variable $";
+    char buf[sizeof(msg) + 64];
+    memcpy(buf, msg, sizeof(msg));
+    integer_to_string(buf + sizeof(msg) - 1, (int)(intptr_t)n->cdr);
   } else if (c == NODE_BACK_REF) {
-    yyerror_i(p, "can't set variable $%c", (int)(intptr_t)n->cdr);
+    static const char msg[] = "can't set variable $.";
+    char buf[sizeof(msg)];
+    memcpy(buf, msg, sizeof(buf));
+    buf[sizeof(buf) - 1] = (char)(intptr_t)n->cdr;
+    yyerror(p, buf);
   } else {
     mrb_bug(p->mrb, "Internal error in backref_error() : n=>car == %d", c);
   }
@@ -3589,10 +3580,19 @@ parse_string(parser_state *p)
 	}
       }
       if (c == -1) {
-	char buf[256];
-	snprintf(buf, sizeof(buf), "can't find string \"%s\" anywhere before EOF", hinf->term);
-	yyerror(p, buf);
-	return 0;
+        static const char msg1[] = "can't find string \"";
+        static const char msg2[] = "\" anywhere before EOF";
+        char buf[256];
+        int len = hinf->term_len;
+
+        if (sizeof(msg1) + sizeof(msg2) + len - 1 > sizeof(buf) - 1) {
+          len = sizeof(buf) - sizeof(msg1) - sizeof(msg2) - 1;
+        }
+        memcpy(buf, msg1, sizeof(msg1) - 1);
+        memcpy(buf + sizeof(msg1) - 1, hinf->term, len);
+        memcpy(buf + sizeof(msg1) - 1 + len, msg2, sizeof(msg2));
+        yyerror(p, buf);
+        return 0;
       }
       yylval.nd = new_str(p, tok(p), toklen(p));
       return tSTRING_MID;
@@ -3713,10 +3713,21 @@ parse_string(parser_state *p)
     }
     pushback(p, c);
     if (toklen(p)) {
-      char msg[128];
+      static const char msg1[] = "unknown regexp options - ";
+      char msg[128] = { 0 };
+      size_t len;
       tokfix(p);
-      snprintf(msg, sizeof(msg), "unknown regexp option%s - %s",
-	  toklen(p) > 1 ? "s" : "", tok(p));
+      memcpy(msg, msg1, sizeof(msg1));
+      len = toklen(p);
+      if (len <= 1) {
+        msg[sizeof(msg1) - 4] = ' ';
+      }
+      else {
+        if (sizeof(msg1) + len > sizeof(msg)) {
+          len = sizeof(msg) - sizeof(msg1);
+        }
+      }
+      memcpy(msg + sizeof(msg1) - 1, tok(p), len);
       yyerror(p, msg);
     }
     if (f & 1) strcat(flag, "i");
@@ -4095,8 +4106,10 @@ parser_yylex(parser_state *p)
 	  break;
 	}
 	if (c2) {
+	  static const char msg[] = "invalid character syntax; use ?\\ ";
 	  char buf[256];
-	  snprintf(buf, sizeof(buf), "invalid character syntax; use ?\\%c", c2);
+          memcpy(buf, msg, sizeof(msg));
+          buf[sizeof(msg) - 1] = c2;
 	  yyerror(p, buf);
 	}
       }
@@ -4472,8 +4485,15 @@ parser_yylex(parser_state *p)
     decode_num:
       pushback(p, c);
       if (nondigit) {
+#define MSG1_TRAILING "trailing `"
       trailing_uc:
-	yyerror_i(p, "trailing `%c' in number", nondigit);
+	{
+          static const char msg[] = MSG1_TRAILING ". in number";
+          char buf[sizeof(msg)];
+          memcpy(buf, msg, sizeof(msg));
+          buf[sizeof(MSG1_TRAILING)] = nondigit;
+	  yyerror(p, buf);
+        }
       }
       tokfix(p);
       if (is_float) {
@@ -4483,14 +4503,37 @@ parser_yylex(parser_state *p)
 	errno = 0;
 	d = strtod(tok(p), &endp);
 	if (d == 0 && endp == tok(p)) {
-	  yywarning_s(p, "corrupted float value %s", tok(p));
+          static const char msg[] = "corrupted float value ";
+          char buf[128];
+	  size_t len;
+	  if (toklen(p) + sizeof(msg) > sizeof(buf)) {
+            len = sizeof(buf) - sizeof(msg);
+          }
+          else {
+            len = toklen(p);
+          }
+          memcpy(buf, msg, sizeof(msg) - 1);
+          memcpy(buf + sizeof(msg) - 1, tok(p), len);
+          yywarning(p, buf);
 	}
 	else if (errno == ERANGE) {
-	  yywarning_s(p, "float %s out of range", tok(p));
+          static const char msg1[] = "float ";
+          static const char msg2[] = " out of range";
+          char buf[128] = { 0 };
+          size_t len = toklen(p);
+          if (sizeof(msg1) + sizeof(msg2) + len > sizeof(buf)) {
+            len =  sizeof(buf) - sizeof(msg1) - sizeof(msg2);
+          }
+          memcpy(buf, msg1, sizeof(msg1));
+          memcpy(buf, tok(p), len);
+          memcpy(buf, msg2, sizeof(msg2));
+	  yywarning(p, buf);
 	  errno = 0;
 	}
-	yylval.nd = new_float(p, tok(p));
-	return tFLOAT;
+	else {
+          yylval.nd = new_float(p, tok(p));
+	  return tFLOAT;
+        }
       }
       yylval.nd = new_int(p, tok(p), 10);
       return tINTEGER;
@@ -4844,10 +4887,18 @@ parser_yylex(parser_state *p)
     }
     else if (isdigit(c)) {
       if (p->bidx == 1) {
-	yyerror_i(p, "`@%c' is not allowed as an instance variable name", c);
+        static const char msg[] = "`@.' is not allowed as an instance variable name";
+        char buf[sizeof(msg)] = { 0 };
+        memcpy(buf, msg, sizeof(buf));
+        buf[2] = c;
+	yyerror(p, buf);
       }
       else {
-	yyerror_i(p, "`@@%c' is not allowed as a class variable name", c);
+        static const char msg[] = "`@@.' is not allowed as a class variable name";
+        char buf[sizeof(msg)] = { 0 };
+        memcpy(buf, msg, sizeof(buf));
+        buf[3] = c;
+	yyerror(p, buf);
       }
       return 0;
     }
@@ -4863,7 +4914,13 @@ parser_yylex(parser_state *p)
 
   default:
     if (!identchar(c)) {
-      yyerror_i(p,  "Invalid char `\\x%02X' in expression", c);
+#define MSG1_INVALID_CHAR "Invalid char `\\x"
+      static const char msg[] = MSG1_INVALID_CHAR "..' in expression";
+      char buf[sizeof(msg)] = { 0 };
+      memcpy(buf, msg, sizeof(buf));
+      buf[sizeof(MSG1_INVALID_CHAR)] = '0' + c / 10;
+      buf[sizeof(MSG1_INVALID_CHAR) + 1] = '0' + c % 10;
+      yyerror(p, buf);
       goto retry;
     }
 
@@ -5220,11 +5277,13 @@ load_exec(mrb_state *mrb, parser_state *p, mrbc_context *c)
   }
   if (!p->tree || p->nerr) {
     if (p->capture_errors) {
-      char buf[256];
+      mrb_value message;
 
-      n = snprintf(buf, sizeof(buf), "line %d: %s\n",
-      p->error_buffer[0].lineno, p->error_buffer[0].message);
-      mrb->exc = mrb_obj_ptr(mrb_exc_new(mrb, E_SYNTAX_ERROR, buf, n));
+      message = mrb_format(mrb, "line %S: %S\n",
+        mrb_fixnum_value(p->error_buffer[0].lineno),
+        mrb_str_new_cstr(mrb, p->error_buffer[0].message));
+
+      mrb->exc = mrb_obj_ptr(mrb_exc_new3(mrb, E_SYNTAX_ERROR, message));
       mrb_parser_free(p);
       return mrb_undef_value();
     }
@@ -6049,4 +6108,31 @@ parser_dump(mrb_state *mrb, node *tree, int offset)
     break;
   }
 #endif
+}
+
+
+static size_t
+integer_to_string(char *buf, int n)
+{
+  char *p = buf;
+  int n2;
+  size_t len;
+
+  if (n < 0) {
+    n = -n;
+   *p++ = '-';
+  }
+
+  for (n2 = n; n2 > 9; n2 /= 10) {
+    ++p;
+  }
+  len = (size_t)(p - buf + 1);
+
+  *(p + 1) = '\0';
+  for (;n > 9; n /= 10) {
+    *p-- = '0' + n % 10;
+  }
+  *p-- = '0' + n;
+
+  return len;
 }
