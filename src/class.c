@@ -227,7 +227,13 @@ class_from_sym(mrb_state *mrb, struct RClass *klass, mrb_sym id)
 struct RClass *
 mrb_class_get(mrb_state *mrb, const char *name)
 {
-  return class_from_sym(mrb, mrb->object_class, mrb_intern(mrb, name));
+  return mrb_class_get_under(mrb, mrb->object_class, name);
+}
+
+struct RClass *
+mrb_class_get_under(mrb_state *mrb, struct RClass *outer, const char *name)
+{
+  return class_from_sym(mrb, outer, mrb_intern(mrb, name));
 }
 
 /*!
@@ -487,7 +493,7 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
         if (i < argc) {
           ss = to_str(mrb, *sp++);
           s = mrb_str_ptr(ss);
-          if (strlen(s->ptr) != s->len) {
+          if (strlen(s->ptr) < s->len) {
             mrb_raise(mrb, E_ARGUMENT_ERROR, "String contains NUL");
           }
           *ps = s->ptr;

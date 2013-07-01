@@ -149,6 +149,7 @@ gettimeofday_time(void)
 
 #define GC_STEP_SIZE 1024
 
+
 void*
 mrb_realloc_simple(mrb_state *mrb, void *p, size_t len)
 {
