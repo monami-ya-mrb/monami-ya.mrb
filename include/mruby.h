@@ -81,15 +81,15 @@ enum mrb_fiber_state {
 struct mrb_context {
   struct mrb_context *prev;
 
-  mrb_value *stack;
+  mrb_value *stack;                       /* stack of virtual machine */
   mrb_value *stbase, *stend;
 
   mrb_callinfo *ci;
   mrb_callinfo *cibase, *ciend;
 
-  mrb_code **rescue;
+  mrb_code **rescue;                      /* exception handler stack */
   int rsize;
-  struct RProc **ensure;
+  struct RProc **ensure;                  /* ensure handler stack */
   int esize;
 
   uint8_t status;
@@ -107,19 +107,19 @@ typedef struct mrb_state {
 
   mrb_panic_hook panic_hook;
 
-  mrb_allocf allocf;
+  mrb_allocf allocf;                      /* memory allocation function */
 
   struct mrb_context *c;
   struct mrb_context *root_c;
 
-  struct RObject *exc;
-  struct iv_tbl *globals;
-  struct mrb_irep **irep;
+  struct RObject *exc;                    /* exception */
+  struct iv_tbl *globals;                 /* global variable table */
+  struct mrb_irep **irep;                 /* program data array */
   size_t irep_len, irep_capa;
 
   mrb_sym init_sym;
   struct RObject *top_self;
-  struct RClass *object_class;
+  struct RClass *object_class;            /* Object class */
   struct RClass *class_class;
   struct RClass *module_class;
   struct RClass *proc_class;
@@ -135,11 +135,11 @@ typedef struct mrb_state {
   struct RClass *symbol_class;
   struct RClass *kernel_module;
 
-  struct heap_page *heaps;
+  struct heap_page *heaps;                /* heaps for GC */
   struct heap_page *sweeps;
   struct heap_page *free_heaps;
   size_t live; /* count of live objects */
-  struct RBasic *arena[MRB_ARENA_SIZE];
+  struct RBasic *arena[MRB_ARENA_SIZE];   /* GC protection array */
   int arena_idx;
 
   enum gc_state gc_state; /* state of gc */
@@ -298,12 +298,12 @@ void mrb_field_write_barrier(mrb_state *, struct RBasic*, struct RBasic*);
 } while (0)
 void mrb_write_barrier(mrb_state *, struct RBasic*);
 
-mrb_value mrb_check_convert_type(mrb_state *mrb, mrb_value val, mrb_int type, const char *tname, const char *method);
+mrb_value mrb_check_convert_type(mrb_state *mrb, mrb_value val, enum mrb_vtype type, const char *tname, const char *method);
 mrb_value mrb_any_to_s(mrb_state *mrb, mrb_value obj);
 const char * mrb_obj_classname(mrb_state *mrb, mrb_value obj);
 struct RClass* mrb_obj_class(mrb_state *mrb, mrb_value obj);
 mrb_value mrb_class_path(mrb_state *mrb, struct RClass *c);
-mrb_value mrb_convert_type(mrb_state *mrb, mrb_value val, mrb_int type, const char *tname, const char *method);
+mrb_value mrb_convert_type(mrb_state *mrb, mrb_value val, enum mrb_vtype type, const char *tname, const char *method);
 int mrb_obj_is_kind_of(mrb_state *mrb, mrb_value obj, struct RClass *c);
 mrb_value mrb_obj_inspect(mrb_state *mrb, mrb_value self);
 mrb_value mrb_obj_clone(mrb_state *mrb, mrb_value self);

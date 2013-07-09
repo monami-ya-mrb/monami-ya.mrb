@@ -174,12 +174,12 @@ mrb_realloc(mrb_state *mrb, void *p, size_t len)
       mrb_panic(mrb);
     }
     else {
-      mrb->out_of_memory = 1;
+      mrb->out_of_memory = TRUE;
       mrb_raise(mrb, E_RUNTIME_ERROR, "Out of memory");
     }
   }
   else {
-    mrb->out_of_memory = 0;
+    mrb->out_of_memory = FALSE;
   }
 
   return p2;
@@ -626,8 +626,7 @@ obj_free(mrb_state *mrb, struct RBasic *obj)
 static void
 root_scan_phase(mrb_state *mrb)
 {
-  int j;
-  size_t i, e;
+  size_t i, e, j;
 
   if (!is_minor_gc(mrb)) {
     mrb->gray_list = 0;
