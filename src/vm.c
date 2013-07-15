@@ -183,22 +183,22 @@ uvenv(mrb_state *mrb, int up)
   struct REnv *e = mrb->c->ci->proc->env;
 
   while (up--) {
-    if (!e) return 0;
+    if (!e) return NULL;
     e = (struct REnv*)e->c;
   }
   return e;
 }
 
-static inline int
+static inline mrb_bool
 is_strict(mrb_state *mrb, struct REnv *e)
 {
   int cioff = e->cioff;
 
   if (cioff >= 0 && mrb->c->cibase[cioff].proc &&
       MRB_PROC_STRICT_P(mrb->c->cibase[cioff].proc)) {
-    return 1;
+    return TRUE;
   }
-  return 0;
+  return FALSE;
 }
 
 static inline struct REnv*
@@ -288,7 +288,7 @@ ecall(mrb_state *mrb, int i)
 mrb_value
 mrb_funcall(mrb_state *mrb, mrb_value self, const char *name, int argc, ...)
 {
-  mrb_sym mid = mrb_intern(mrb, name);
+  mrb_sym mid = mrb_intern_cstr(mrb, name);
 
   if (argc == 0) {
     return mrb_funcall_argv(mrb, self, mid, 0, 0);

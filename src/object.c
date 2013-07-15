@@ -172,9 +172,6 @@ true_to_s(mrb_state *mrb, mrb_value obj)
 static mrb_value
 true_or(mrb_state *mrb, mrb_value obj)
 {
-  mrb_bool obj2;
-
-  mrb_get_args(mrb, "b", &obj2);
   return mrb_true_value();
 }
 
@@ -203,9 +200,6 @@ true_or(mrb_state *mrb, mrb_value obj)
 static mrb_value
 false_and(mrb_state *mrb, mrb_value obj)
 {
-  mrb_bool obj2;
-
-  mrb_get_args(mrb, "b", &obj2);
   return mrb_false_value();
 }
 
@@ -303,7 +297,7 @@ convert_type(mrb_state *mrb, mrb_value val, const char *tname, const char *metho
 {
   mrb_sym m = 0;
 
-  m = mrb_intern(mrb, method);
+  m = mrb_intern_cstr(mrb, method);
   if (!mrb_respond_to(mrb, val, m)) {
     if (raise) {
       mrb_raisef(mrb, E_TYPE_ERROR, "can't convert %S into %S", val, mrb_str_new_cstr(mrb, tname));
