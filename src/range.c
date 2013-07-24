@@ -178,7 +178,7 @@ mrb_range_eq(mrb_state *mrb, mrb_value range)
   return mrb_bool_value(eq_p);
 }
 
-static int
+static mrb_bool
 r_le(mrb_state *mrb, mrb_value a, mrb_value b)
 {
   mrb_value r = mrb_funcall(mrb, a, "<=>", 1, b); /* compare result */
@@ -192,7 +192,7 @@ r_le(mrb_state *mrb, mrb_value a, mrb_value b)
   return FALSE;
 }
 
-static int
+static mrb_bool
 r_gt(mrb_state *mrb, mrb_value a, mrb_value b)
 {
   mrb_value r = mrb_funcall(mrb, a, "<=>", 1, b);
@@ -205,7 +205,7 @@ r_gt(mrb_state *mrb, mrb_value a, mrb_value b)
   return FALSE;
 }
 
-static int
+static mrb_bool
 r_ge(mrb_state *mrb, mrb_value a, mrb_value b)
 {
   mrb_value r = mrb_funcall(mrb, a, "<=>", 1, b); /* compare result */
