@@ -144,8 +144,8 @@ typedef struct mrb_state {
 
   enum gc_state gc_state; /* state of gc */
   int current_white_part; /* make white object by white_part */
-  struct RBasic *gray_list; /* list of gray objects */
-  struct RBasic *variable_gray_list; /* list of objects to be traversed atomically */
+  struct RBasic *gray_list; /* list of gray objects to be traversed incrementally */
+  struct RBasic *atomic_gray_list; /* list of objects to be traversed atomically */
   size_t gc_live_after_mark;
   size_t gc_threshold;
   int gc_interval_ratio;
@@ -285,6 +285,7 @@ mrb_value mrb_inspect(mrb_state *mrb, mrb_value obj);
 mrb_bool mrb_eql(mrb_state *mrb, mrb_value obj1, mrb_value obj2);
 
 void mrb_garbage_collect(mrb_state*);
+void mrb_full_gc(mrb_state*);
 void mrb_incremental_gc(mrb_state *);
 int mrb_gc_arena_save(mrb_state*);
 void mrb_gc_arena_restore(mrb_state*,int);
