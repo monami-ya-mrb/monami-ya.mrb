@@ -31,10 +31,6 @@ inspect_main(mrb_state *mrb, mrb_value mod)
   return mrb_str_new(mrb, "main", 4);
 }
 
-#if defined(MRB_NAN_BOXING) && !defined(MRB_SUPPORT_STATIC_ASSERT)
-#include <assert.h>
-#endif
-
 mrb_state*
 mrb_open_allocf(mrb_allocf f, uintptr_t ud)
 {
@@ -46,7 +42,7 @@ mrb_open_allocf(mrb_allocf f, uintptr_t ud)
 # ifdef MRB_SUPPORT_STATIC_ASSERT
   MRB_STATIC_ASSERT(sizeof(void*) == 4, "Can use MRB_NAN_BOXING on (sizeof(void*) == 4) environments only.");
 # else
-  assert(sizeof(void*) == 4);
+  mrb_assert(sizeof(void*) == 4);
 # endif
 #endif
 
@@ -214,7 +210,7 @@ mrb_value
 mrb_top_self(mrb_state *mrb)
 {
   if (!mrb->top_self) {
-    mrb->top_self = (struct RObject*)mrb_obj_alloc(mrb, MRB_TT_OBJECT, mrb->object_class);  
+    mrb->top_self = (struct RObject*)mrb_obj_alloc(mrb, MRB_TT_OBJECT, mrb->object_class);
     mrb_define_singleton_method(mrb, mrb->top_self, "inspect", inspect_main, MRB_ARGS_NONE());
     mrb_define_singleton_method(mrb, mrb->top_self, "to_s", inspect_main, MRB_ARGS_NONE());
   }

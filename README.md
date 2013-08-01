@@ -2,6 +2,12 @@
 
 monami-ya.mrb is the enhanced version of mruby.
 
+# !!Notice!!
+    This is a preliminary release for internal team review.
+    The URLs and addresses described below are not available yet.
+    The official release will be announced later.
+    Any suggestions for modification are welcome.
+    Delays in replies are to be expected. Sorry in advance.
 
 ## What's mruby
 
@@ -110,4 +116,4 @@ In the future, mruby might ask you to distribute your new code
 See the contribution guidelines in CONTRIBUTING.md file.
 then send pull request to <http://bitbucket.org/mruby/monami-ya.mrb>.  We consider you have granted
 non-exclusive right to your contributed code under MIT license.  If you want to be named
-as one of monami-ya.mrb OSS developers, include update to the AUTHORS file in your pull request.
+as one of monami-ya.mrb OSS developers, include an update to the AUTHORS file in your pull request.

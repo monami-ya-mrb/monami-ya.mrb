@@ -1,6 +1,6 @@
 /*
 ** parse.y - mruby parser
-** 
+**
 ** See Copyright Notice in mruby.h
 */
 
@@ -275,7 +275,7 @@ new_scope(parser_state *p, node *body)
 static node*
 new_begin(parser_state *p, node *body)
 {
-  if (body) 
+  if (body)
     return list2((node*)NODE_BEGIN, body);
   return cons((node*)NODE_BEGIN, 0);
 }
@@ -912,7 +912,7 @@ parsing_heredoc_inf(parser_state *p)
   node *nd = p->parsing_heredoc;
   if (nd == NULL)
     return NULL;
-  /* assert(nd->car->car == NODE_HEREDOC); */
+  /* mrb_assert(nd->car->car == NODE_HEREDOC); */
   return (parser_heredoc_info*)nd->car->cdr;
 }
 
@@ -2747,7 +2747,7 @@ var_ref		: variable
 		    {
 		      $$ = var_reference(p, $1);
 		    }
-		| keyword_nil 
+		| keyword_nil
 		    {
 		      $$ = new_nil(p);
 		    }
@@ -3400,7 +3400,7 @@ scan_oct(const int *start, int len, int *retlen)
   const int *s = start;
   int retval = 0;
 
-  /* assert(len <= 3) */
+  /* mrb_assert(len <= 3) */
   while (len-- && *s >= '0' && *s <= '7') {
     retval <<= 3;
     retval |= *s++ - '0';
@@ -3418,7 +3418,7 @@ scan_hex(const int *start, int len, int *retlen)
   register int retval = 0;
   char *tmp;
 
-  /* assert(len <= 2) */
+  /* mrb_assert(len <= 2) */
   while (len-- && *s && (tmp = (char*)strchr(hexdigit, *s))) {
     retval <<= 4;
     retval |= (tmp - hexdigit) & 15;
@@ -3687,7 +3687,7 @@ parse_string(parser_state *p)
 
     tokadd(p, c);
 
-  } 
+  }
 
   tokfix(p);
   p->lstate = EXPR_END;
@@ -3743,7 +3743,7 @@ parse_string(parser_state *p)
   yylval.nd = new_str(p, tok(p), toklen(p));
   return tSTRING;
 }
- 
+
 
 static int
 heredoc_identifier(parser_state *p)
@@ -4857,7 +4857,7 @@ parser_yylex(parser_state *p)
       pushback(p, c);
       if (last_state == EXPR_FNAME) goto gvar;
       tokfix(p);
-      yylval.nd = new_nth_ref(p, atoi(tok(p))); 
+      yylval.nd = new_nth_ref(p, atoi(tok(p)));
       return tNTH_REF;
 
     default:
@@ -5237,7 +5237,7 @@ parser_state*
 mrb_parse_file(mrb_state *mrb, FILE *f, mrbc_context *c)
 {
   parser_state *p;
- 
+
   p = mrb_parser_new(mrb);
   if (!p) return 0;
   p->s = p->send = NULL;
@@ -5271,6 +5271,8 @@ mrb_parse_string(mrb_state *mrb, const char *s, mrbc_context *c)
 static mrb_value
 load_exec(mrb_state *mrb, parser_state *p, mrbc_context *c)
 {
+  struct RClass *target = mrb->object_class;
+  struct RProc *proc;
   int n;
   mrb_value v;
 
@@ -5306,8 +5308,16 @@ load_exec(mrb_state *mrb, parser_state *p, mrbc_context *c)
   if (c) {
     if (c->dump_result) codedump_all(mrb, n);
     if (c->no_exec) return mrb_fixnum_value(n);
+    if (c->target_class) {
+      target = c->target_class;
+    }
   }
-  v = mrb_run(mrb, mrb_proc_new(mrb, mrb->irep[n]), mrb_top_self(mrb));
+  proc = mrb_proc_new(mrb, mrb->irep[n]);
+  proc->target_class = target;
+  if (mrb->c->ci) {
+    mrb->c->ci->target_class = target;
+  }
+  v = mrb_run(mrb, proc, mrb_top_self(mrb));
   if (mrb->exc) return mrb_nil_value();
   return v;
 }
@@ -5624,7 +5634,7 @@ parser_dump(mrb_state *mrb, node *tree, int offset)
     printf("NODE_CALL:\n");
     parser_dump(mrb, tree->car, offset+1);
     dump_prefix(offset+1);
-    printf("method='%s' (%d)\n", 
+    printf("method='%s' (%d)\n",
     mrb_sym2name(mrb, sym(tree->cdr->car)),
     (int)(intptr_t)tree->cdr->car);
     tree = tree->cdr->cdr->car;
