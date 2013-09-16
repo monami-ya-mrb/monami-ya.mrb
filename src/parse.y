@@ -123,6 +123,7 @@ cons_gen(parser_state *p, node *car, node *cdr)
   c->car = car;
   c->cdr = cdr;
   c->lineno = p->lineno;
+  c->filename = p->current_filename_index;
   return c;
 }
 #define cons(a,b) cons_gen(p,(a),(b))
@@ -860,6 +861,7 @@ ret_args(parser_state *p, node *n)
 {
   if (n->cdr) {
     yyerror(p, "block argument should not be given");
+    return NULL;
   }
   if (!n->car->cdr) return n->car->car;
   return new_array(p, n->car);
@@ -936,7 +938,7 @@ heredoc_end(parser_state *p)
 
 %}
 
-%pure_parser
+%pure-parser
 %parse-param {parser_state *p}
 %lex-param {parser_state *p}
 
@@ -3702,10 +3704,12 @@ parse_string(parser_state *p)
     int f = 0;
     int c;
     char *s = strndup(tok(p), toklen(p));
-    char flag[4] = { '\0' };
+    char flags[3];
+    char *flag = flags;
+    char *dup;
 
     newtok(p);
-    while (c = nextc(p), ISALPHA(c)) {
+    while (c = nextc(p), c != -1 && ISALPHA(c)) {
       switch (c) {
       case 'i': f |= 1; break;
       case 'x': f |= 2; break;
@@ -3732,10 +3736,16 @@ parse_string(parser_state *p)
       memcpy(msg + sizeof(msg1) - 1, tok(p), len);
       yyerror(p, msg);
     }
-    if (f & 1) strcat(flag, "i");
-    if (f & 2) strcat(flag, "x");
-    if (f & 4) strcat(flag, "m");
-    yylval.nd = new_regx(p, s, strdup(flag));
+    if (f != 0) {
+      if (f & 1) *flag++ = 'i';
+      if (f & 2) *flag++ = 'x';
+      if (f & 4) *flag++ = 'm';
+      dup = strndup(flags, (size_t)(flag - flags));
+    }
+    else {
+      dup = NULL;
+    }
+    yylval.nd = new_regx(p, s, dup);
 
     return tREGEXP;
   }
@@ -5085,7 +5095,7 @@ parser_init_cxt(parser_state *p, mrbc_context *cxt)
 {
   if (!cxt) return;
   if (cxt->lineno) p->lineno = cxt->lineno;
-  if (cxt->filename) p->filename = cxt->filename;
+  if (cxt->filename) mrb_parser_set_filename(p, cxt->filename);
   if (cxt->syms) {
     int i;
 
@@ -5184,6 +5194,10 @@ mrb_parser_new(mrb_state *mrb)
   p->lex_strterm = NULL;
   p->heredocs = p->parsing_heredoc = NULL;
 
+  p->current_filename_index = -1;
+  p->filename_table = NULL;
+  p->filename_table_length = 0;
+
   return p;
 }
 
@@ -5220,7 +5234,6 @@ mrbc_filename(mrb_state *mrb, mrbc_context *c, const char *s)
 
     memcpy(p, s, len + 1);
     c->filename = p;
-    c->lineno = 1;
   }
   return c->filename;
 }
@@ -5230,6 +5243,43 @@ mrbc_partial_hook(mrb_state *mrb, mrbc_context *c, int (*func)(struct mrb_parser
 {
   c->partial_hook = func;
   c->partial_data = data;
+}
+
+void
+mrb_parser_set_filename(struct mrb_parser_state *p, const char *f)
+{
+  mrb_sym sym;
+  size_t len;
+  size_t i;
+  mrb_sym* new_table;
+
+  sym = mrb_intern_cstr(p->mrb, f);
+  p->filename = mrb_sym2name_len(p->mrb, sym, &len);
+  p->lineno = (p->filename_table_length > 0)? 0 : 1;
+  
+  for(i = 0; i < p->filename_table_length; ++i) {
+    if(p->filename_table[i] == sym) {
+      p->current_filename_index = i;
+      return;
+    }
+  }
+
+  p->current_filename_index = p->filename_table_length++;
+
+  new_table = parser_palloc(p, sizeof(mrb_sym) * p->filename_table_length);
+  if (p->filename_table) {
+    memcpy(new_table, p->filename_table, sizeof(mrb_sym) * p->filename_table_length);
+  }
+  p->filename_table = new_table;
+  p->filename_table[p->filename_table_length - 1] = sym;
+}
+
+char const* mrb_parser_get_filename(struct mrb_parser_state* p, uint16_t idx) {
+  if (idx >= p->filename_table_length) { return NULL; }
+  else {
+    size_t len;
+    return mrb_sym2name_len(p->mrb, p->filename_table[idx], &len);
+  }
 }
 
 #ifdef ENABLE_STDIO

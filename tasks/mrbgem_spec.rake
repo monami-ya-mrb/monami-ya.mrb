@@ -61,13 +61,13 @@ module MRuby
         @linker = { }
 
         @rbfiles = Dir.glob("#{dir}/mrblib/*.rb").sort
-        @objs = Dir.glob("#{dir}/src/*.{c,cpp,m,asm,s,S}").map do |f|
+        @objs = Dir.glob("#{dir}/src/*.{c,cpp,cxx,m,asm,s,S}").map do |f|
           objfile(f.relative_path_from(@dir).to_s.pathmap("#{build_dir}/%X"))
         end
         @objs << objfile("#{build_dir}/gem_init")
 
         @test_rbfiles = Dir.glob("#{dir}/test/*.rb")
-        @test_objs = Dir.glob("#{dir}/test/*.{c,cpp,m,asm,s,S}").map do |f|
+        @test_objs = Dir.glob("#{dir}/test/*.{c,cpp,cxx,m,asm,s,S}").map do |f|
           objfile(f.relative_path_from(dir).to_s.pathmap("#{build_dir}/%X"))
         end
         @test_preload = 'test/assert.rb'
@@ -221,7 +221,7 @@ module MRuby
       end
 
       # ~> compare algorithm
-      # 
+      #
       # Example:
       #    ~> 2.2   means >= 2.2.0 and < 3.0.0
       #    ~> 2.2.0 means >= 2.2.0 and < 2.3.0

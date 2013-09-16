@@ -13,6 +13,7 @@
 #include "mruby/numeric.h"
 #include "mruby/string.h"
 #include "mruby/panic.h"
+#include "mruby/debug.h"
 #include "node.h"
 #include "ritevm/opcode.h"
 #include "re.h"
@@ -52,11 +53,11 @@ typedef struct scope {
 
   struct loopinfo *loop;
   int ensure_level;
-  char *filename;
-  short lineno;
+  char const *filename;
+  uint16_t lineno;
 
   mrb_code *iseq;
-  short *lines;
+  uint16_t *lines;
   int icapa;
 
   mrb_irep *irep;
@@ -68,6 +69,10 @@ typedef struct scope {
   int ai;
 
   int idx;
+
+  int debug_start_pos;
+  uint16_t filename_index;
+  parser_state* parser;
 } codegen_scope;
 
 static codegen_scope* scope_new(mrb_state *mrb, codegen_scope *prev, node *lv);
@@ -142,7 +147,8 @@ genop(codegen_scope *s, mrb_code i)
     s->icapa *= 2;
     s->iseq = (mrb_code *)codegen_realloc(s, s->iseq, sizeof(mrb_code)*s->icapa);
     if (s->lines) {
-      s->lines = (short*)codegen_realloc(s, s->lines, sizeof(short)*s->icapa);
+      s->lines = (uint16_t*)codegen_realloc(s, s->lines, sizeof(short)*s->icapa);
+      s->irep->lines = s->lines;
     }
   }
   s->iseq[s->pc] = i;
@@ -960,6 +966,9 @@ gen_vmassignment(codegen_scope *s, node *tree, int rhs, int val)
       }
     }
   }
+  else {
+    pop();
+  }
 }
 
 static void
@@ -1103,8 +1112,19 @@ static void
 codegen(codegen_scope *s, node *tree, int val)
 {
   int nt;
+  mrb_irep_debug_info_file const *finished_file;
 
   if (!tree) return;
+
+  if (s->irep && s->pc > 0 && s->filename_index != tree->filename) {
+    s->irep->filename = mrb_parser_get_filename(s->parser, s->filename_index);
+    finished_file = mrb_debug_info_append_file(s->mrb, s->irep, s->debug_start_pos, s->pc);
+    mrb_assert(finished_file);
+    s->debug_start_pos = s->pc;
+    s->filename_index = tree->filename;
+    s->filename = mrb_parser_get_filename(s->parser, tree->filename);
+  }
+
   nt = (intptr_t)tree->car;
   s->lineno = tree->lineno;
   tree = tree->cdr;
@@ -2318,7 +2338,7 @@ codegen(codegen_scope *s, node *tree, int val)
       pop();
       genop(s, MKOP_AB(OP_METHOD, cursp(), sym));
       if (val) {
-        genop(s, MKOP_A(OP_LOADNIL, cursp()));
+        genop(s, MKOP_ABx(OP_LOADSYM, cursp(), sym));
         push();
       }
     }
@@ -2338,7 +2358,7 @@ codegen(codegen_scope *s, node *tree, int val)
       pop();
       genop(s, MKOP_AB(OP_METHOD, cursp(), sym));
       if (val) {
-        genop(s, MKOP_A(OP_LOADNIL, cursp()));
+        genop(s, MKOP_ABx(OP_LOADSYM, cursp(), sym));
         push();
       }
     }
@@ -2390,9 +2410,23 @@ scope_new(mrb_state *mrb, codegen_scope *prev, node *lv)
 
   p->filename = prev->filename;
   if (p->filename) {
-    p->lines = (short*)mrb_malloc(mrb, sizeof(short)*p->icapa);
+    p->lines = (uint16_t*)mrb_malloc(mrb, sizeof(short)*p->icapa);
   }
   p->lineno = prev->lineno;
+
+  // debug setting
+  p->debug_start_pos = 0;
+  if(p->filename) {
+    mrb_debug_info_alloc(mrb, p->irep);
+    p->irep->filename = p->filename;
+    p->irep->lines = p->lines;
+  }
+  else {
+    p->irep->debug_info = NULL;
+  }
+  p->parser = prev->parser;
+  p->filename_index = prev->filename_index;
+
   return p;
 }
 
@@ -2403,6 +2437,7 @@ scope_finish(codegen_scope *s)
   mrb_irep *irep = s->irep;
   size_t fname_len;
   char *fname;
+  mrb_irep_debug_info_file const *finished_file;
 
   irep->flags = 0;
   if (s->iseq) {
@@ -2418,6 +2453,10 @@ scope_finish(codegen_scope *s)
   irep->pool = (mrb_value *)codegen_realloc(s, irep->pool, sizeof(mrb_value)*irep->plen);
   irep->syms = (mrb_sym *)codegen_realloc(s, irep->syms, sizeof(mrb_sym)*irep->slen);
   if (s->filename) {
+    s->irep->filename = mrb_parser_get_filename(s->parser, s->filename_index);
+    finished_file = mrb_debug_info_append_file(mrb, s->irep, s->debug_start_pos, s->pc);
+    mrb_assert(finished_file);
+
     fname_len = strlen(s->filename);
     fname = codegen_malloc(s, fname_len + 1);
     memcpy(fname, s->filename, fname_len);
@@ -2829,7 +2868,6 @@ codedump_all(mrb_state *mrb, int start)
     codedump(mrb, i);
   }
 }
-
 static int
 codegen_start(mrb_state *mrb, parser_state *p)
 {
@@ -2839,9 +2877,9 @@ codegen_start(mrb_state *mrb, parser_state *p)
     return -1;
   }
   scope->mrb = mrb;
-  if (p->filename) {
-    scope->filename = p->filename;
-  }
+  scope->parser = p;
+  scope->filename = p->filename;
+  scope->filename_index = p->current_filename_index;
   if (setjmp(scope->jmp) == 0) {
     // prepare irep
     codegen(scope, p->tree, NOVAL);
