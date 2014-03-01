@@ -146,7 +146,6 @@ module MRuby
             f.puts %Q[  if (mrb->exc) {]
             f.puts %Q[    mrb_print_error(mrb);]
             f.puts %Q[    mrb_panic(mrb);]
-            f.puts %Q[    exit(EXIT_FAILURE);]
             f.puts %Q[  }]
           end
           f.puts %Q[  mrb_gc_arena_restore(mrb, ai);]
