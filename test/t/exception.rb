@@ -356,6 +356,8 @@ assert('Raise in ensure') do
     end
   end
 
+end
+
 # very deeply recursive function that stil returns albeit very deeply so
 $test_infinite_recursion    = 0
 TEST_INFINITE_RECURSION_MAX = 1000000
