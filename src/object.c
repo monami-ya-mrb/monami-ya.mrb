@@ -86,7 +86,7 @@ nil_to_s(mrb_state *mrb, mrb_value obj)
 static mrb_value
 nil_inspect(mrb_state *mrb, mrb_value obj)
 {
-  return mrb_str_new(mrb, "nil", 3);
+  return mrb_str_new_lit(mrb, "nil");
 }
 
 /***********************************************************************
@@ -147,7 +147,7 @@ true_xor(mrb_state *mrb, mrb_value obj)
 static mrb_value
 true_to_s(mrb_state *mrb, mrb_value obj)
 {
-  return mrb_str_new(mrb, "true", 4);
+  return mrb_str_new_lit(mrb, "true");
 }
 
 /* 15.2.5.3.4  */
@@ -254,7 +254,7 @@ false_or(mrb_state *mrb, mrb_value obj)
 static mrb_value
 false_to_s(mrb_state *mrb, mrb_value obj)
 {
-  return mrb_str_new(mrb, "false", 5);
+  return mrb_str_new_lit(mrb, "false");
 }
 
 void
@@ -302,7 +302,7 @@ inspect_type(mrb_state *mrb, mrb_value val)
 }
 
 static mrb_value
-convert_type(mrb_state *mrb, mrb_value val, const char *tname, const char *method, int raise)
+convert_type(mrb_state *mrb, mrb_value val, const char *tname, const char *method, mrb_bool raise)
 {
   mrb_sym m = 0;
 
@@ -443,8 +443,8 @@ mrb_any_to_s(mrb_state *mrb, mrb_value obj)
   const char *cname = mrb_obj_classname(mrb, obj);
 
   mrb_str_buf_cat(mrb, str, "#<", 2);
-  mrb_str_cat2(mrb, str, cname);
-  mrb_str_cat(mrb, str, ":", 1);
+  mrb_str_cat_cstr(mrb, str, cname);
+  mrb_str_cat_lit(mrb, str, ":");
   mrb_str_concat(mrb, str, mrb_ptr_to_str(mrb, mrb_cptr(obj)));
   mrb_str_buf_cat(mrb, str, ">", 1);
 

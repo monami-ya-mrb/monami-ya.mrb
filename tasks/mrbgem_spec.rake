@@ -70,7 +70,7 @@ module MRuby
         @test_objs = Dir.glob("#{dir}/test/*.{c,cpp,cxx,m,asm,s,S}").map do |f|
           objfile(f.relative_path_from(dir).to_s.pathmap("#{build_dir}/%X"))
         end
-        @test_preload = 'test/assert.rb'
+        @test_preload = nil # 'test/assert.rb'
         @test_args = {}
 
         @bins = []

@@ -216,6 +216,9 @@ mrb_value
 mrb_str_new(mrb_state *mrb, const char *p, size_t len)
 {
   struct RString *s;
+  if ((mrb_int)len < 0) {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "negative string size (or size too big)");
+  }
 
   s = str_new(mrb, p, len);
   return mrb_obj_value(s);
@@ -253,6 +256,9 @@ mrb_value
 mrb_str_new_static(mrb_state *mrb, const char *p, size_t len)
 {
   struct RString *s;
+  if ((mrb_int)len < 0) {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "negative string size (or size too big)");
+  }
 
   s = mrb_obj_alloc_string(mrb);
   s->len = len;
@@ -2005,7 +2011,7 @@ mrb_string_value_cstr(mrb_state *mrb, mrb_value *ptr)
 }
 
 mrb_value
-mrb_str_to_inum(mrb_state *mrb, mrb_value str, int base, int badcheck)
+mrb_str_to_inum(mrb_state *mrb, mrb_value str, int base, mrb_bool badcheck)
 {
   char *s;
   int len;
@@ -2068,7 +2074,7 @@ mrb_str_to_i(mrb_state *mrb, mrb_value self)
 }
 
 double
-mrb_cstr_to_dbl(mrb_state *mrb, const char * p, int badcheck)
+mrb_cstr_to_dbl(mrb_state *mrb, const char * p, mrb_bool badcheck)
 {
   char *end;
   double d;
@@ -2137,7 +2143,7 @@ bad:
 }
 
 double
-mrb_str_to_dbl(mrb_state *mrb, mrb_value str, int badcheck)
+mrb_str_to_dbl(mrb_state *mrb, mrb_value str, mrb_bool badcheck)
 {
   char *s;
   int len;
@@ -2361,7 +2367,7 @@ mrb_str_dump(mrb_state *mrb, mrb_value str)
         }
     }
   }
-  *q++ = '"';
+  *q = '"';
   return mrb_obj_value(result);
 }
 
@@ -2406,7 +2412,7 @@ mrb_str_inspect(mrb_state *mrb, mrb_value str)
 {
     const char *p, *pend;
     char buf[CHAR_ESC_LEN + 1];
-    mrb_value result = mrb_str_new(mrb, "\"", 1);
+    mrb_value result = mrb_str_new_lit(mrb, "\"");
 
     p = RSTRING_PTR(str); pend = RSTRING_END(str);
     for (;p < pend; p++) {
@@ -2485,8 +2491,6 @@ mrb_init_string(mrb_state *mrb)
 
   s = mrb->string_class = mrb_define_class(mrb, "String", mrb->object_class);
   MRB_SET_INSTANCE_TT(s, MRB_TT_STRING);
-  mrb_include_module(mrb, s, mrb_class_get(mrb, "Comparable"));
-
 
   mrb_define_method(mrb, s, "bytesize",        mrb_str_bytesize,        MRB_ARGS_NONE());
 

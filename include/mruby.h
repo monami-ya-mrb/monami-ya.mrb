@@ -37,6 +37,7 @@ extern "C" {
 
 #include "mrbconf.h"
 #include "mruby/value.h"
+#include "mruby/version.h"
 
 typedef uint32_t mrb_code;
 typedef uint32_t mrb_aspec;
@@ -55,7 +56,7 @@ typedef int (*mrb_log_printer)(const char *);
 typedef struct {
   mrb_sym mid;
   struct RProc *proc;
-  int stackidx;
+  mrb_value *stackent;
   int nregs;
   int argc;
   mrb_code *pc;                 /* return address */
@@ -199,6 +200,8 @@ struct RClass * mrb_module_new(mrb_state *mrb);
 mrb_bool mrb_class_defined(mrb_state *mrb, const char *name);
 struct RClass * mrb_class_get(mrb_state *mrb, const char *name);
 struct RClass * mrb_class_get_under(mrb_state *mrb, struct RClass *outer, const char *name);
+struct RClass * mrb_module_get(mrb_state *mrb, const char *name);
+struct RClass * mrb_module_get_under(mrb_state *mrb, struct RClass *outer, const char *name);
 
 mrb_value mrb_obj_dup(mrb_state *mrb, mrb_value obj);
 mrb_value mrb_check_to_integer(mrb_state *mrb, mrb_value val, const char *method);
@@ -264,6 +267,7 @@ void mrb_free(mrb_state*, void*);
 mrb_value mrb_str_new(mrb_state *mrb, const char *p, size_t len);
 mrb_value mrb_str_new_cstr(mrb_state*, const char*);
 mrb_value mrb_str_new_static(mrb_state *mrb, const char *p, size_t len);
+#define mrb_str_new_lit(mrb, lit) mrb_str_new_static(mrb, (lit), sizeof(lit) - 1)
 
 mrb_state* mrb_open(void);
 mrb_state* mrb_open_allocf(mrb_allocf, uintptr_t ud);
@@ -381,6 +385,9 @@ mrb_value mrb_attr_get(mrb_state *mrb, mrb_value obj, mrb_sym id);
 
 mrb_bool mrb_respond_to(mrb_state *mrb, mrb_value obj, mrb_sym mid);
 mrb_bool mrb_obj_is_instance_of(mrb_state *mrb, mrb_value obj, struct RClass* c);
+
+/* fiber functions (you need to link mruby-fiber mrbgem to use) */
+mrb_value mrb_fiber_yield(mrb_state *mrb, int argc, mrb_value *argv);
 
 /* memory pool implementation */
 typedef struct mrb_pool mrb_pool;

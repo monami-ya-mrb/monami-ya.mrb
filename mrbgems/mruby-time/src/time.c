@@ -93,11 +93,16 @@ enum mrb_timezone {
   MRB_TIMEZONE_LAST   = 3
 };
 
-static const char *timezone_names[] = {
-  "none",
-  "UTC",
-  "LOCAL",
-   NULL
+typedef struct mrb_timezone_name {
+  const char *name;
+  size_t len;
+} mrb_timezone_name;
+
+static mrb_timezone_name timezone_names[] = {
+  { "none", sizeof("none") - 1 },
+  { "UTC",  sizeof("UTC") - 1 },
+  { "LOCAL", sizeof("LOCAL") - 1 },
+  { NULL, 0 }
 };
 
 static const char *mon_names[] = {
@@ -401,7 +406,9 @@ mrb_time_zone(mrb_state *mrb, mrb_value self)
   tm = DATA_GET_PTR(mrb, self, &mrb_time_type, struct mrb_time);
   if (tm->timezone <= MRB_TIMEZONE_NONE) return mrb_nil_value();
   if (tm->timezone >= MRB_TIMEZONE_LAST) return mrb_nil_value();
-  return mrb_str_new_cstr(mrb, timezone_names[tm->timezone]);
+  return mrb_str_new_static(mrb, 
+                            timezone_names[tm->timezone].name,
+                            timezone_names[tm->timezone].len);
 }
 
 /* 15.2.19.7.4 */
@@ -662,7 +669,7 @@ mrb_mruby_time_gem_init(mrb_state* mrb)
   /* ISO 15.2.19.2 */
   tc = mrb_define_class(mrb, "Time", mrb->object_class);
   MRB_SET_INSTANCE_TT(tc, MRB_TT_DATA);
-  mrb_include_module(mrb, tc, mrb_class_get(mrb, "Comparable"));
+  mrb_include_module(mrb, tc, mrb_module_get(mrb, "Comparable"));
   mrb_define_class_method(mrb, tc, "at", mrb_time_at, MRB_ARGS_ANY());          /* 15.2.19.6.1 */
   mrb_define_class_method(mrb, tc, "gm", mrb_time_gm, MRB_ARGS_ARG(1,6));       /* 15.2.19.6.2 */
   mrb_define_class_method(mrb, tc, "local", mrb_time_local, MRB_ARGS_ARG(1,6)); /* 15.2.19.6.3 */

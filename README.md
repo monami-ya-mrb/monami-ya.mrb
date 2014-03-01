@@ -17,7 +17,11 @@ the Ministry of Economy, Trade and Industry of Japan.
 
 ## How to get mruby
 
-The mruby distribution files can be found in the following site:
+The stable version 1.0.0 of mruby can be downloaded via the following URL:
+
+  https://github.com/mruby/mruby/archive/1.0.0.zip
+
+The latest mruby development version of  can be downloaded via the following URL:
 
   https://github.com/mruby/mruby/zipball/master
 
@@ -26,17 +30,10 @@ following command:
 
     $ git clone https://github.com/mruby/mruby.git
 
-There are some other branches under development. Try the following
-command and see the list of branches:
-
-    $ git branch -r
-
 
 ## mruby home-page
 
-mruby's website is not launched yet but we are actively working on it.
-
-The URL of the mruby home-page will be:
+The URL of the mruby home-page is:
 
   http://www.mruby.org/
 

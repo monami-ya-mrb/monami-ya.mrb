@@ -103,6 +103,7 @@ fiber_init(mrb_state *mrb, mrb_value self)
   }
   c->ciend = c->cibase + FIBER_CI_INIT_SIZE;
   c->ci = c->cibase;
+  c->ci->stackent = c->stack;
 
   /* adjust return callinfo */
   ci = c->ci;
@@ -213,6 +214,28 @@ fiber_alive_p(mrb_state *mrb, mrb_value self)
   return mrb_bool_value(c->status != MRB_FIBER_TERMINATED);
 }
 
+mrb_value
+mrb_fiber_yield(mrb_state *mrb, int len, mrb_value *a)
+{
+  struct mrb_context *c = mrb->c;
+  mrb_callinfo *ci;
+
+  for (ci = c->ci; ci >= c->cibase; ci--) {
+    if (ci->acc < 0) {
+      mrb_raise(mrb, E_ARGUMENT_ERROR, "can't cross C function boundary");
+    }
+  }
+  if (!c->prev) {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "can't yield from root fiber");
+  }
+
+  c->prev->status = MRB_FIBER_RUNNING;
+  mrb->c = c->prev;
+  c->prev = NULL;
+  MARK_CONTEXT_MODIFY(mrb->c);
+  return fiber_result(mrb, a, len);
+}
+
 /*
  *  call-seq:
  *     Fiber.yield(args, ...) -> obj
@@ -226,19 +249,11 @@ fiber_alive_p(mrb_state *mrb, mrb_value self)
 static mrb_value
 fiber_yield(mrb_state *mrb, mrb_value self)
 {
-  struct mrb_context *c = mrb->c;
   mrb_value *a;
   int len;
 
-  if (!c->prev) {
-    mrb_raise(mrb, E_ARGUMENT_ERROR, "can't yield from root fiber");
-  }
   mrb_get_args(mrb, "*", &a, &len);
-  c->prev->status = MRB_FIBER_RUNNING;
-  mrb->c = c->prev;
-  c->prev = NULL;
-  MARK_CONTEXT_MODIFY(mrb->c);
-  return fiber_result(mrb, a, len);
+  return mrb_fiber_yield(mrb, len, a);
 }
 
 /*

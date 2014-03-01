@@ -15,7 +15,7 @@
 #include "mruby/string.h"
 #include "mruby/variable.h"
 #include "mruby/debug.h"
-#include "error.h"
+#include "mruby/error.h"
 
 mrb_value
 mrb_exc_new(mrb_state *mrb, struct RClass *c, const char *ptr, long len)
@@ -129,26 +129,26 @@ exc_inspect(mrb_state *mrb, mrb_value exc)
 
   if (!mrb_nil_p(file) && !mrb_nil_p(line)) {
     str = file;
-    mrb_str_cat(mrb, str, ":", 1);
+    mrb_str_cat_lit(mrb, str, ":");
     mrb_str_append(mrb, str, line);
-    mrb_str_cat(mrb, str, ": ", 2);
+    mrb_str_cat_lit(mrb, str, ": ");
     if (!mrb_nil_p(mesg) && RSTRING_LEN(mesg) > 0) {
       mrb_str_append(mrb, str, mesg);
-      mrb_str_cat(mrb, str, " (", 2);
+      mrb_str_cat_lit(mrb, str, " (");
     }
     mrb_str_cat_cstr(mrb, str, mrb_obj_classname(mrb, exc));
     if (!mrb_nil_p(mesg) && RSTRING_LEN(mesg) > 0) {
-      mrb_str_cat(mrb, str, ")", 1);
+      mrb_str_cat_lit(mrb, str, ")");
     }
   }
   else {
     str = mrb_str_new_cstr(mrb, mrb_obj_classname(mrb, exc));
     if (!mrb_nil_p(mesg) && RSTRING_LEN(mesg) > 0) {
-      mrb_str_cat(mrb, str, ": ", 2);
+      mrb_str_cat_lit(mrb, str, ": ");
       mrb_str_append(mrb, str, mesg);
     }
     else {
-      mrb_str_cat(mrb, str, ": ", 2);
+      mrb_str_cat_lit(mrb, str, ": ");
       mrb_str_cat_cstr(mrb, str, mrb_obj_classname(mrb, exc));
     }
   }
@@ -353,7 +353,7 @@ set_backtrace(mrb_state *mrb, mrb_value info, mrb_value bt)
 }
 
 static mrb_value
-make_exception(mrb_state *mrb, int argc, mrb_value *argv, int isstr)
+make_exception(mrb_state *mrb, int argc, mrb_value *argv, mrb_bool isstr)
 {
   mrb_value mesg;
   int n;
@@ -432,8 +432,6 @@ mrb_sys_fail(mrb_state *mrb, const char *mesg)
   }
 }
 
-mrb_value mrb_get_backtrace(mrb_state*, mrb_value);
-
 void
 mrb_init_exception(mrb_state *mrb)
 {
@@ -447,7 +445,7 @@ mrb_init_exception(mrb_state *mrb)
   mrb_define_method(mrb, e, "to_s", exc_to_s, MRB_ARGS_NONE());
   mrb_define_method(mrb, e, "message", exc_message, MRB_ARGS_NONE());
   mrb_define_method(mrb, e, "inspect", exc_inspect, MRB_ARGS_NONE());
-  mrb_define_method(mrb, e, "backtrace", mrb_get_backtrace, MRB_ARGS_NONE());
+  mrb_define_method(mrb, e, "backtrace", mrb_exc_backtrace, MRB_ARGS_NONE());
 
   mrb->eStandardError_class     = mrb_define_class(mrb, "StandardError",       mrb->eException_class); /* 15.2.23 */
   mrb_define_class(mrb, "RuntimeError", mrb->eStandardError_class);                                    /* 15.2.28 */

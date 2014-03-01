@@ -75,10 +75,10 @@ parse_args(mrb_state *mrb, int argc, char **argv, struct _args *args)
     item = argv[0] + 1;
     switch (*item++) {
     case 'b':
-      args->mrbfile = 1;
+      args->mrbfile = TRUE;
       break;
     case 'c':
-      args->check_syntax = 1;
+      args->check_syntax = TRUE;
       break;
     case 'e':
       if (item[0]) {
@@ -116,7 +116,7 @@ append_cmdline:
       break;
     case 'v':
       if (!args->verbose) mrb_show_version(mrb);
-      args->verbose = 1;
+      args->verbose = TRUE;
       break;
     case '-':
       if (strcmp((*argv) + 2, "version") == 0) {
@@ -124,7 +124,7 @@ append_cmdline:
         exit(EXIT_SUCCESS);
       }
       else if (strcmp((*argv) + 2, "verbose") == 0) {
-        args->verbose = 1;
+        args->verbose = TRUE;
         break;
       }
       else if (strcmp((*argv) + 2, "copyright") == 0) {
@@ -144,7 +144,7 @@ append_cmdline:
         printf("%s: Cannot open program file. (%s)\n", *origargv, *argv);
         return 0;
       }
-      args->fname = 1;
+      args->fname = TRUE;
       args->cmdline = argv[0];
       argc--; argv++;
     }
@@ -199,9 +199,9 @@ main(int argc, char **argv)
 
   c = mrbc_context_new(mrb);
   if (args.verbose)
-    c->dump_result = 1;
+    c->dump_result = TRUE;
   if (args.check_syntax)
-    c->no_exec = 1;
+    c->no_exec = FALSE;
   if (args.mrbfile) {
     v = mrb_load_irep_file_cxt(mrb, args.rfp, c);
   }
@@ -217,7 +217,7 @@ main(int argc, char **argv)
     }
     else {
       mrbc_filename(mrb, c, "-e");
-      mrb_gv_set(mrb, zero_sym, mrb_str_new(mrb, "-e", 2));
+      mrb_gv_set(mrb, zero_sym, mrb_str_new_lit(mrb, "-e"));
       v = mrb_load_string_cxt(mrb, args.cmdline, c);
     }
   }

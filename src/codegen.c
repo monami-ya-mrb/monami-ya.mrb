@@ -982,7 +982,7 @@ gen_send_intern(codegen_scope *s)
   push();
 }
 static void
-gen_literal_array(codegen_scope *s, node *tree, int sym, int val)
+gen_literal_array(codegen_scope *s, node *tree, mrb_bool sym, int val)
 {
   if (val) {
     int i = 0, j = 0;
@@ -1070,7 +1070,7 @@ readint_float(codegen_scope *s, const char *p, int base)
 }
 
 static mrb_int
-readint_mrb_int(codegen_scope *s, const char *p, int base, int neg, int *overflow)
+readint_mrb_int(codegen_scope *s, const char *p, int base, mrb_bool neg, mrb_bool *overflow)
 {
   const char *e = p + strlen(p);
   mrb_int result = 0;
@@ -1927,7 +1927,7 @@ codegen(codegen_scope *s, node *tree, int val)
       int base = (intptr_t)tree->cdr->car;
       mrb_int i;
       mrb_code co;
-      int overflow;
+      mrb_bool overflow;
 
       i = readint_mrb_int(s, p, base, FALSE, &overflow);
       if (overflow) {
@@ -1983,7 +1983,7 @@ codegen(codegen_scope *s, node *tree, int val)
           int base = (intptr_t)tree->cdr->car;
           mrb_int i;
           mrb_code co;
-          int overflow;
+          mrb_bool overflow;
 
           i = readint_mrb_int(s, p, base, TRUE, &overflow);
           if (overflow) {
@@ -2735,7 +2735,7 @@ codedump(mrb_state *mrb, mrb_irep *irep)
       break;
 
     case OP_LAMBDA:
-      printf("OP_LAMBDA\tR%d\tI(%+d)\t%d\n", GETARG_A(c), GETARG_b(c), GETARG_c(c));
+      printf("OP_LAMBDA\tR%d\tI(%+d)\t%d\n", GETARG_A(c), GETARG_b(c)+1, GETARG_c(c));
       break;
     case OP_RANGE:
       printf("OP_RANGE\tR%d\tR%d\t%d\n", GETARG_A(c), GETARG_B(c), GETARG_C(c));
@@ -2846,7 +2846,7 @@ codedump(mrb_state *mrb, mrb_irep *irep)
              mrb_sym2name(mrb, irep->syms[GETARG_B(c)]));
       break;
     case OP_EXEC:
-      printf("OP_EXEC\tR%d\tI(%+d)\n", GETARG_A(c), GETARG_Bx(c));
+      printf("OP_EXEC\tR%d\tI(%+d)\n", GETARG_A(c), GETARG_Bx(c)+1);
       break;
     case OP_SCLASS:
       printf("OP_SCLASS\tR%d\tR%d\n", GETARG_A(c), GETARG_B(c));
@@ -2855,10 +2855,14 @@ codedump(mrb_state *mrb, mrb_irep *irep)
       printf("OP_TCLASS\tR%d\n", GETARG_A(c));
       break;
     case OP_ERR:
-      printf("OP_ERR\tL(%d)\n", GETARG_Bx(c));
+      {
+        mrb_value v = irep->pool[GETARG_Bx(c)];
+        mrb_value s = mrb_str_dump(mrb, mrb_str_new(mrb, RSTRING_PTR(v), RSTRING_LEN(v)));
+        printf("OP_ERR\t%s\n", RSTRING_PTR(s));
+      }
       break;
     case OP_EPUSH:
-      printf("OP_EPUSH\t:I(%+d)\n", GETARG_Bx(c));
+      printf("OP_EPUSH\t:I(%+d)\n", GETARG_Bx(c)+1);
       break;
     case OP_ONERR:
       printf("OP_ONERR\t%03d\n", i+GETARG_sBx(c));

@@ -29,7 +29,7 @@ static char memory_pool[TLSF_HEAP_SIZE];
 static mrb_value
 inspect_main(mrb_state *mrb, mrb_value mod)
 {
-  return mrb_str_new(mrb, "main", 4);
+  return mrb_str_new_lit(mrb, "main");
 }
 
 mrb_state*

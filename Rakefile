@@ -33,8 +33,11 @@ load "#{MRUBY_ROOT}/test/mrbtest.rake"
 # generic build targets, rules
 task :default => :all
 
+bin_path = "#{MRUBY_ROOT}/bin"
+FileUtils.mkdir_p bin_path, { :verbose => $verbose }
+
 depfiles = MRuby.targets['host'].bins.map do |bin|
-  install_path = MRuby.targets['host'].exefile("#{MRUBY_ROOT}/bin/#{bin}")
+  install_path = MRuby.targets['host'].exefile("#{bin_path}/#{bin}")
   source_path = MRuby.targets['host'].exefile("#{MRuby.targets['host'].build_dir}/bin/#{bin}")
 
   file install_path => source_path do |t|
@@ -57,8 +60,12 @@ MRuby.each_target do |target|
       objs += Dir.glob("#{current_dir}/tools/#{bin}/*.{s,asm}").sort.map { |f| objfile(f.pathmap("#{current_build_dir}/tools/#{bin}/%n")) }
 
       file exec => objs + [libfile("#{build_dir}/lib/libmruby")] do |t|
-        link_opt = gem.linker(bin)
-        linker.run t.name, t.prerequisites, link_opt.libraries, link_opt.library_paths, link_opt.flags, link_opt.flags_before_libraries
+        gem_flags = gems.map { |g| g.linker.flags }
+        gem_flags_before_libraries = gems.map { |g| g.linker.flags_before_libraries }
+        gem_flags_after_libraries = gems.map { |g| g.linker.flags_after_libraries }
+        gem_libraries = gems.map { |g| g.linker.libraries }
+        gem_library_paths = gems.map { |g| g.linker.library_paths }
+        linker.run t.name, t.prerequisites, gem_libraries, gem_library_paths, gem_flags, gem_flags_before_libraries, gem_flags_after_libraries
       end
 
       if target == MRuby.targets['host']
