@@ -1,15 +1,6 @@
-## What's monami-ya.mrb
-
-monami-ya.mrb is the enhanced version of mruby.
-
 # !!Notice!!
-    This is a preliminary release for internal team review.
-    The URLs and addresses described below are not available yet.
-    The official release will be announced later.
-    Any suggestions for modification are welcome.
-    Delays in replies are to be expected. Sorry in advance.
-
-[![Build Status](https://travis-ci.org/mruby/mruby.png?branch=master)](https://travis-ci.org/mruby/mruby)
+This document describes about the original version of mruby.
+Please read also README-monami-ya.md. It describes monami-ya.mrb specified sopics.
 
 ## What's mruby
 
@@ -23,32 +14,36 @@ generate compiled byte code in a C source file.  You can check the "mrbtest" pro
 This achievement was sponsored by the Regional Innovation Creation R&D Programs of
 the Ministry of Economy, Trade and Industry of Japan.
 
-You can get original version of mruby on http://github.com/mruby/mruby/
 
+## How to get mruby
 
-## How to get monami-ya.mrb opensource edition
+The mruby distribution files can be found in the following site:
 
-Distribution files can be found in the following site:
+  https://github.com/mruby/mruby/zipball/master
 
-  https://bitbucket.org/mruby/monami-ya.mrb
-
-The trunk of the monami-ya.mrb source tree can be checked out with the
+The trunk of the mruby source tree can be checked out with the
 following command:
 
-    $ git clone https://bitbucket.org/mruby/monami-ya.mrb
+    $ git clone https://github.com/mruby/mruby.git
 
-There are some other branches under development.
-
-```master``` branch is stable relatively.
-
-```develop``` branch is a beeding edge.
-
-Some branches are for temporary purpose.  It might remove with no previous notice.
-
-
-Try the following command and see the list of branches:
+There are some other branches under development. Try the following
+command and see the list of branches:
 
     $ git branch -r
+
+
+## mruby home-page
+
+mruby's website is not launched yet but we are actively working on it.
+
+The URL of the mruby home-page will be:
+
+  http://www.mruby.org/
+
+
+## Mailing list
+
+To subscribe to the mruby mailing list....[T.B.D.]
 
 
 ## How to compile and install
@@ -67,17 +62,13 @@ Or
 
 ## Customization
 
-monami-ya.mrb contains a package manager called *mrbgems*. To create extensions
+mruby contains a package manager called *mrbgems*. To create extensions
 in C and/or Ruby you should create a *GEM*. You will find a complete
 documentation with examples under *examples/mrbgems*.
 
 ## License
 
-See each source code.
-If there are no special description on each source file, the license is below.
-
-```
-Copyright (c) 2012,2013 mruby developers
+Copyright (c) 2014 mruby developers
 
 Permission is hereby granted, free of charge, to any person obtaining a 
 copy of this software and associated documentation files (the "Software"), 
@@ -96,12 +87,11 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 DEALINGS IN THE SOFTWARE.
-```
 
 ## Note for License
 
-The original version of mruby) has chosen a MIT License due to its permissive
-license allowing developers to target various environments such as embedded systems.
+mruby has chosen a MIT License due to its permissive license allowing
+developers to target various environments such as embedded systems.
 However, the license requires the display of the copyright notice and license
 information in manuals for instance. Doing so for big projects can be 
 complicated or troublesome.
@@ -113,9 +103,11 @@ In the future, mruby might ask you to distribute your new code
 (We did not intend for contributors to transfer or waive their copyrights,
  Actual copyright holder name (contributors) will be listed in the AUTHORS file.)
 
+Please ask us if you want to distribute your code under another license.
+
 ## How to Contribute
 
-See the contribution guidelines in CONTRIBUTING.md file.
-then send pull request to <http://bitbucket.org/mruby/monami-ya.mrb>.  We consider you have granted
+See the [contribution guidelines](https://github.com/mruby/mruby/blob/master/CONTRIBUTING.md)
+then send a pull request to <http://github.com/mruby/mruby>.  We consider you have granted
 non-exclusive right to your contributed code under MIT license.  If you want to be named
-as one of monami-ya.mrb OSS developers, include an update to the AUTHORS file in your pull request.
+as one of mruby developers, please include an update to the AUTHORS file in your pull request.
