@@ -38,9 +38,6 @@
 /* initial size for IV khash; ignored when MRB_USE_IV_SEGLIST is set */
 //#define MRB_IVHASH_INIT_SIZE 8
 
-/* initial size for IREP array */
-//#define MRB_IREP_ARRAY_INIT_SIZE (256u)
-
 /* turn off generational GC by default */
 //#define MRB_GC_TURN_OFF_GENERATIONAL
 
@@ -59,8 +56,11 @@
 /* initial minimum size for string buffer */
 //#define MRB_STR_BUF_MIN_SIZE 128
 
-/* array size for parser buffer */
-//#define MRB_PARSER_BUF_SIZE 1024
+/* arena size */
+//#define MRB_GC_ARENA_SIZE 100
+
+/* fixed size GC arena */
+//#define MRB_GC_FIXED_ARENA
 
 /* Default panic behavior */
 //#define MRB_PANIC_ABORT() abort()

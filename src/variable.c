@@ -4,14 +4,12 @@
 ** See Copyright Notice in mruby.h
 */
 
+#include <ctype.h>
 #include "mruby.h"
 #include "mruby/array.h"
 #include "mruby/class.h"
 #include "mruby/proc.h"
 #include "mruby/string.h"
-#include "mruby/variable.h"
-#include "error.h"
-#include <ctype.h>
 
 typedef int (iv_foreach_func)(mrb_state*,mrb_sym,mrb_value,void*);
 
@@ -311,7 +309,7 @@ iv_put(mrb_state *mrb, iv_tbl *t, mrb_sym sym, mrb_value val)
   khash_t(iv) *h = &t->h;
   khiter_t k;
 
-  k = kh_put(iv, h, sym);
+  k = kh_put(iv, mrb, h, sym);
   kh_value(h, k) = val;
 }
 
@@ -321,7 +319,7 @@ iv_get(mrb_state *mrb, iv_tbl *t, mrb_sym sym, mrb_value *vp)
   khash_t(iv) *h = &t->h;
   khiter_t k;
 
-  k = kh_get(iv, h, sym);
+  k = kh_get(iv, mrb, h, sym);
   if (k != kh_end(h)) {
     if (vp) *vp = kh_value(h, k);
     return TRUE;
@@ -336,10 +334,10 @@ iv_del(mrb_state *mrb, iv_tbl *t, mrb_sym sym, mrb_value *vp)
   khiter_t k;
 
   if (h) {
-    k = kh_get(iv, h, sym);
+    k = kh_get(iv, mrb, h, sym);
     if (k != kh_end(h)) {
       mrb_value val = kh_value(h, k);
-      kh_del(iv, h, k);
+      kh_del(iv, mrb, h, k);
       if (vp) *vp = val;
       return TRUE;
     }
@@ -360,7 +358,7 @@ iv_foreach(mrb_state *mrb, iv_tbl *t, iv_foreach_func *func, void *p)
         n = (*func)(mrb, kh_key(h, k), kh_value(h, k), p);
         if (n > 0) return FALSE;
         if (n < 0) {
-          kh_del(iv, h, k);
+          kh_del(iv, mrb, h, k);
         }
       }
     }
@@ -386,7 +384,7 @@ iv_copy(mrb_state *mrb, iv_tbl *t)
 static void
 iv_free(mrb_state *mrb, iv_tbl *t)
 {
-  kh_destroy(iv, &t->h);
+  kh_destroy(iv, mrb, &t->h);
 }
 
 #endif
@@ -563,6 +561,7 @@ inspect_i(mrb_state *mrb, mrb_sym sym, mrb_value v, void *p)
   mrb_value str = *(mrb_value*)p;
   const char *s;
   size_t len;
+  mrb_value ins;
 
   /* need not to show internal data */
   if (RSTRING_PTR(str)[0] == '-') { /* first element */
@@ -575,7 +574,13 @@ inspect_i(mrb_state *mrb, mrb_sym sym, mrb_value v, void *p)
   s = mrb_sym2name_len(mrb, sym, &len);
   mrb_str_cat(mrb, str, s, len);
   mrb_str_cat(mrb, str, "=", 1);
-  mrb_str_append(mrb, str, mrb_inspect(mrb, v));
+  if (mrb_type(v) == MRB_TT_OBJECT) {
+    ins = mrb_any_to_s(mrb, v);
+  }
+  else {
+    ins = mrb_inspect(mrb, v);
+  }
+  mrb_str_append(mrb, str, ins);
   return 0;
 }
 
@@ -749,7 +754,7 @@ mrb_cv_get(mrb_state *mrb, mrb_value mod, mrb_sym sym)
 }
 
 void
-mrb_mod_cv_set(mrb_state *mrb, struct RClass * c, mrb_sym sym, mrb_value v)
+mrb_mod_cv_set(mrb_state *mrb, struct RClass *c, mrb_sym sym, mrb_value v)
 {
   struct RClass * cls = c;
 
@@ -816,24 +821,7 @@ mrb_vm_cv_set(mrb_state *mrb, mrb_sym sym, mrb_value v)
   struct RClass *c = mrb->c->ci->proc->target_class;
 
   if (!c) c = mrb->c->ci->target_class;
-  while (c) {
-    if (c->iv) {
-      iv_tbl *t = c->iv;
-
-      if (iv_get(mrb, t, sym, NULL)) {
-        mrb_write_barrier(mrb, (struct RBasic*)c);
-        iv_put(mrb, t, sym, v);
-        return;
-      }
-    }
-    c = c->super;
-  }
-  c = mrb->c->ci->target_class;
-  if (!c->iv) {
-    c->iv = iv_new(mrb);
-  }
-  mrb_write_barrier(mrb, (struct RBasic*)c);
-  iv_put(mrb, c->iv, sym, v);
+  mrb_mod_cv_set(mrb, c, sym, v);
 }
 
 mrb_bool
@@ -884,7 +872,7 @@ L_RETRY:
     goto L_RETRY;
   }
   name = mrb_symbol_value(sym);
-  return mrb_funcall_argv(mrb, mrb_obj_value(base), mrb_intern2(mrb, "const_missing", 13), 1, &name);
+  return mrb_funcall_argv(mrb, mrb_obj_value(base), mrb_intern_lit(mrb, "const_missing"), 1, &name);
 }
 
 mrb_value
@@ -963,7 +951,7 @@ const_i(mrb_state *mrb, mrb_sym sym, mrb_value v, void *p)
 
   ary = *(mrb_value*)p;
   s = mrb_sym2name_len(mrb, sym, &len);
-  if (len > 1 && ISUPPER(s[0])) {
+  if (len >= 1 && ISUPPER(s[0])) {
     mrb_ary_push(mrb, ary, mrb_symbol_value(sym));
   }
   return 0;
@@ -1064,7 +1052,7 @@ mrb_f_global_variables(mrb_state *mrb, mrb_value self)
   buf[2] = 0;
   for (i = 1; i <= 9; ++i) {
     buf[1] = (char)(i + '0');
-    mrb_ary_push(mrb, ary, mrb_symbol_value(mrb_intern2(mrb, buf, 2)));
+    mrb_ary_push(mrb, ary, mrb_symbol_value(mrb_intern_lit(mrb, buf)));
   }
   return ary;
 }
@@ -1127,7 +1115,7 @@ mrb_class_sym(mrb_state *mrb, struct RClass *c, struct RClass *outer)
 {
   mrb_value name;
 
-  name = mrb_obj_iv_get(mrb, (struct RObject*)c, mrb_intern2(mrb, "__classid__", 11));
+  name = mrb_obj_iv_get(mrb, (struct RObject*)c, mrb_intern_lit(mrb, "__classid__"));
   if (mrb_nil_p(name)) {
 
     if (!outer) return 0;

@@ -5,12 +5,7 @@
 */
 
 #include <ctype.h>
-#ifndef SIZE_MAX
- /* Some versions of VC++
-  * has SIZE_MAX in stdint.h
-  */
-# include <limits.h>
-#endif
+#include <limits.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,9 +24,6 @@ typedef struct mrb_shared_string {
   char *ptr;
   mrb_int len;
 } mrb_shared_string;
-
-#define MRB_STR_SHARED    1
-#define MRB_STR_NOFREE    2
 
 static mrb_value str_replace(mrb_state *mrb, struct RString *s1, struct RString *s2);
 static mrb_value mrb_str_subseq(mrb_state *mrb, mrb_value str, mrb_int beg, mrb_int len);
@@ -92,6 +84,7 @@ mrb_str_modify(mrb_state *mrb, struct RString *s)
     }
     s->ptr[s->len] = '\0';
     s->aux.capa = s->len;
+    s->flags &= ~MRB_STR_NOFREE;
     return;
   }
 }
@@ -112,16 +105,6 @@ mrb_str_resize(mrb_state *mrb, mrb_value str, mrb_int len)
     s->ptr[len] = '\0';   /* sentinel */
   }
   return str;
-}
-
-static inline void
-str_mod_check(mrb_state *mrb, mrb_value str, char *p, mrb_int len)
-{
-  struct RString *s = mrb_str_ptr(str);
-
-  if (s->ptr != p || s->len != len) {
-    mrb_raise(mrb, E_RUNTIME_ERROR, "string modified");
-  }
 }
 
 #define mrb_obj_alloc_string(mrb) ((struct RString*)mrb_obj_alloc((mrb), MRB_TT_STRING, (mrb)->string_class))
@@ -329,34 +312,6 @@ str_make_shared(mrb_state *mrb, struct RString *s)
     s->aux.shared = shared;
     s->flags |= MRB_STR_SHARED;
   }
-}
-
-/*
- *  call-seq: (Caution! string literal)
- *     String.new(str="")   => new_str
- *
- *  Returns a new string object containing a copy of <i>str</i>.
- */
-
-mrb_value
-mrb_str_literal(mrb_state *mrb, mrb_value str)
-{
-  struct RString *s, *orig;
-  mrb_shared_string *shared;
-
-  s = mrb_obj_alloc_string(mrb);
-  orig = mrb_str_ptr(str);
-  if (!(orig->flags & MRB_STR_SHARED)) {
-    str_make_shared(mrb, orig);
-  }
-  shared = orig->aux.shared;
-  shared->refcnt++;
-  s->ptr = shared->ptr;
-  s->len = shared->len;
-  s->aux.shared = shared;
-  s->flags |= MRB_STR_SHARED;
-
-  return mrb_obj_value(s);
 }
 
 /*
@@ -574,10 +529,10 @@ mrb_str_cmp_m(mrb_state *mrb, mrb_value str1)
 
   mrb_get_args(mrb, "o", &str2);
   if (!mrb_string_p(str2)) {
-    if (!mrb_respond_to(mrb, str2, mrb_intern2(mrb, "to_s", 4))) {
+    if (!mrb_respond_to(mrb, str2, mrb_intern_lit(mrb, "to_s"))) {
       return mrb_nil_value();
     }
-    else if (!mrb_respond_to(mrb, str2, mrb_intern2(mrb, "<=>", 3))) {
+    else if (!mrb_respond_to(mrb, str2, mrb_intern_lit(mrb, "<=>"))) {
       return mrb_nil_value();
     }
     else {
@@ -613,7 +568,7 @@ mrb_str_equal(mrb_state *mrb, mrb_value str1, mrb_value str2)
   if (mrb_obj_equal(mrb, str1, str2)) return TRUE;
   if (!mrb_string_p(str2)) {
     if (mrb_nil_p(str2)) return FALSE;
-    if (!mrb_respond_to(mrb, str2, mrb_intern2(mrb, "to_str", 6))) {
+    if (!mrb_respond_to(mrb, str2, mrb_intern_lit(mrb, "to_str"))) {
       return FALSE;
     }
     str2 = mrb_funcall(mrb, str2, "to_str", 0);
@@ -786,12 +741,10 @@ num_index:
       /* check if indx is Range */
       {
         mrb_int beg, len;
-        mrb_value tmp;
 
         len = RSTRING_LEN(str);
         if (mrb_range_beg_len(mrb, indx, &beg, &len, len)) {
-          tmp = mrb_str_subseq(mrb, str, beg, len);
-          return tmp;
+          return mrb_str_subseq(mrb, str, beg, len);
         }
         else {
           return mrb_nil_value();
@@ -1278,7 +1231,7 @@ mrb_str_include(mrb_state *mrb, mrb_value self)
   mrb_bool include_p;
 
   mrb_get_args(mrb, "o", &str2);
-  if (mrb_type(str2) == MRB_TT_FIXNUM) {
+  if (mrb_fixnum_p(str2)) {
     include_p = (memchr(RSTRING_PTR(self), mrb_fixnum(str2), RSTRING_LEN(self)) != NULL);
   }
   else {
@@ -2457,7 +2410,7 @@ mrb_str_inspect(mrb_state *mrb, mrb_value str)
 
     p = RSTRING_PTR(str); pend = RSTRING_END(str);
     for (;p < pend; p++) {
-      unsigned int c, cc;
+      unsigned char c, cc;
 
       c = *p;
       if (c == '"'|| c == '\\' || (c == '#' && IS_EVSTR(p, pend))) {

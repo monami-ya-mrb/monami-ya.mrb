@@ -346,6 +346,16 @@ assert('Exception#backtrace') do
   true
 end
 
+assert('Raise in ensure') do
+
+  assert_raise(RuntimeError) do
+    begin
+      raise ""
+    ensure
+      raise ""
+    end
+  end
+
 # very deeply recursive function that stil returns albeit very deeply so
 $test_infinite_recursion    = 0
 TEST_INFINITE_RECURSION_MAX = 1000000
@@ -365,4 +375,5 @@ assert('Infinite recursion should result in an exception being raised') do
         end
     # OK if an exception was caught, otherwise a number will be stored in a
     a == :ok
+
 end

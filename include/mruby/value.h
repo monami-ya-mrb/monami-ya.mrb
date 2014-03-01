@@ -170,7 +170,7 @@ typedef struct mrb_value {
 #define mrb_tt(o)       (((o).value.ttt & 0xfc000)>>14)
 #define mrb_mktt(tt)    (0xfff00000|((tt)<<14))
 #define mrb_type(o)     ((uint32_t)0xfff00000 < (o).value.ttt ? mrb_tt(o) : MRB_TT_FLOAT)
-#define mrb_ptr(o)      ((void*)((((intptr_t)0x3fffffffffff)&((intptr_t)((o).value.p)))<<2))
+#define mrb_ptr(o)      ((void*)((((uintptr_t)0x3fffffffffff)&((uintptr_t)((o).value.p)))<<2))
 #define mrb_float(o)    (o).f
 
 #define MRB_SET_VALUE(o, tt, attr, v) do {\
@@ -181,7 +181,7 @@ typedef struct mrb_value {
   case MRB_TT_UNDEF:\
   case MRB_TT_FIXNUM:\
   case MRB_TT_SYMBOL: (o).attr = (v); break;\
-  default: (o).value.i = 0; (o).value.p = (void*)((intptr_t)(o).value.p | (((intptr_t)(v))>>2)); break;\
+  default: (o).value.i = 0; (o).value.p = (void*)((uintptr_t)(o).value.p | (((uintptr_t)(v))>>2)); break;\
   }\
 } while (0)
 
@@ -198,6 +198,7 @@ mrb_float_value(struct mrb_state *mrb, mrb_float f)
   }
   return v;
 }
+#define mrb_float_pool(mrb,f) mrb_float_value(mrb,f)
 
 #else
 
@@ -230,6 +231,7 @@ enum mrb_vtype {
 
 #if defined(MRB_WORD_BOXING)
 
+#include <limits.h>
 #define MRB_TT_HAS_BASIC  MRB_TT_FLOAT
 
 enum mrb_special_consts {
@@ -278,8 +280,8 @@ typedef union mrb_value {
   }\
 } while (0)
 
-extern mrb_value
-mrb_float_value(struct mrb_state *mrb, mrb_float f);
+mrb_value mrb_float_value(struct mrb_state *mrb, mrb_float f);
+mrb_value mrb_float_pool(struct mrb_state *mrb, mrb_float f);
 
 #else /* No MRB_xxx_BOXING */
 
@@ -313,6 +315,7 @@ mrb_float_value(struct mrb_state *mrb, mrb_float f)
   MRB_SET_VALUE(v, MRB_TT_FLOAT, value.f, f);
   return v;
 }
+#define mrb_float_pool(mrb,f) mrb_float_value(mrb,f)
 
 #endif  /* no boxing */
 
@@ -327,6 +330,7 @@ mrb_float_value(struct mrb_state *mrb, mrb_float f)
 #define mrb_bool(o)   ((o).w != MRB_Qnil && (o).w != MRB_Qfalse)
 
 #else
+
 #define mrb_cptr(o) mrb_ptr(o)
 #define mrb_fixnum_p(o) (mrb_type(o) == MRB_TT_FIXNUM)
 #define mrb_undef_p(o) (mrb_type(o) == MRB_TT_UNDEF)

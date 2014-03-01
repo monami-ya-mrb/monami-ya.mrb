@@ -17,11 +17,19 @@ struct RProc *
 mrb_proc_new(mrb_state *mrb, mrb_irep *irep)
 {
   struct RProc *p;
+  mrb_callinfo *ci = mrb->c->ci;
 
   p = (struct RProc*)mrb_obj_alloc(mrb, MRB_TT_PROC, mrb->proc_class);
-  p->target_class = (mrb->c->ci) ? mrb->c->ci->target_class : 0;
+  p->target_class = 0;
+  if (ci) {
+    if (ci->proc)
+      p->target_class = ci->proc->target_class;
+    if (!p->target_class)
+      p->target_class = ci->target_class;
+  }
   p->body.irep = irep;
   p->env = 0;
+  mrb_irep_incref(mrb, irep);
 
   return p;
 }
@@ -80,6 +88,9 @@ mrb_proc_copy(struct RProc *a, struct RProc *b)
 {
   a->flags = b->flags;
   a->body = b->body;
+  if (!MRB_PROC_CFUNC_P(a)) {
+    a->body.irep->refcnt++;
+  };
   a->target_class = b->target_class;
   a->env = b->env;
 }
@@ -181,17 +192,16 @@ void
 mrb_init_proc(mrb_state *mrb)
 {
   struct RProc *m;
-  mrb_irep *call_irep = (mrb_irep *)mrb_alloca(mrb, sizeof(mrb_irep));
+  mrb_irep *call_irep = (mrb_irep *)mrb_malloc(mrb, sizeof(mrb_irep));
   static const mrb_irep mrb_irep_zero = { 0 };
 
   MRB_STATIC_ASSERT(call_iseq != NULL, "call_iseq should not be NULL.");
 
-  if ( call_irep == NULL )
+  if (call_irep == NULL)
     return;
 
   *call_irep = mrb_irep_zero;
   call_irep->flags = MRB_ISEQ_NO_FREE;
-  call_irep->idx = -1;
   call_irep->iseq = call_iseq;
   call_irep->ilen = 1;
 
@@ -203,8 +213,8 @@ mrb_init_proc(mrb_state *mrb)
   mrb_define_method(mrb, mrb->proc_class, "arity", mrb_proc_arity, MRB_ARGS_NONE());
 
   m = mrb_proc_new(mrb, call_irep);
-  mrb_define_method_raw(mrb, mrb->proc_class, mrb_intern2(mrb, "call", 4), m);
-  mrb_define_method_raw(mrb, mrb->proc_class, mrb_intern2(mrb, "[]", 2), m);
+  mrb_define_method_raw(mrb, mrb->proc_class, mrb_intern_lit(mrb, "call"), m);
+  mrb_define_method_raw(mrb, mrb->proc_class, mrb_intern_lit(mrb, "[]"), m);
 
   mrb_define_class_method(mrb, mrb->kernel_module, "lambda", proc_lambda, MRB_ARGS_NONE()); /* 15.3.1.2.6  */
   mrb_define_method(mrb, mrb->kernel_module,       "lambda", proc_lambda, MRB_ARGS_NONE()); /* 15.3.1.3.27 */

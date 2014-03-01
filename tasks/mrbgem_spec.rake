@@ -158,7 +158,7 @@ module MRuby
         end
       end # generate_gem_init
 
-      def print_gem_init_header(f)
+      def print_gem_comment(f)
         f.puts %Q[/*]
         f.puts %Q[ * This file is loading the irep]
         f.puts %Q[ * Ruby GEM code.]
@@ -167,16 +167,26 @@ module MRuby
         f.puts %Q[ *   This file was generated!]
         f.puts %Q[ *   All manual changes will get lost.]
         f.puts %Q[ */]
+      end
+
+      def print_gem_init_header(f)
+        print_gem_comment(f)
+        f.puts %Q[#include <stdlib.h>] unless rbfiles.empty?
+        f.puts %Q[#include "mruby.h"]
+        f.puts %Q[#include "mruby/irep.h"] unless rbfiles.empty?
+        f.puts %Q[#include "mruby/panic.h"]
+      end
+
+      def print_gem_test_header(f)
+        print_gem_comment(f)
         f.puts %Q[#include <stdlib.h>]
         f.puts %Q[#include "mruby.h"]
+        f.puts %Q[#include "mruby/array.h"]
         f.puts %Q[#include "mruby/irep.h"]
-        f.puts %Q[#include "mruby/dump.h"]
         f.puts %Q[#include "mruby/string.h"]
         f.puts %Q[#include "mruby/panic.h"]
         f.puts %Q[#include "mruby/proc.h"]
         f.puts %Q[#include "mruby/variable.h"]
-        f.puts %Q[#include "mruby/array.h"]
-        f.puts %Q[#include "mruby/hash.h"]
       end
 
       def version_ok?(req_versions)

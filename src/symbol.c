@@ -5,7 +5,6 @@
 */
 
 #include <ctype.h>
-#include <limits.h>
 #include <string.h>
 #include "mruby.h"
 #include "mruby/khash.h"
@@ -19,7 +18,8 @@ extern mrb_bool on_rodata_p(void *ptr);
 
 /* ------------------------------------------------------ */
 typedef struct symbol_name {
-  size_t len;
+  mrb_bool lit;
+  uint16_t len;
   const char *name;
 } symbol_name;
 
@@ -40,8 +40,8 @@ sym_hash_func(mrb_state *mrb, const symbol_name s)
 KHASH_DECLARE(n2s, symbol_name, mrb_sym, 1)
 KHASH_DEFINE (n2s, symbol_name, mrb_sym, 1, sym_hash_func, sym_hash_equal)
 /* ------------------------------------------------------ */
-mrb_sym
-mrb_intern2(mrb_state *mrb, const char *name, size_t len)
+static mrb_sym
+sym_intern(mrb_state *mrb, const char *name, size_t len, int lit)
 {
   khash_t(n2s) *h = mrb->name2sym;
   symbol_name sname;
@@ -49,14 +49,18 @@ mrb_intern2(mrb_state *mrb, const char *name, size_t len)
   mrb_sym sym;
   char *p;
 
+  if (len > UINT16_MAX) {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "symbol length too long");
+  }
+  sname.lit = lit;
   sname.len = len;
   sname.name = name;
-  k = kh_get(n2s, h, sname);
+  k = kh_get(n2s, mrb, h, sname);
   if (k != kh_end(h))
     return kh_value(h, k);
 
   sym = ++mrb->symidx;
-  if (on_rodata_p(name)) {
+  if (lit) {
     sname.name = name;
   }
   else {
@@ -65,22 +69,34 @@ mrb_intern2(mrb_state *mrb, const char *name, size_t len)
     p[len] = 0;
     sname.name = (const char*)p;
   }
-  k = kh_put(n2s, h, sname);
+  k = kh_put(n2s, mrb, h, sname);
   kh_value(h, k) = sym;
 
   return sym;
 }
 
 mrb_sym
+mrb_intern(mrb_state *mrb, const char *name, size_t len)
+{
+  return sym_intern(mrb, name, len, 0);
+}
+
+mrb_sym
+mrb_intern_static(mrb_state *mrb, const char *name, size_t len)
+{
+  return sym_intern(mrb, name, len, 1);
+}
+
+mrb_sym
 mrb_intern_cstr(mrb_state *mrb, const char *name)
 {
-  return mrb_intern2(mrb, name, strlen(name));
+  return mrb_intern(mrb, name, strlen(name));
 }
 
 mrb_sym
 mrb_intern_str(mrb_state *mrb, mrb_value str)
 {
-  return mrb_intern2(mrb, RSTRING_PTR(str), RSTRING_LEN(str));
+  return mrb_intern(mrb, RSTRING_PTR(str), RSTRING_LEN(str));
 }
 
 mrb_value
@@ -90,10 +106,13 @@ mrb_check_intern(mrb_state *mrb, const char *name, size_t len)
   symbol_name sname;
   khiter_t k;
 
+  if (len > UINT16_MAX) {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "symbol length too long");
+  }
   sname.len = len;
   sname.name = name;
 
-  k = kh_get(n2s, h, sname);
+  k = kh_get(n2s, mrb, h, sname);
   if (k != kh_end(h)) {
     return mrb_symbol_value(kh_value(h, k));
   }
@@ -139,15 +158,15 @@ mrb_free_symtbl(mrb_state *mrb)
   khash_t(n2s) *h = mrb->name2sym;
   khiter_t k;
 
-  for (k = kh_begin(h); k != kh_end(h); k++) {
+  for (k = kh_begin(h); k != kh_end(h); k++)
     if (kh_exist(h, k)) {
-      char *name = (char *)kh_key(h, k).name;
-      if (!on_rodata_p(name)) {
-        mrb_free(mrb, name);
+      symbol_name s = kh_key(h, k);
+
+      if (!s.lit) {
+        mrb_free(mrb, (char*)s.name);
       }
     }
-  }
-  kh_destroy(n2s,mrb->name2sym);
+  kh_destroy(n2s, mrb, mrb->name2sym);
 }
 
 void
@@ -398,14 +417,9 @@ mrb_sym2str(mrb_state *mrb, mrb_sym sym)
 {
   size_t len;
   const char *name = mrb_sym2name_len(mrb, sym, &len);
-  mrb_value str;
 
   if (!name) return mrb_undef_value(); /* can't happen */
-  str = mrb_str_new_static(mrb, name, len);
-  if (symname_p(name) && strlen(name) == len) {
-    return str;
-  }
-  return mrb_str_dump(mrb, str);
+  return mrb_str_new_static(mrb, name, len);
 }
 
 const char*

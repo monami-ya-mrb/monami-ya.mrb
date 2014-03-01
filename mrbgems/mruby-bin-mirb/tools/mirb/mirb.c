@@ -8,21 +8,17 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-#include <mruby.h>
+#include "mruby.h"
 #include "mruby/array.h"
-#include <mruby/proc.h>
-#include <mruby/data.h>
-#include <mruby/compile.h>
+#include "mruby/proc.h"
+#include "mruby/compile.h"
+#include "mruby/string.h"
+
 #ifdef ENABLE_READLINE
 #include <limits.h>
 #include <readline/readline.h>
 #include <readline/history.h>
-#endif
-#include <mruby/string.h>
 
-
-#ifdef ENABLE_READLINE
 static const char *history_file_name = ".mirb_history";
 char history_path[PATH_MAX];
 #endif
@@ -236,6 +232,8 @@ print_cmdline(int code_block_open)
   }
 }
 
+void codedump_all(mrb_state*, struct RProc*);
+
 int
 main(int argc, char **argv)
 {
@@ -255,6 +253,8 @@ main(int argc, char **argv)
   int n;
   int code_block_open = FALSE;
   int ai;
+  int first_command = 1;
+  unsigned int nregs;
 
   /* new interpreter instance */
   mrb = mrb_open();
@@ -361,13 +361,18 @@ main(int argc, char **argv)
       }
       else {
         /* generate bytecode */
-        n = mrb_generate_code(mrb, parser);
+        struct RProc *proc = mrb_generate_code(mrb, parser);
 
+        if (args.verbose) {
+          codedump_all(mrb, proc);
+        }
+        /* pass a proc for evaulation */
+        nregs = first_command ? 0: proc->body.irep->nregs;
         /* evaluate the bytecode */
-        result = mrb_run(mrb,
-            /* pass a proc for evaulation */
-            mrb_proc_new(mrb, mrb->irep[n]),
-            mrb_top_self(mrb));
+        result = mrb_context_run(mrb,
+            proc,
+            mrb_top_self(mrb),
+            nregs);
         /* did an exception occur? */
         if (mrb->exc) {
           p(mrb, mrb_obj_value(mrb->exc), 0);
@@ -375,7 +380,7 @@ main(int argc, char **argv)
         }
         else {
           /* no */
-          if (!mrb_respond_to(mrb, result, mrb_intern2(mrb, "inspect", 7))){
+          if (!mrb_respond_to(mrb, result, mrb_intern_lit(mrb, "inspect"))){
             result = mrb_any_to_s(mrb,result);
           }
           p(mrb, result, 1);
@@ -387,6 +392,7 @@ main(int argc, char **argv)
     }
     mrb_parser_free(parser);
     cxt->lineno++;
+    first_command = 0;
   }
   mrbc_context_free(mrb, cxt);
   mrb_close(mrb);

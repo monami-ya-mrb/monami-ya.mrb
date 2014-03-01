@@ -1,6 +1,14 @@
 MRuby::Build.new do |conf|
   # load specific toolchain settings
-  toolchain :gcc
+
+  # Gets set by the VS command prompts.
+  if ENV['VisualStudioVersion']
+    toolchain :visualcpp
+  else
+    toolchain :gcc
+  end
+
+  enable_debug
 
   # Use mrbgems
   # conf.gem 'examples/mrbgems/ruby_extension_example'

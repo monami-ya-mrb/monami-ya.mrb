@@ -29,7 +29,7 @@ typedef enum {
 mrb_bool
 mrb_obj_basic_to_s_p(mrb_state *mrb, mrb_value obj)
 {
-    struct RProc *me = mrb_method_search(mrb, mrb_class(mrb, obj), mrb_intern2(mrb, "to_s", 4));
+    struct RProc *me = mrb_method_search(mrb, mrb_class(mrb, obj), mrb_intern_lit(mrb, "to_s"));
     if (me && MRB_PROC_CFUNC_P(me) && (me->body.func == mrb_any_to_s))
       return TRUE;
     return FALSE;
@@ -280,7 +280,7 @@ mrb_singleton_class_clone(mrb_state *mrb, mrb_value obj)
     clone->super = klass->super;
     if (klass->iv) {
       mrb_iv_copy(mrb, mrb_obj_value(clone), mrb_obj_value(klass));
-      mrb_obj_iv_set(mrb, (struct RObject*)clone, mrb_intern2(mrb, "__attached__", 12), obj);
+      mrb_obj_iv_set(mrb, (struct RObject*)clone, mrb_intern_lit(mrb, "__attached__"), obj);
     }
     if (klass->mt) {
       clone->mt = kh_copy(mt, mrb, klass->mt);
@@ -294,12 +294,22 @@ mrb_singleton_class_clone(mrb_state *mrb, mrb_value obj)
 }
 
 static void
+copy_class(mrb_state *mrb, mrb_value dst, mrb_value src)
+{
+  struct RClass *dc = mrb_class_ptr(dst);
+  struct RClass *sc = mrb_class_ptr(src);
+  dc->mt = kh_copy(mt, mrb, sc->mt);
+  dc->super = sc->super;
+}
+
+static void
 init_copy(mrb_state *mrb, mrb_value dest, mrb_value obj)
 {
-    switch (mrb_type(obj)) {
-      case MRB_TT_OBJECT:
+  switch (mrb_type(obj)) {
       case MRB_TT_CLASS:
       case MRB_TT_MODULE:
+        copy_class(mrb, dest, obj);
+      case MRB_TT_OBJECT:
       case MRB_TT_SCLASS:
       case MRB_TT_HASH:
       case MRB_TT_DATA:
@@ -733,7 +743,7 @@ method_entry_loop(mrb_state *mrb, struct RClass* klass, khash_t(st)* set)
   if (!h) return;
   for (i=0;i<kh_end(h);i++) {
     if (kh_exist(h, i)) {
-      kh_put(st, set, kh_key(h,i));
+      kh_put(st, mrb, set, kh_key(h,i));
     }
   }
 }
@@ -765,7 +775,7 @@ class_instance_method_list(mrb_state *mrb, mrb_bool recur, struct RClass* klass,
       mrb_ary_push(mrb, ary, mrb_symbol_value(kh_key(set,i)));
     }
   }
-  kh_destroy(st, set);
+  kh_destroy(st, mrb, set);
 
   return ary;
 }
@@ -797,7 +807,7 @@ mrb_obj_singleton_methods(mrb_state *mrb, mrb_bool recur, mrb_value obj)
       mrb_ary_push(mrb, ary, mrb_symbol_value(kh_key(set,i)));
     }
   }
-  kh_destroy(st, set);
+  kh_destroy(st, mrb, set);
 
   return ary;
 }
@@ -944,7 +954,7 @@ mrb_f_raise(mrb_state *mrb, mrb_value self)
     /* fall through */
   default:
     exc = mrb_make_exception(mrb, argc, a);
-    mrb_obj_iv_set(mrb, mrb_obj_ptr(exc), mrb_intern2(mrb, "lastpc", 6), mrb_cptr_value(mrb, mrb->c->ci->pc));
+    mrb_obj_iv_set(mrb, mrb_obj_ptr(exc), mrb_intern_lit(mrb, "lastpc"), mrb_cptr_value(mrb, mrb->c->ci->pc));
     mrb_exc_raise(mrb, exc);
     break;
   }
@@ -1049,7 +1059,7 @@ obj_respond_to(mrb_state *mrb, mrb_value self)
   }
 
   if (!respond_to_p) {
-    rtm_id = mrb_intern2(mrb, "respond_to_missing?", 19);
+    rtm_id = mrb_intern_lit(mrb, "respond_to_missing?");
     if (basic_obj_respond_to(mrb, self, rtm_id, !mrb_test(priv))) {
       return mrb_funcall_argv(mrb, self, rtm_id, argc, argv);
     }
@@ -1151,5 +1161,5 @@ mrb_init_kernel(mrb_state *mrb)
   mrb_define_method(mrb, krn, "to_s",                       mrb_any_to_s,                    MRB_ARGS_NONE());    /* 15.3.1.3.46 */
 
   mrb_include_module(mrb, mrb->object_class, mrb->kernel_module);
-  mrb_alias_method(mrb, mrb->module_class, mrb_intern2(mrb, "dup", 3), mrb_intern2(mrb, "clone", 5));
+  mrb_alias_method(mrb, mrb->module_class, mrb_intern_lit(mrb, "dup"), mrb_intern_lit(mrb, "clone"));
 }

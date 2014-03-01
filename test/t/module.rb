@@ -83,7 +83,7 @@ assert('Module#attr', '15.2.2.4.11') do
   assert_true AttrTest.respond_to?(:cattr)
   assert_true test.respond_to?(:iattr)
 
-  assert_false AttrTest.respond_to?(:vattr=)
+  assert_false AttrTest.respond_to?(:cattr=)
   assert_false test.respond_to?(:iattr=)
 
   test.iattr_val = 'test'
@@ -276,16 +276,16 @@ end
 assert('Module.constants', '15.2.2.4.24') do
   $n = []
   module TestA
-    Const = 1
+    C = 1
   end
   class TestB
     include TestA
-    Const2 = 1
+    C2 = 1
     $n = constants.sort
   end
 
-  assert_equal [ :Const ], TestA.constants
-  assert_equal [ :Const, :Const2 ], $n
+  assert_equal [ :C ], TestA.constants
+  assert_equal [ :C, :C2 ], $n
 end
 
 assert('Module#include', '15.2.2.4.27') do
@@ -502,4 +502,18 @@ assert('Issue 1467') do
 
   C1.new
   C2.new
+end
+
+assert('clone Module') do
+  module M1
+    def foo
+      true
+    end
+  end
+
+  class B
+    include M1.clone
+  end
+
+  B.new.foo
 end

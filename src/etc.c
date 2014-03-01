@@ -6,8 +6,6 @@
 
 #include "mruby.h"
 #include "mruby/string.h"
-#include "error.h"
-#include "mruby/numeric.h"
 #include "mruby/data.h"
 #include "mruby/class.h"
 
@@ -196,6 +194,16 @@ mrb_float_value(mrb_state *mrb, mrb_float f)
   v.value.p = mrb_obj_alloc(mrb, MRB_TT_FLOAT, mrb->float_class);
   v.value.fp->f = f;
   return v;
+}
+
+mrb_value
+mrb_float_pool(mrb_state *mrb, mrb_float f)
+{
+  struct RFloat *nf = (struct RFloat *)mrb_malloc(mrb, sizeof(struct RFloat));
+  nf->tt = MRB_TT_FLOAT;
+  nf->c = mrb->float_class;
+  nf->f = f;
+  return mrb_obj_value(nf);
 }
 
 mrb_value

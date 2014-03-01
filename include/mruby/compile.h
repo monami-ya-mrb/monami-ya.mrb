@@ -96,9 +96,7 @@ struct mrb_parser_heredoc_info {
   mrb_ast_node *doc;
 };
 
-#ifndef MRB_PARSER_BUF_SIZE
-# define MRB_PARSER_BUF_SIZE 1024
-#endif
+#define MRB_PARSER_BUF_SIZE 1024
 
 /* parser structure */
 struct mrb_parser_state {
@@ -111,7 +109,7 @@ struct mrb_parser_state {
 #endif
   mrbc_context *cxt;
   char const *filename;
-  int lineno;
+  int lineno, beg_lineno;
   int column;
 
   enum mrb_lex_state_enum lstate;
@@ -164,7 +162,7 @@ struct mrb_parser_state* mrb_parse_file(mrb_state*,FILE*,mrbc_context*);
 #endif
 struct mrb_parser_state* mrb_parse_string(mrb_state*,const char*,mrbc_context*);
 struct mrb_parser_state* mrb_parse_nstring(mrb_state*,const char*,int,mrbc_context*);
-int mrb_generate_code(mrb_state*, struct mrb_parser_state*);
+struct RProc* mrb_generate_code(mrb_state*, struct mrb_parser_state*);
 
 /* program load functions */
 #ifdef ENABLE_STDIO
