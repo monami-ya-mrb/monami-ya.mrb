@@ -4615,7 +4615,7 @@ parser_yylex(parser_state *p)
         static const char msg[] = MSG1_TRAILING ". in number";
         char buf[sizeof(msg)];
         memcpy(buf, msg, sizeof(msg));
-        buf[sizeof(MSG1_TRAILING)] = nondigit;
+        buf[sizeof(MSG1_TRAILING) - 1] = nondigit;
         yyerror(p, buf);
       }
     }
@@ -5040,8 +5040,8 @@ parser_yylex(parser_state *p)
       static const char msg[] = MSG1_INVALID_CHAR "..' in expression";
       char buf[sizeof(msg)] = { 0 };
       memcpy(buf, msg, sizeof(buf));
-      buf[sizeof(MSG1_INVALID_CHAR)] = '0' + c / 10;
-      buf[sizeof(MSG1_INVALID_CHAR) + 1] = '0' + c % 10;
+      buf[sizeof(MSG1_INVALID_CHAR) - 1] = '0' + c / 10;
+      buf[sizeof(MSG1_INVALID_CHAR)] = '0' + c % 10;
       yyerror(p, buf);
       goto retry;
     }
