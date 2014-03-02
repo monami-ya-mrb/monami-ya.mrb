@@ -238,7 +238,6 @@ mrb_add_irep(mrb_state *mrb)
 {
   static const mrb_irep mrb_irep_zero = { 0 };
   mrb_irep *irep;
-  size_t i;
 
   irep = (mrb_irep *)mrb_malloc(mrb, sizeof(mrb_irep));
   *irep = mrb_irep_zero;
