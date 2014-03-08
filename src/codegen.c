@@ -705,7 +705,11 @@ attrsym(codegen_scope *s, mrb_sym a)
   char *name2;
 
   name = mrb_sym2name_len(s->mrb, a, &len);
-  name2 = (char *)codegen_palloc(s, len+1);
+  name2 = (char *)codegen_palloc(s,
+                                 len
+                                 + 1 /* '=' */
+                                 + 1 /* '\0' */
+                                 );
   memcpy(name2, name, len);
   name2[len] = '=';
   name2[len+1] = '\0';
@@ -1184,7 +1188,12 @@ codegen(codegen_scope *s, node *tree, int val)
             }
             genop(s, MKOP_AB(OP_MOVE, cursp(), exc));
             pop();
-            genop(s, MKOP_ABC(OP_SEND, cursp(), new_msym(s, mrb_intern_lit(s->mrb, "===")), 1));
+            if (n4 && n4->car && (intptr_t)n4->car->car == NODE_SPLAT) {
+              genop(s, MKOP_ABC(OP_SEND, cursp(), new_msym(s, mrb_intern_lit(s->mrb, "__case_eqq")), 1));
+            }
+            else {
+              genop(s, MKOP_ABC(OP_SEND, cursp(), new_msym(s, mrb_intern_lit(s->mrb, "===")), 1));
+            }
             tmp = new_label(s);
             genop(s, MKOP_AsBx(OP_JMPIF, cursp(), pos2));
             pos2 = tmp;
