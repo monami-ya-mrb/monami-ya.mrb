@@ -17,14 +17,7 @@ extern "C" {
 
 extern const char mrb_digitmap[];
 
-/* (sizeof(mrb_int)*2+sizeof(char*))/sizeof(char)-1 */
-#if defined(MRB_INT16)
-# define RSTRING_EMBED_LEN_MAX 9
-#elif defined(MRB_INT64)
-# define RSTRING_EMBED_LEN_MAX 15
-#else
-# define RSTRING_EMBED_LEN_MAX 11
-#endif
+#define RSTRING_EMBED_LEN_MAX ((mrb_int)(sizeof(void*) * 3 - 1))
 
 struct RString {
   MRB_OBJECT_HEADER;
@@ -56,11 +49,12 @@ struct RString {
    RSTRING_EMBED_LEN_MAX :\
    RSTRING(s)->as.heap.aux.capa)
 #define RSTRING_END(s)    (RSTRING_PTR(s) + RSTRING_LEN(s))
+mrb_int mrb_str_strlen(mrb_state*, struct RString*);
 
 #define MRB_STR_SHARED    1
 #define MRB_STR_NOFREE    2
 #define MRB_STR_EMBED     4
-#define MRB_STR_EMBED_LEN_MASK 120
+#define MRB_STR_EMBED_LEN_MASK 0xf8
 #define MRB_STR_EMBED_LEN_SHIFT 3
 
 void mrb_gc_free_str(mrb_state*, struct RString*);

@@ -5,6 +5,7 @@
 */
 
 #include <ctype.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include "mruby.h"
@@ -1915,7 +1916,7 @@ codegen(codegen_scope *s, node *tree, int val)
       mrb_value fix = mrb_fixnum_value((intptr_t)tree);
       mrb_value str = mrb_str_buf_new(mrb, 4);
 
-      mrb_str_buf_cat(mrb, str, "$", 1);
+      mrb_str_cat_lit(mrb, str, "$");
       mrb_str_buf_append(mrb, str, mrb_fixnum_to_str(mrb, fix, 10));
       sym = new_sym(s, mrb_intern_str(mrb, str));
       genop(s, MKOP_ABx(OP_GETGLOBAL, cursp(), sym));
@@ -2107,7 +2108,7 @@ codegen(codegen_scope *s, node *tree, int val)
       char *p2 = (char*)tree->cdr;
       int ai = mrb_gc_arena_save(s->mrb);
       int sym = new_sym(s, mrb_intern_lit(s->mrb, REGEXP_CLASS));
-      int off = new_lit(s, mrb_str_new(s->mrb, p1, strlen(p1)));
+      int off = new_lit(s, mrb_str_new_cstr(s->mrb, p1));
       int argc = 1;
 
       genop(s, MKOP_A(OP_OCLASS, cursp()));
@@ -2116,7 +2117,7 @@ codegen(codegen_scope *s, node *tree, int val)
       genop(s, MKOP_ABx(OP_STRING, cursp(), off));
       if (p2) {
         push();
-        off = new_lit(s, mrb_str_new(s->mrb, p2, strlen(p2)));
+        off = new_lit(s, mrb_str_new_cstr(s->mrb, p2));
         genop(s, MKOP_ABx(OP_STRING, cursp(), off));
         argc++;
         pop();
@@ -2153,7 +2154,7 @@ codegen(codegen_scope *s, node *tree, int val)
       n = tree->cdr->cdr;
       if (n->car) {
         p = (char*)n->car;
-        off = new_lit(s, mrb_str_new(s->mrb, p, strlen(p)));
+        off = new_lit(s, mrb_str_new_cstr(s->mrb, p));
         codegen(s, tree->car, VAL);
         genop(s, MKOP_ABx(OP_STRING, cursp(), off));
         pop();
@@ -2164,7 +2165,7 @@ codegen(codegen_scope *s, node *tree, int val)
         int off;
 
         push();
-        off = new_lit(s, mrb_str_new(s->mrb, p2, strlen(p2)));
+        off = new_lit(s, mrb_str_new_cstr(s->mrb, p2));
         genop(s, MKOP_ABx(OP_STRING, cursp(), off));
         argc++;
         pop();
@@ -2583,14 +2584,16 @@ static void
 codedump(mrb_state *mrb, mrb_irep *irep)
 {
 #ifdef ENABLE_STDIO
-  uint32_t i;
+  int i;
   int ai;
   mrb_code c;
 
   if (!irep) return;
   printf("irep %p nregs=%d nlocals=%d pools=%d syms=%d reps=%d\n", irep,
          irep->nregs, irep->nlocals, (int)irep->plen, (int)irep->slen, (int)irep->rlen);
-  for (i=0; i<irep->ilen; i++) {
+
+  mrb_assert(irep->ilen <= INT_MAX);
+  for (i = 0; i < (int)(irep->ilen); i++) {
     ai = mrb_gc_arena_save(mrb);
     printf("%03d ", i);
     c = irep->iseq[i];

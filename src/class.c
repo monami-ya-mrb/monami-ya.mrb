@@ -411,6 +411,7 @@ to_hash(mrb_state *mrb, mrb_value val)
     &:      Block          [mrb_value]
     *:      rest argument  [mrb_value*,int]       Receive the rest of the arguments as an array.
     |:      optional                              Next argument of '|' and later are optional.
+    ?:      optional given [mrb_bool]             true if preceding argument (optional) is given.
  */
 int
 mrb_get_args(mrb_state *mrb, const char *format, ...)
@@ -420,7 +421,8 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
   mrb_value *sp = mrb->c->stack + 1;
   va_list ap;
   int argc = mrb->c->ci->argc;
-  int opt = 0;
+  mrb_bool opt = 0;
+  mrb_bool given = 1;
 
   va_start(ap, format);
   if (argc < 0) {
@@ -431,11 +433,16 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
   }
   while ((c = *format++)) {
     switch (c) {
-    case '|': case '*': case '&':
+    case '|': case '*': case '&': case '?':
       break;
     default:
-      if (argc <= i && !opt) {
-        mrb_raise(mrb, E_ARGUMENT_ERROR, "wrong number of arguments");
+      if (argc <= i) {
+        if (opt) {
+          given = 0;
+        }
+        else {
+          mrb_raise(mrb, E_ARGUMENT_ERROR, "wrong number of arguments");
+        }
       }
       break;
     }
@@ -527,22 +534,12 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
     case 'z':
       {
         mrb_value ss;
-        struct RString *s;
         char **ps;
-        mrb_int len;
 
         ps = va_arg(ap, char**);
         if (i < argc) {
           ss = to_str(mrb, *sp++);
-          s = mrb_str_ptr(ss);
-          len = (mrb_int)strlen(RSTRING_PTR(ss));
-          if (len < RSTRING_LEN(ss)) {
-            mrb_raise(mrb, E_ARGUMENT_ERROR, "string contains null byte");
-          }
-          else if (len > RSTRING_LEN(ss)) {
-            mrb_str_modify(mrb, s);
-          }
-          *ps = RSTRING_PTR(ss);
+          *ps = mrb_string_value_cstr(mrb, &ss);
           i++;
         }
       }
@@ -688,6 +685,14 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
       break;
     case '|':
       opt = 1;
+      break;
+    case '?':
+      {
+        mrb_bool *p;
+
+        p = va_arg(ap, mrb_bool*);
+        *p = given;
+      }
       break;
 
     case '*':
