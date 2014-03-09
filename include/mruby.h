@@ -263,6 +263,9 @@ void *mrb_malloc(mrb_state*, size_t);         /* raise RuntimeError if no mem */
 void *mrb_calloc(mrb_state*, size_t, size_t) __attribute__ ((deprecated)); /* ditto */
 void *mrb_realloc(mrb_state*, void*, size_t); /* ditto */
 void *mrb_realloc_simple(mrb_state*, void*, size_t);  /* return NULL if no memory available */
+inline void *mrb_malloc_simple(mrb_state *mrb, size_t len) {
+  return mrb_realloc_simple(mrb, NULL, len);
+}
 struct RBasic *mrb_obj_alloc(mrb_state*, enum mrb_vtype, struct RClass*);
 void mrb_free(mrb_state*, void*);
 
