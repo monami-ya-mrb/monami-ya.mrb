@@ -3517,8 +3517,8 @@ static int
 scan_hex(const int *start, int len, int *retlen)
 {
   static const char hexdigit[] = "0123456789abcdef0123456789ABCDEF";
-  register const int *s = start;
-  register int retval = 0;
+  const int *s = start;
+  int retval = 0;
   char *tmp;
 
   /* mrb_assert(len <= 2) */
@@ -3943,7 +3943,7 @@ arg_ambiguous(parser_state *p)
 static int
 parser_yylex(parser_state *p)
 {
-  register int c;
+  int c;
   int space_seen = 0;
   int cmd_state;
   enum mrb_lex_state_enum last_state;
