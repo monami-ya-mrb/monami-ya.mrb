@@ -1324,7 +1324,7 @@ codegen(codegen_scope *s, node *tree, int val)
 
       codegen(s, tree->car, VAL);
       pop();
-      pos = genop_peep(s, MKOP_AsBx(OP_JMPNOT, cursp(), 0), NOVAL);
+      pos = genop(s, MKOP_AsBx(OP_JMPNOT, cursp(), 0));
       codegen(s, tree->cdr, val);
       dispatch(s, pos);
     }
@@ -1336,7 +1336,7 @@ codegen(codegen_scope *s, node *tree, int val)
 
       codegen(s, tree->car, VAL);
       pop();
-      pos = genop_peep(s, MKOP_AsBx(OP_JMPIF, cursp(), 0), NOVAL);
+      pos = genop(s, MKOP_AsBx(OP_JMPIF, cursp(), 0));
       codegen(s, tree->cdr, val);
       dispatch(s, pos);
     }
