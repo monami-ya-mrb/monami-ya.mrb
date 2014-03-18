@@ -10,6 +10,11 @@
 #include "mruby/khash.h"
 #include "mruby/string.h"
 
+#if UINT16_MAX > SIZE_MAX
+/* Because symbol_name.len is declare as uint16_t */
+# error This code cannot be built on your environment.
+#endif
+
 #ifdef MRB_ENABLE_ROMED
 extern mrb_bool on_rodata_p(void *ptr);
 #else
@@ -143,12 +148,12 @@ mrb_sym2name_len(mrb_state *mrb, mrb_sym sym, size_t *lenp)
     if (kh_exist(h, k)) {
       if (kh_value(h, k) == sym) {
         sname = kh_key(h, k);
-        *lenp = sname.len;
+        if (lenp) *lenp = sname.len;
         return sname.name;
       }
     }
   }
-  *lenp = 0;
+  if (lenp) *lenp = 0;
   return NULL;  /* missing */
 }
 
