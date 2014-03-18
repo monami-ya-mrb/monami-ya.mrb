@@ -1258,7 +1258,7 @@ mrb_class_path(mrb_state *mrb, struct RClass *c)
 {
   mrb_value path;
   const char *name;
-  mrb_int len;
+  size_t len;
   mrb_sym classpath = mrb_intern_lit(mrb, "__classpath__");
 
   path = mrb_obj_iv_get(mrb, (struct RObject*)c, classpath);
@@ -1545,7 +1545,7 @@ static void
 check_cv_name_sym(mrb_state *mrb, mrb_sym id)
 {
   const char *s;
-  mrb_int len;
+  size_t len;
 
   s = mrb_sym2name_len(mrb, id, &len);
   if (len < 3 || !(s[0] == '@' && s[1] == '@')) {
@@ -1557,8 +1557,7 @@ static void
 check_cv_name_str(mrb_state *mrb, mrb_value str)
 {
   const char *s = RSTRING_PTR(str);
-  mrb_int len = RSTRING_LEN(str);
-
+  size_t const len = RSTRING_LEN(str);
   if (len < 3 || !(s[0] == '@' && s[1] == '@')) {
     mrb_name_error(mrb, mrb_intern_str(mrb, str), "`%S' is not allowed as a class variable name", str);
   }
@@ -1818,7 +1817,7 @@ static void
 check_const_name_sym(mrb_state *mrb, mrb_sym id)
 {
   const char *s;
-  mrb_int len;
+  size_t len;
 
   s = mrb_sym2name_len(mrb, id, &len);
   if (len < 1 || !ISUPPER(*s)) {
