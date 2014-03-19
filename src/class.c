@@ -943,8 +943,6 @@ mrb_mod_instance_methods(mrb_state *mrb, mrb_value mod)
   return mrb_class_instance_method_list(mrb, recur, c, 0);
 }
 
-mrb_value mrb_yield_internal(mrb_state *mrb, mrb_value b, int argc, mrb_value *argv, mrb_value self, struct RClass *c);
-
 /* 15.2.2.4.35 */
 /*
  *  call-seq:
@@ -966,7 +964,7 @@ mrb_mod_module_eval(mrb_state *mrb, mrb_value mod)
     mrb_raise(mrb, E_NOTIMP_ERROR, "module_eval/class_eval with string not implemented");
   }
   c = mrb_class_ptr(mod);
-  return mrb_yield_internal(mrb, b, 0, 0, mod, c);
+  return mrb_yield_with_class(mrb, b, 0, 0, mod, c);
 }
 
 mrb_value
@@ -1258,7 +1256,7 @@ mrb_class_path(mrb_state *mrb, struct RClass *c)
 {
   mrb_value path;
   const char *name;
-  size_t len;
+  mrb_int len;
   mrb_sym classpath = mrb_intern_lit(mrb, "__classpath__");
 
   path = mrb_obj_iv_get(mrb, (struct RObject*)c, classpath);
@@ -1545,7 +1543,7 @@ static void
 check_cv_name_sym(mrb_state *mrb, mrb_sym id)
 {
   const char *s;
-  size_t len;
+  mrb_int len;
 
   s = mrb_sym2name_len(mrb, id, &len);
   if (len < 3 || !(s[0] == '@' && s[1] == '@')) {
@@ -1818,7 +1816,7 @@ static void
 check_const_name_sym(mrb_state *mrb, mrb_sym id)
 {
   const char *s;
-  size_t len;
+  mrb_int len;
 
   s = mrb_sym2name_len(mrb, id, &len);
   if (len < 1 || !ISUPPER(*s)) {

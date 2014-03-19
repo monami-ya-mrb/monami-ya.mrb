@@ -208,4 +208,22 @@ module Enumerable
       a
     end
   end
+
+  def count(v=NONE, &block)
+    count = 0
+    if block
+      self.each do |e|
+        count += 1 if block.call(e)
+      end
+    else
+      if v == NONE
+        self.each { count += 1 }
+      else
+        self.each do |e|
+          count += 1 if e == v 
+        end
+      end
+    end
+    count
+  end
 end

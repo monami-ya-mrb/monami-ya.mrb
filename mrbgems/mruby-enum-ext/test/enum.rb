@@ -41,3 +41,22 @@ assert("Enumerable#group_by") do
   assert_equal [1, 4], r[1]
   assert_equal [2, 5], r[2]
 end
+
+assert("Enumerable#sort_by") do
+  assert_equal ["car", "train", "bicycle"], %w{car bicycle train}.sort_by {|e| e.length}
+end
+
+assert("Enumerable#first") do
+  a = [1, 2, 3]
+  assert_equal 1, a.first
+  assert_equal [1, 2], a.first(2)
+  assert_equal [1, 2, 3], a.first(10)
+  assert_nil [].first
+end
+
+assert("Enumerable#count") do
+  a = [1, 2, 4, 2]
+  assert_equal 4, a.count
+  assert_equal 2, a.count(2)
+  assert_equal 3, a.count{|x| x % 2 == 0}
+end

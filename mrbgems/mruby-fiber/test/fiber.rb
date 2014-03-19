@@ -17,6 +17,19 @@ assert('Fiber#alive?') {
   r1 == true and r2 == false
 }
 
+assert('Fiber#==') do
+  root = Fiber.current
+  assert_equal root, root
+  assert_equal root, Fiber.current
+  assert_false root != Fiber.current
+  f = Fiber.new {
+    assert_false root == Fiber.current
+  }
+  f.resume
+  assert_false f == root
+  assert_true f != root
+end
+
 assert('Fiber.yield') {
   f = Fiber.new{|x| Fiber.yield(x == 3)}
   f.resume(3)
@@ -74,4 +87,31 @@ assert('Double resume of Fiber') do
   f2.resume
   assert_false f1.alive?
   assert_false f2.alive?
+end
+
+assert('Recursive resume of Fiber') do
+  f1, f2 = nil, nil
+  f1 = Fiber.new { assert_raise(RuntimeError) { f2.resume } }
+  f2 = Fiber.new {
+    f1.resume
+    Fiber.yield 0
+  }
+  f3 = Fiber.new {
+    f2.resume
+  }
+  assert_equal 0, f3.resume
+  f2.resume
+  assert_false f1.alive?
+  assert_false f2.alive?
+  assert_false f3.alive?
+end
+
+assert('Root fiber resume') do
+  root = Fiber.current
+  assert_raise(RuntimeError) { root.resume }
+  f = Fiber.new {
+    assert_raise(RuntimeError) { root.resume }
+  }
+  f.resume
+  assert_false f.alive?
 end

@@ -438,6 +438,10 @@ assert 'Integral#times' do
   assert_equal [0,1,2], c
 end
 
+assert 'Enumerable#each_with_index' do
+  assert_equal [['a',0],['b',1],['c',2]], ['a','b','c'].each_with_index.to_a
+end
+
 assert 'Enumerable#map' do
   a = [1,2,3]
   b = a.map
@@ -446,6 +450,10 @@ assert 'Enumerable#map' do
   end
   assert_equal [1,2,3], a
   assert_equal [[1,0],[4,1],[9,4]], c
+end
+
+assert 'Enumerable#find_all' do
+  assert_equal [[3,4]], [[1,2],[3,4],[5,6]].find_all.each{ |i| i[1] == 4 }
 end
 
 assert 'Array#each_index' do

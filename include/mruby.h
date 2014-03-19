@@ -78,6 +78,7 @@ enum mrb_log_level {
 enum mrb_fiber_state {
   MRB_FIBER_CREATED = 0,
   MRB_FIBER_RUNNING,
+  MRB_FIBER_RESUMING,
   MRB_FIBER_SUSPENDED,
   MRB_FIBER_TERMINATED,
 };
@@ -265,7 +266,7 @@ mrb_value mrb_check_intern_cstr(mrb_state*,const char*);
 mrb_value mrb_check_intern(mrb_state*,const char*,size_t);
 mrb_value mrb_check_intern_str(mrb_state*,mrb_value);
 const char *mrb_sym2name(mrb_state*,mrb_sym);
-const char *mrb_sym2name_len(mrb_state*,mrb_sym,size_t*);
+const char *mrb_sym2name_len(mrb_state*,mrb_sym,mrb_int*);
 mrb_value mrb_sym2str(mrb_state*,mrb_sym);
 
 void *mrb_malloc(mrb_state*, size_t);         /* raise RuntimeError if no mem */
@@ -379,6 +380,7 @@ void mrb_print_error(mrb_state *mrb);
 
 mrb_value mrb_yield(mrb_state *mrb, mrb_value b, mrb_value arg);
 mrb_value mrb_yield_argv(mrb_state *mrb, mrb_value b, int argc, mrb_value *argv);
+mrb_value mrb_yield_with_class(mrb_state *mrb, mrb_value b, int argc, mrb_value *argv, mrb_value self, struct RClass *c);
 
 void mrb_gc_protect(mrb_state *mrb, mrb_value obj);
 mrb_value mrb_to_int(mrb_state *mrb, mrb_value val);

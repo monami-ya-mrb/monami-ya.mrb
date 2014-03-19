@@ -455,8 +455,6 @@ mrb_obj_init_copy(mrb_state *mrb, mrb_value self)
   return self;
 }
 
-mrb_value mrb_yield_internal(mrb_state *mrb, mrb_value b, int argc, mrb_value *argv, mrb_value self, struct RClass *c);
-
 /* 15.3.1.3.18 */
 /*
  *  call-seq:
@@ -499,7 +497,7 @@ mrb_obj_instance_eval(mrb_state *mrb, mrb_value self)
     c = mrb_class_ptr(cv);
     break;
   }
-  return mrb_yield_internal(mrb, b, 0, 0, self, c);
+  return mrb_yield_with_class(mrb, b, 0, 0, self, c);
 }
 
 mrb_bool
@@ -530,7 +528,7 @@ obj_is_instance_of(mrb_state *mrb, mrb_value self)
 }
 
 static void
-valid_iv_name(mrb_state *mrb, mrb_sym iv_name_id, const char* s, size_t len)
+valid_iv_name(mrb_state *mrb, mrb_sym iv_name_id, const char* s, mrb_int len)
 {
   if (len < 2 || !(s[0] == '@' && s[1] != '@')) {
     mrb_name_error(mrb, iv_name_id, "`%S' is not allowed as an instance variable name", mrb_sym2str(mrb, iv_name_id));
@@ -541,7 +539,7 @@ static void
 check_iv_name(mrb_state *mrb, mrb_sym iv_name_id)
 {
   const char *s;
-  size_t len;
+  mrb_int len;
 
   s = mrb_sym2name_len(mrb, iv_name_id, &len);
   valid_iv_name(mrb, iv_name_id, s, len);
