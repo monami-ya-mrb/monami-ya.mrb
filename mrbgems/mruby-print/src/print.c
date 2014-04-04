@@ -5,14 +5,12 @@
 static void
 printstr(mrb_state *mrb, mrb_value obj)
 {
-  struct RString *str;
   char *s;
   int len;
 
   if (mrb_string_p(obj)) {
-    str = mrb_str_ptr(obj);
-    s = str->ptr;
-    len = str->len;
+    s = RSTRING_PTR(obj);
+    len = RSTRING_LEN(obj);
     fwrite(s, len, 1, stdout);
   }
 }
@@ -35,7 +33,7 @@ mrb_mruby_print_gem_init(mrb_state* mrb)
 {
   struct RClass *krn;
   krn = mrb->kernel_module;
-  mrb_define_method(mrb, krn, "__printstr__", mrb_printstr, ARGS_REQ(1));
+  mrb_define_method(mrb, krn, "__printstr__", mrb_printstr, MRB_ARGS_REQ(1));
 }
 
 void

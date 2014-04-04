@@ -12,8 +12,8 @@
 #define domain_error(msg) \
     mrb_raise(mrb, E_RANGE_ERROR, "Numerical argument is out of domain - " #msg)
 
-/* math functions not provided under Microsoft Visual C++ */
-#ifdef _MSC_VER
+/* math functions not provided by Microsoft Visual C++ 2012 or older */
+#if defined _MSC_VER && _MSC_VER < 1800
 
 #define MATH_TOLERANCE 1E-12
 
@@ -89,6 +89,16 @@ erfc(double x)
 
 #endif
 
+#if (defined _MSC_VER && _MSC_VER < 1800) || defined __ANDROID__ || (defined __FreeBSD__  &&  __FreeBSD_version < 803000)
+
+double
+log2(double x)
+{
+    return log10(x)/log10(2.0);
+}
+
+#endif
+
 /*
   TRIGONOMETRIC FUNCTIONS
 */
@@ -108,7 +118,7 @@ math_sin(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = sin(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -126,7 +136,7 @@ math_cos(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = cos(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -143,7 +153,7 @@ math_tan(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = tan(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -164,7 +174,7 @@ math_asin(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = asin(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -181,7 +191,7 @@ math_acos(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = acos(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -198,7 +208,7 @@ math_atan(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = atan(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -228,7 +238,7 @@ math_atan2(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "ff", &x, &y);
   x = atan2(x, y);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 
@@ -251,7 +261,7 @@ math_sinh(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = sinh(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -268,7 +278,7 @@ math_cosh(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = cosh(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -286,7 +296,7 @@ math_tanh(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = tanh(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 
@@ -309,7 +319,7 @@ math_asinh(mrb_state *mrb, mrb_value obj)
 
   x = asinh(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -326,7 +336,7 @@ math_acosh(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = acosh(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -343,32 +353,12 @@ math_atanh(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = atanh(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
   EXPONENTIALS AND LOGARITHMS
 */
-#if defined __CYGWIN__
-# include <cygwin/version.h>
-# if CYGWIN_VERSION_DLL_MAJOR < 1005
-#  define nan(x) nan()
-# endif
-# define log(x) ((x) < 0.0 ? nan("") : log(x))
-# define log10(x) ((x) < 0.0 ? nan("") : log10(x))
-#endif
-
-#ifndef log2
-#ifndef HAVE_LOG2
-double
-log2(double x)
-{
-    return log10(x)/log10(2.0);
-}
-#else
-extern double log2(double);
-#endif
-#endif
 
 /*
  *  call-seq:
@@ -389,7 +379,7 @@ math_exp(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = exp(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -418,7 +408,7 @@ math_log(mrb_state *mrb, mrb_value obj)
   if (argc == 2) {
     x /= log(base);
   }
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -441,7 +431,7 @@ math_log2(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = log2(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -463,7 +453,7 @@ math_log10(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = log10(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -481,7 +471,7 @@ math_sqrt(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = sqrt(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 
@@ -524,7 +514,7 @@ math_cbrt(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = cbrt(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 
@@ -548,7 +538,7 @@ math_frexp(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = frexp(x, &exp);
 
-  return mrb_assoc_new(mrb, mrb_float_value(x), mrb_fixnum_value(exp));
+  return mrb_assoc_new(mrb, mrb_float_value(mrb, x), mrb_fixnum_value(exp));
 }
 
 /*
@@ -569,7 +559,7 @@ math_ldexp(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "fi", &x, &i);
   x = ldexp(x, i);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -589,7 +579,7 @@ math_hypot(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "ff", &x, &y);
   x = hypot(x, y);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /*
@@ -606,7 +596,7 @@ math_erf(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = erf(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 
@@ -624,7 +614,7 @@ math_erfc(mrb_state *mrb, mrb_value obj)
   mrb_get_args(mrb, "f", &x);
   x = erfc(x);
 
-  return mrb_float_value(x);
+  return mrb_float_value(mrb, x);
 }
 
 /* ------------------------------------------------------------------------*/
@@ -635,54 +625,54 @@ mrb_mruby_math_gem_init(mrb_state* mrb)
   mrb_math = mrb_define_module(mrb, "Math");
 
 #ifdef M_PI
-  mrb_define_const(mrb, mrb_math, "PI", mrb_float_value(M_PI));
+  mrb_define_const(mrb, mrb_math, "PI", mrb_float_value(mrb, M_PI));
 #else
-  mrb_define_const(mrb, mrb_math, "PI", mrb_float_value(atan(1.0)*4.0));
+  mrb_define_const(mrb, mrb_math, "PI", mrb_float_value(mrb, atan(1.0)*4.0));
 #endif
 
 #ifdef M_E
-  mrb_define_const(mrb, mrb_math, "E", mrb_float_value(M_E));
+  mrb_define_const(mrb, mrb_math, "E", mrb_float_value(mrb, M_E));
 #else
-  mrb_define_const(mrb, mrb_math, "E", mrb_float_value(exp(1.0)));
+  mrb_define_const(mrb, mrb_math, "E", mrb_float_value(mrb, exp(1.0)));
 #endif
 
 #ifdef MRB_USE_FLOAT
-  mrb_define_const(mrb, mrb_math, "TOLERANCE", mrb_float_value(1e-5));
+  mrb_define_const(mrb, mrb_math, "TOLERANCE", mrb_float_value(mrb, 1e-5));
 #else
-  mrb_define_const(mrb, mrb_math, "TOLERANCE", mrb_float_value(1e-12));
+  mrb_define_const(mrb, mrb_math, "TOLERANCE", mrb_float_value(mrb, 1e-12));
 #endif
 
-  mrb_define_module_function(mrb, mrb_math, "sin", math_sin, ARGS_REQ(1));
-  mrb_define_module_function(mrb, mrb_math, "cos", math_cos, ARGS_REQ(1));
-  mrb_define_module_function(mrb, mrb_math, "tan", math_tan, ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "sin", math_sin, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "cos", math_cos, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "tan", math_tan, MRB_ARGS_REQ(1));
 
-  mrb_define_module_function(mrb, mrb_math, "asin", math_asin, ARGS_REQ(1));
-  mrb_define_module_function(mrb, mrb_math, "acos", math_acos, ARGS_REQ(1));
-  mrb_define_module_function(mrb, mrb_math, "atan", math_atan, ARGS_REQ(1));
-  mrb_define_module_function(mrb, mrb_math, "atan2", math_atan2, ARGS_REQ(2));
+  mrb_define_module_function(mrb, mrb_math, "asin", math_asin, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "acos", math_acos, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "atan", math_atan, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "atan2", math_atan2, MRB_ARGS_REQ(2));
 
-  mrb_define_module_function(mrb, mrb_math, "sinh", math_sinh, ARGS_REQ(1));
-  mrb_define_module_function(mrb, mrb_math, "cosh", math_cosh, ARGS_REQ(1));
-  mrb_define_module_function(mrb, mrb_math, "tanh", math_tanh, ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "sinh", math_sinh, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "cosh", math_cosh, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "tanh", math_tanh, MRB_ARGS_REQ(1));
 
-  mrb_define_module_function(mrb, mrb_math, "asinh", math_asinh, ARGS_REQ(1));
-  mrb_define_module_function(mrb, mrb_math, "acosh", math_acosh, ARGS_REQ(1));
-  mrb_define_module_function(mrb, mrb_math, "atanh", math_atanh, ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "asinh", math_asinh, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "acosh", math_acosh, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "atanh", math_atanh, MRB_ARGS_REQ(1));
 
-  mrb_define_module_function(mrb, mrb_math, "exp", math_exp, ARGS_REQ(1));
-  mrb_define_module_function(mrb, mrb_math, "log", math_log, ARGS_REQ(1)|ARGS_OPT(1));
-  mrb_define_module_function(mrb, mrb_math, "log2", math_log2, ARGS_REQ(1));
-  mrb_define_module_function(mrb, mrb_math, "log10", math_log10, ARGS_REQ(1));
-  mrb_define_module_function(mrb, mrb_math, "sqrt", math_sqrt, ARGS_REQ(1));
-  mrb_define_module_function(mrb, mrb_math, "cbrt", math_cbrt, ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "exp", math_exp, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "log", math_log, MRB_ARGS_REQ(1)|MRB_ARGS_OPT(1));
+  mrb_define_module_function(mrb, mrb_math, "log2", math_log2, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "log10", math_log10, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "sqrt", math_sqrt, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "cbrt", math_cbrt, MRB_ARGS_REQ(1));
 
-  mrb_define_module_function(mrb, mrb_math, "frexp", math_frexp, ARGS_REQ(1));
-  mrb_define_module_function(mrb, mrb_math, "ldexp", math_ldexp, ARGS_REQ(2));
+  mrb_define_module_function(mrb, mrb_math, "frexp", math_frexp, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "ldexp", math_ldexp, MRB_ARGS_REQ(2));
 
-  mrb_define_module_function(mrb, mrb_math, "hypot", math_hypot, ARGS_REQ(2));
+  mrb_define_module_function(mrb, mrb_math, "hypot", math_hypot, MRB_ARGS_REQ(2));
 
-  mrb_define_module_function(mrb, mrb_math, "erf",  math_erf,  ARGS_REQ(1));
-  mrb_define_module_function(mrb, mrb_math, "erfc", math_erfc, ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "erf",  math_erf,  MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb_math, "erfc", math_erfc, MRB_ARGS_REQ(1));
 }
 
 void

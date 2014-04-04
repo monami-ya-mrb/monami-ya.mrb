@@ -5,11 +5,15 @@
 */
 
 #include <ctype.h>
-#include <limits.h>
 #include <string.h>
 #include "mruby.h"
 #include "mruby/khash.h"
 #include "mruby/string.h"
+
+#if UINT16_MAX > SIZE_MAX
+/* Because symbol_name.len is declare as uint16_t */
+# error This code cannot be built on your environment.
+#endif
 
 #ifdef MRB_ENABLE_ROMED
 extern mrb_bool on_rodata_p(void *ptr);
@@ -19,7 +23,8 @@ extern mrb_bool on_rodata_p(void *ptr);
 
 /* ------------------------------------------------------ */
 typedef struct symbol_name {
-  size_t len;
+  mrb_bool lit : 1;
+  uint16_t len;
   const char *name;
 } symbol_name;
 
@@ -40,8 +45,8 @@ sym_hash_func(mrb_state *mrb, const symbol_name s)
 KHASH_DECLARE(n2s, symbol_name, mrb_sym, 1)
 KHASH_DEFINE (n2s, symbol_name, mrb_sym, 1, sym_hash_func, sym_hash_equal)
 /* ------------------------------------------------------ */
-mrb_sym
-mrb_intern2(mrb_state *mrb, const char *name, size_t len)
+static mrb_sym
+sym_intern(mrb_state *mrb, const char *name, size_t len, mrb_bool lit)
 {
   khash_t(n2s) *h = mrb->name2sym;
   symbol_name sname;
@@ -49,14 +54,18 @@ mrb_intern2(mrb_state *mrb, const char *name, size_t len)
   mrb_sym sym;
   char *p;
 
+  if (len > UINT16_MAX) {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "symbol length too long");
+  }
+  sname.lit = lit;
   sname.len = len;
   sname.name = name;
-  k = kh_get(n2s, h, sname);
+  k = kh_get(n2s, mrb, h, sname);
   if (k != kh_end(h))
     return kh_value(h, k);
 
   sym = ++mrb->symidx;
-  if (on_rodata_p(name)) {
+  if (lit) {
     sname.name = name;
   }
   else {
@@ -65,27 +74,71 @@ mrb_intern2(mrb_state *mrb, const char *name, size_t len)
     p[len] = 0;
     sname.name = (const char*)p;
   }
-  k = kh_put(n2s, h, sname);
+  k = kh_put(n2s, mrb, h, sname);
   kh_value(h, k) = sym;
 
   return sym;
 }
 
 mrb_sym
+mrb_intern(mrb_state *mrb, const char *name, size_t len)
+{
+  return sym_intern(mrb, name, len, FALSE);
+}
+
+mrb_sym
+mrb_intern_static(mrb_state *mrb, const char *name, size_t len)
+{
+  return sym_intern(mrb, name, len, TRUE);
+}
+
+mrb_sym
 mrb_intern_cstr(mrb_state *mrb, const char *name)
 {
-  return mrb_intern2(mrb, name, strlen(name));
+  return mrb_intern(mrb, name, strlen(name));
 }
 
 mrb_sym
 mrb_intern_str(mrb_state *mrb, mrb_value str)
 {
-  return mrb_intern2(mrb, RSTRING_PTR(str), RSTRING_LEN(str));
+  return mrb_intern(mrb, RSTRING_PTR(str), RSTRING_LEN(str));
+}
+
+mrb_value
+mrb_check_intern(mrb_state *mrb, const char *name, size_t len)
+{
+  khash_t(n2s) *h = mrb->name2sym;
+  symbol_name sname = { 0 };
+  khiter_t k;
+
+  if (len > UINT16_MAX) {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "symbol length too long");
+  }
+  sname.len = len;
+  sname.name = name;
+
+  k = kh_get(n2s, mrb, h, sname);
+  if (k != kh_end(h)) {
+    return mrb_symbol_value(kh_value(h, k));
+  }
+  return mrb_nil_value();
+}
+
+mrb_value
+mrb_check_intern_cstr(mrb_state *mrb, const char *name)
+{
+  return mrb_check_intern(mrb, name, (mrb_int)strlen(name));
+}
+
+mrb_value
+mrb_check_intern_str(mrb_state *mrb, mrb_value str)
+{
+  return mrb_check_intern(mrb, RSTRING_PTR(str), RSTRING_LEN(str));
 }
 
 /* lenp must be a pointer to a size_t variable */
 const char*
-mrb_sym2name_len(mrb_state *mrb, mrb_sym sym, size_t *lenp)
+mrb_sym2name_len(mrb_state *mrb, mrb_sym sym, mrb_int *lenp)
 {
   khash_t(n2s) *h = mrb->name2sym;
   khiter_t k;
@@ -95,12 +148,12 @@ mrb_sym2name_len(mrb_state *mrb, mrb_sym sym, size_t *lenp)
     if (kh_exist(h, k)) {
       if (kh_value(h, k) == sym) {
         sname = kh_key(h, k);
-        *lenp = sname.len;
+        if (lenp) *lenp = sname.len;
         return sname.name;
       }
     }
   }
-  *lenp = 0;
+  if (lenp) *lenp = 0;
   return NULL;  /* missing */
 }
 
@@ -110,15 +163,15 @@ mrb_free_symtbl(mrb_state *mrb)
   khash_t(n2s) *h = mrb->name2sym;
   khiter_t k;
 
-  for (k = kh_begin(h); k != kh_end(h); k++) {
+  for (k = kh_begin(h); k != kh_end(h); k++)
     if (kh_exist(h, k)) {
-      char *name = (char *)kh_key(h, k).name;
-      if (!on_rodata_p(name)) {
-        mrb_free(mrb, name);
+      symbol_name s = kh_key(h, k);
+
+      if (!s.lit) {
+        mrb_free(mrb, (char*)s.name);
       }
     }
-  }
-  kh_destroy(n2s,mrb->name2sym);
+  kh_destroy(n2s, mrb, mrb->name2sym);
 }
 
 void
@@ -198,10 +251,10 @@ mrb_sym_to_s(mrb_state *mrb, mrb_value sym)
 {
   mrb_sym id = mrb_symbol(sym);
   const char *p;
-  size_t len;
+  mrb_int len;
 
   p = mrb_sym2name_len(mrb, id, &len);
-  return mrb_str_new(mrb, p, len);
+  return mrb_str_new_static(mrb, p, len);
 }
 
 /* 15.2.11.3.4  */
@@ -239,7 +292,7 @@ sym_to_sym(mrb_state *mrb, mrb_value sym)
 #endif
 #define is_identchar(c) (SIGN_EXTEND_CHAR(c)!=-1&&(ISALNUM(c) || (c) == '_'))
 
-static int
+static mrb_bool
 is_special_global_name(const char* m)
 {
   switch (*m) {
@@ -262,11 +315,11 @@ is_special_global_name(const char* m)
   return !*m;
 }
 
-static int
+static mrb_bool
 symname_p(const char *name)
 {
   const char *m = name;
-  int localid = FALSE;
+  mrb_bool localid = FALSE;
 
   if (!m) return FALSE;
   switch (*m) {
@@ -350,16 +403,16 @@ sym_inspect(mrb_state *mrb, mrb_value sym)
 {
   mrb_value str;
   const char *name;
-  size_t len;
+  mrb_int len;
   mrb_sym id = mrb_symbol(sym);
 
   name = mrb_sym2name_len(mrb, id, &len);
   str = mrb_str_new(mrb, 0, len+1);
-  RSTRING(str)->ptr[0] = ':';
-  memcpy(RSTRING(str)->ptr+1, name, len);
+  RSTRING_PTR(str)[0] = ':';
+  memcpy(RSTRING_PTR(str)+1, name, len);
   if (!symname_p(name) || strlen(name) != len) {
     str = mrb_str_dump(mrb, str);
-    memcpy(RSTRING(str)->ptr, ":\"", 2);
+    memcpy(RSTRING_PTR(str), ":\"", 2);
   }
   return str;
 }
@@ -367,31 +420,26 @@ sym_inspect(mrb_state *mrb, mrb_value sym)
 mrb_value
 mrb_sym2str(mrb_state *mrb, mrb_sym sym)
 {
-  size_t len;
+  mrb_int len;
   const char *name = mrb_sym2name_len(mrb, sym, &len);
 
   if (!name) return mrb_undef_value(); /* can't happen */
-  if (symname_p(name) && strlen(name) == len) {
-    return mrb_str_new(mrb, name, len);
-  }
-  else {
-    return mrb_str_dump(mrb, mrb_str_new(mrb, name, len));
-  }
+  return mrb_str_new_static(mrb, name, len);
 }
 
 const char*
 mrb_sym2name(mrb_state *mrb, mrb_sym sym)
 {
-  size_t len;
+  mrb_int len;
   const char *name = mrb_sym2name_len(mrb, sym, &len);
 
   if (!name) return NULL;
-  if (symname_p(name) && strlen(name) == len) {
+  if (symname_p(name) && strlen(name) == (size_t)len) {
     return name;
   }
   else {
-    mrb_value str = mrb_str_dump(mrb, mrb_str_new(mrb, name, len));
-    return RSTRING(str)->ptr;
+    mrb_value str = mrb_str_dump(mrb, mrb_str_new_static(mrb, name, len));
+    return RSTRING_PTR(str);
   }
 }
 
@@ -411,7 +459,7 @@ sym_cmp(mrb_state *mrb, mrb_value s1)
   else {
     const char *p1, *p2;
     int retval;
-    size_t len, len1, len2;
+    mrb_int len, len1, len2;
 
     p1 = mrb_sym2name_len(mrb, sym1, &len1);
     p2 = mrb_sym2name_len(mrb, sym2, &len2);
@@ -434,11 +482,10 @@ mrb_init_symbol(mrb_state *mrb)
 
   sym = mrb->symbol_class = mrb_define_class(mrb, "Symbol", mrb->object_class);
 
-  mrb_define_method(mrb, sym, "===",             sym_equal,               ARGS_REQ(1));              /* 15.2.11.3.1  */
-  mrb_define_method(mrb, sym, "id2name",         mrb_sym_to_s,            ARGS_NONE());              /* 15.2.11.3.2  */
-  mrb_define_method(mrb, sym, "to_s",            mrb_sym_to_s,            ARGS_NONE());              /* 15.2.11.3.3  */
-  mrb_define_method(mrb, sym, "to_sym",          sym_to_sym,              ARGS_NONE());              /* 15.2.11.3.4  */
-  mrb_define_method(mrb, sym, "inspect",         sym_inspect,             ARGS_NONE());              /* 15.2.11.3.5(x)  */
-  mrb_define_method(mrb, sym, "<=>",             sym_cmp,                 ARGS_REQ(1));
-  mrb->init_sym = mrb_intern(mrb, "initialize");
+  mrb_define_method(mrb, sym, "===",             sym_equal,      MRB_ARGS_REQ(1));              /* 15.2.11.3.1  */
+  mrb_define_method(mrb, sym, "id2name",         mrb_sym_to_s,   MRB_ARGS_NONE());              /* 15.2.11.3.2  */
+  mrb_define_method(mrb, sym, "to_s",            mrb_sym_to_s,   MRB_ARGS_NONE());              /* 15.2.11.3.3  */
+  mrb_define_method(mrb, sym, "to_sym",          sym_to_sym,     MRB_ARGS_NONE());              /* 15.2.11.3.4  */
+  mrb_define_method(mrb, sym, "inspect",         sym_inspect,    MRB_ARGS_NONE());              /* 15.2.11.3.5(x)  */
+  mrb_define_method(mrb, sym, "<=>",             sym_cmp,        MRB_ARGS_REQ(1));
 }

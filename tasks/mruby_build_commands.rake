@@ -24,12 +24,20 @@ module MRuby
       target
     end
 
+    NotFoundCommands = {}
+
     private
     def _run(options, params={})
-      sh build.filename(command) + ' ' + ( options % params )
+      return sh command + ' ' + ( options % params ) if NotFoundCommands.key? @command
+      begin
+        sh build.filename(command) + ' ' + ( options % params )
+      rescue RuntimeError
+        NotFoundCommands[@command] = true
+        _run options, params
+      end
     end
   end
- 
+
   class Command::Compiler < Command
     attr_accessor :flags, :include_paths, :defines, :source_exts
     attr_accessor :compile_options, :option_define, :option_include_path, :out_ext
@@ -57,13 +65,9 @@ module MRuby
       end
       [flags, define_flags, include_path_flags, _flags].flatten.join(' ')
     end
-    
+
     def run(outfile, infile, _defineds=[], _include_paths=[], _flags=[])
       FileUtils.mkdir_p File.dirname(outfile)
-      define_flags = [defines, _defineds].flatten.map{ |d| option_define % d }
-      include_path_flags = [include_paths, _include_paths, File.dirname(infile)].flatten.map do |f|
-        option_include_path % filename(f)
-      end
       _pp "CC", infile.relative_path, outfile.relative_path
       if MRUBY_BUILD_HOST_IS_CYGWIN
         _run compile_options, { :flags => all_flags(_defineds, _include_paths, _flags),
@@ -110,11 +114,11 @@ module MRuby
     private
     def get_dependencies(file)
       file = file.ext('d') unless File.extname(file) == '.d'
-      if File.exists?(file)
+      if File.exist?(file)
         File.read(file).gsub("\\\n ", "").scan(/^\S+:\s+(.+)$/).flatten.map {|s| s.split(' ') }.flatten
       else
         []
-      end
+      end + [ MRUBY_CONFIG ]
     end
   end
 
@@ -152,7 +156,6 @@ module MRuby
     def run(outfile, objfiles, _libraries=[], _library_paths=[], _flags=[], _flags_before_libraries=[], _flags_after_libraries=[])
       FileUtils.mkdir_p File.dirname(outfile)
       library_flags = [libraries, _libraries].flatten.map { |d| option_library % d }
-      library_path_flags = [library_paths, _library_paths].flatten.map { |f| option_library_path % filename(f) }
 
       _pp "LD", outfile.relative_path
       if MRUBY_BUILD_HOST_IS_CYGWIN
@@ -225,37 +228,52 @@ module MRuby
 
   class Command::Git < Command
     attr_accessor :flags
-    attr_accessor :clone_options
+    attr_accessor :clone_options, :pull_options
 
     def initialize(build)
       super
       @command = 'git'
-      @flags = []
+      @flags = %w[--depth 1]
       @clone_options = "clone %{flags} %{url} %{dir}"
+      @pull_options = "pull"
     end
 
     def run_clone(dir, url, _flags = [])
       _pp "GIT", url, dir.relative_path
       _run clone_options, { :flags => [flags, _flags].flatten.join(' '), :url => url, :dir => filename(dir) }
     end
+
+    def run_pull(dir, url)
+      root = Dir.pwd
+      Dir.chdir dir
+      _pp "GIT PULL", url, dir.relative_path
+      _run pull_options
+      Dir.chdir root
+    end
   end
 
   class Command::Mrbc < Command
+    attr_accessor :compile_options
+
     def initialize(build)
       super
       @command = nil
-      @compile_options = "-B%{funcname} -o- -"
+      @compile_options = "-B%{funcname} -o-"
     end
 
     def run(out, infiles, funcname)
       @command ||= @build.mrbcfile
-      IO.popen("#{filename @command} #{@compile_options % {:funcname => funcname}}", 'r+') do |io|
-        [infiles].flatten.each do |f|
-          _pp "MRBC", f.relative_path, nil, :indent => 2
-          io.write IO.read(f)
-        end
-        io.close_write
+      infiles = [infiles].flatten
+      infiles.each do |f|
+        _pp "MRBC", f.relative_path, nil, :indent => 2
+      end
+      IO.popen("#{filename @command} #{@compile_options % {:funcname => funcname}} #{filename(infiles).join(' ')}", 'r+') do |io|
         out.puts io.read
+      end
+      # if mrbc execution fail, drop the file
+      if $?.exitstatus != 0
+        File.delete(out.path)
+        exit(-1)
       end
     end
   end

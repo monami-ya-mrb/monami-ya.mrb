@@ -1,4 +1,5 @@
 MRuby::Gem::Specification.new('mruby-print') do |spec|
   spec.license = 'MIT'
-  spec.authors = 'mruby developers'
+  spec.author  = 'mruby developers'
+  spec.summary = 'standard print/puts/p'
 end

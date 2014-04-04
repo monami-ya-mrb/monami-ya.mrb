@@ -9,13 +9,16 @@ MRuby.each_target do
   mrbs = Dir.glob("#{current_dir}/t/*.rb")
   mrbs += Dir.glob("#{current_dir}/capi/*.rb")
   init = "#{current_dir}/init_mrbtest.c"
-  asslib = "#{current_dir}/assert.rb"
+  ass_c = "#{current_build_dir}/assert.c"
+  ass_lib = ass_c.ext(exts.object)
   csrc = Dir.glob("#{current_dir}/capi/*.{c}")
 
   mrbtest_lib = libfile("#{current_build_dir}/mrbtest")
-  file mrbtest_lib => [mlib, gems.map(&:test_objs), gems.map { |g| g.test_rbireps.ext(exts.object) }].flatten do |t|
+  gem_test_files = gems.select { |g| g.run_test_in_other_mrb_state? }.map { |g| g.test_rbireps.ext(exts.object) }
+  file mrbtest_lib => [mlib, ass_lib, gems.map(&:test_objs), gem_test_files].flatten do |t|
     archiver.run t.name, t.prerequisites
   end
+  file mrbtest_lib => "#{build_dir}/test/no_mrb_open_test.o"
 
   unless build_mrbtest_lib_only?
     driver_obj = objfile("#{current_build_dir}/driver")
@@ -32,13 +35,30 @@ MRuby.each_target do
     end
   end
 
-  file mlib => [clib]
-  file clib => [mrbcfile, init, asslib] + mrbs + csrc do |t|
+  file ass_lib => ass_c
+  file ass_c => "#{current_dir}/assert.rb" do |t|
+    FileUtils.mkdir_p File.dirname t.name
+    open(t.name, 'w') do |f|
+      mrbc.run f, [t.prerequisites], 'mrbtest_assert_irep'
+    end
+  end
+
+  file mlib => clib
+  file clib => [mrbcfile, init] + mrbs + csrc do |t|
     _pp "GEN", "*.rb", "#{clib.relative_path}"
     FileUtils.mkdir_p File.dirname(clib)
     open(clib, 'w') do |f|
+      f.puts %Q[/*]
+      f.puts %Q[ * This file contains a list of all]
+      f.puts %Q[ * test functions.]
+      f.puts %Q[ *]
+      f.puts %Q[ * IMPORTANT:]
+      f.puts %Q[ *   This file was generated!]
+      f.puts %Q[ *   All manual changes will get lost.]
+      f.puts %Q[ */]
+      f.puts %Q[]
       f.puts IO.read(init)
-      mrbc.run f, [asslib] + mrbs, 'mrbtest_irep'
+      mrbc.run f, mrbs, 'mrbtest_irep'
 
       csrc.each do |c|
         f.puts %Q[void test_#{File.basename(c, ".c")}_init(mrb_state *mrb);]
@@ -50,12 +70,16 @@ MRuby.each_target do
       f.puts %Q[}]
 
       gems.each do |g|
+        next unless g.run_test_in_other_mrb_state?
         f.puts %Q[void GENERATED_TMP_mrb_#{g.funcname}_gem_test(mrb_state *mrb);]
       end
+      f.puts %Q[void no_mrb_open_mrbgem_test(mrb_state *mrb);]
       f.puts %Q[void mrbgemtest_init(mrb_state* mrb) {]
       gems.each do |g|
+        next unless g.run_test_in_other_mrb_state?
         f.puts %Q[    GENERATED_TMP_mrb_#{g.funcname}_gem_test(mrb);]
       end
+      f.puts %Q[    no_mrb_open_mrbgem_test(mrb);]
       f.puts %Q[}]
     end
   end

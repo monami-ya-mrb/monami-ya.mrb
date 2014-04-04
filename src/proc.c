@@ -7,7 +7,7 @@
 #include "mruby.h"
 #include "mruby/class.h"
 #include "mruby/proc.h"
-#include "opcode.h"
+#include "ritevm/opcode.h"
 
 static mrb_code call_iseq[] = {
   MKOP_A(OP_CALL, 0),
@@ -17,11 +17,19 @@ struct RProc *
 mrb_proc_new(mrb_state *mrb, mrb_irep *irep)
 {
   struct RProc *p;
+  mrb_callinfo *ci = mrb->c->ci;
 
   p = (struct RProc*)mrb_obj_alloc(mrb, MRB_TT_PROC, mrb->proc_class);
-  p->target_class = (mrb->ci) ? mrb->ci->target_class : 0;
+  p->target_class = 0;
+  if (ci) {
+    if (ci->proc)
+      p->target_class = ci->proc->target_class;
+    if (!p->target_class)
+      p->target_class = ci->target_class;
+  }
   p->body.irep = irep;
   p->env = 0;
+  mrb_irep_incref(mrb, irep);
 
   return p;
 }
@@ -31,16 +39,16 @@ closure_setup(mrb_state *mrb, struct RProc *p, int nlocals)
 {
   struct REnv *e;
 
-  if (!mrb->ci->env) {
-    e = (struct REnv*)mrb_obj_alloc(mrb, MRB_TT_ENV, (struct RClass*)mrb->ci->proc->env);
+  if (!mrb->c->ci->env) {
+    e = (struct REnv*)mrb_obj_alloc(mrb, MRB_TT_ENV, (struct RClass*)mrb->c->ci->proc->env);
     e->flags= (unsigned int)nlocals;
-    e->mid = mrb->ci->mid;
-    e->cioff = mrb->ci - mrb->cibase;
-    e->stack = mrb->stack;
-    mrb->ci->env = e;
+    e->mid = mrb->c->ci->mid;
+    e->cioff = mrb->c->ci - mrb->c->cibase;
+    e->stack = mrb->c->stack;
+    mrb->c->ci->env = e;
   }
   else {
-    e = mrb->ci->env;
+    e = mrb->c->ci->env;
   }
   p->env = e;
 }
@@ -50,7 +58,7 @@ mrb_closure_new(mrb_state *mrb, mrb_irep *irep)
 {
   struct RProc *p = mrb_proc_new(mrb, irep);
 
-  closure_setup(mrb, p, mrb->ci->proc->body.irep->nlocals);
+  closure_setup(mrb, p, mrb->c->ci->proc->body.irep->nlocals);
   return p;
 }
 
@@ -80,6 +88,9 @@ mrb_proc_copy(struct RProc *a, struct RProc *b)
 {
   a->flags = b->flags;
   a->body = b->body;
+  if (!MRB_PROC_CFUNC_P(a)) {
+    a->body.irep->refcnt++;
+  };
   a->target_class = b->target_class;
   a->env = b->env;
 }
@@ -131,6 +142,23 @@ mrb_proc_iseq(mrb_state *mrb, struct RProc *p)
   return p->body.irep->iseq;
 }
 
+/* 15.2.17.4.2 */
+static mrb_value
+mrb_proc_arity(mrb_state *mrb, mrb_value self)
+{
+  struct RProc *p = mrb_proc_ptr(self);
+  mrb_code *iseq = mrb_proc_iseq(mrb, p);
+  mrb_aspec aspec = GETARG_Ax(*iseq);
+  int ma, ra, pa, arity;
+
+  ma = MRB_ASPEC_REQ(aspec);
+  ra = MRB_ASPEC_REST(aspec);
+  pa = MRB_ASPEC_POST(aspec);
+  arity = ra ? -(ma + pa + 1) : ma + pa;
+
+  return mrb_fixnum_value(arity);
+}
+
 /* 15.3.1.2.6  */
 /* 15.3.1.3.27 */
 /*
@@ -164,28 +192,30 @@ void
 mrb_init_proc(mrb_state *mrb)
 {
   struct RProc *m;
-  mrb_irep *call_irep = (mrb_irep *)mrb_alloca(mrb, sizeof(mrb_irep));
+  mrb_irep *call_irep = (mrb_irep *)mrb_malloc(mrb, sizeof(mrb_irep));
   static const mrb_irep mrb_irep_zero = { 0 };
 
-  if ( call_iseq == NULL || call_irep == NULL )
+  MRB_STATIC_ASSERT(call_iseq != NULL, "call_iseq should not be NULL.");
+
+  if (call_irep == NULL)
     return;
 
   *call_irep = mrb_irep_zero;
   call_irep->flags = MRB_ISEQ_NO_FREE;
-  call_irep->idx = -1;
   call_irep->iseq = call_iseq;
   call_irep->ilen = 1;
 
   mrb->proc_class = mrb_define_class(mrb, "Proc", mrb->object_class);
   MRB_SET_INSTANCE_TT(mrb->proc_class, MRB_TT_PROC);
 
-  mrb_define_method(mrb, mrb->proc_class, "initialize", mrb_proc_initialize, ARGS_NONE());
-  mrb_define_method(mrb, mrb->proc_class, "initialize_copy", mrb_proc_init_copy, ARGS_REQ(1));
+  mrb_define_method(mrb, mrb->proc_class, "initialize", mrb_proc_initialize, MRB_ARGS_NONE());
+  mrb_define_method(mrb, mrb->proc_class, "initialize_copy", mrb_proc_init_copy, MRB_ARGS_REQ(1));
+  mrb_define_method(mrb, mrb->proc_class, "arity", mrb_proc_arity, MRB_ARGS_NONE());
 
   m = mrb_proc_new(mrb, call_irep);
-  mrb_define_method_raw(mrb, mrb->proc_class, mrb_intern(mrb, "call"), m);
-  mrb_define_method_raw(mrb, mrb->proc_class, mrb_intern(mrb, "[]"), m);
+  mrb_define_method_raw(mrb, mrb->proc_class, mrb_intern_lit(mrb, "call"), m);
+  mrb_define_method_raw(mrb, mrb->proc_class, mrb_intern_lit(mrb, "[]"), m);
 
-  mrb_define_class_method(mrb, mrb->kernel_module, "lambda", proc_lambda, ARGS_NONE());    /* 15.3.1.2.6  */
-  mrb_define_method(mrb, mrb->kernel_module,       "lambda", proc_lambda, ARGS_NONE());    /* 15.3.1.3.27 */
+  mrb_define_class_method(mrb, mrb->kernel_module, "lambda", proc_lambda, MRB_ARGS_NONE()); /* 15.3.1.2.6  */
+  mrb_define_method(mrb, mrb->kernel_module,       "lambda", proc_lambda, MRB_ARGS_NONE()); /* 15.3.1.3.27 */
 }

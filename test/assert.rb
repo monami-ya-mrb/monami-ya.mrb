@@ -4,6 +4,21 @@ $kill_test = 0
 $asserts  = []
 $test_start = Time.now if Object.const_defined?(:Time)
 
+# Implementation of print due to the reason that there might be no print
+def t_print(*args)
+  i = 0
+  len = args.size
+  while i < len
+    str = args[i].to_s
+    begin
+      __printstr__ str
+    rescue NoMethodError
+      __t_printstr__ str rescue print str
+    end
+    i += 1
+  end
+end
+
 ##
 # Create the assertion in a readable way
 def assertion_string(err, str, iso=nil, e=nil)
@@ -28,31 +43,31 @@ end
 #       which will be tested by this
 #       assertion
 def assert(str = 'Assertion failed', iso = '')
-  print(str, (iso != '' ? " [#{iso}]" : ''), ' : ') if $mrbtest_verbose
+  t_print(str, (iso != '' ? " [#{iso}]" : ''), ' : ') if $mrbtest_verbose
   begin
     $mrbtest_assert = []
     $mrbtest_assert_idx = 0
     if(!yield || $mrbtest_assert.size > 0)
       $asserts.push(assertion_string('Fail: ', str, iso, nil))
       $ko_test += 1
-      print('F')
+      t_print('F')
     else
       $ok_test += 1
-      print('.')
+      t_print('.')
     end
   rescue Exception => e
     if e.class.to_s == 'MRubyTestSkip'
       $asserts.push "Skip: #{str} #{iso} #{e.cause}"
-      print('?')
+      t_print('?')
     else
       $asserts.push(assertion_string('Error: ', str, iso, e))
       $kill_test += 1
-      print('X')
-	end
+      t_print('X')
+  end
   ensure
     $mrbtest_assert = nil
   end
-  print("\n") if $mrbtest_verbose
+  t_print("\n") if $mrbtest_verbose
 end
 
 def assertion_diff(exp, act)
@@ -63,7 +78,7 @@ end
 def assert_true(ret, msg = nil, diff = nil)
   if $mrbtest_assert
     $mrbtest_assert_idx += 1
-    if !ret
+    unless ret
       msg = "Expected #{ret.inspect} to be true" unless msg
       diff = assertion_diff(true, ret)  unless diff
       $mrbtest_assert.push([$mrbtest_assert_idx, msg, diff])
@@ -72,10 +87,41 @@ def assert_true(ret, msg = nil, diff = nil)
   ret
 end
 
-def assert_equal(exp, act, msg = nil)
+def assert_false(ret, msg = nil, diff = nil)
+  if $mrbtest_assert
+    $mrbtest_assert_idx += 1
+    if ret
+      msg = "Expected #{ret.inspect} to be false" unless msg
+      diff = assertion_diff(false, ret) unless diff
+
+      $mrbtest_assert.push([$mrbtest_assert_idx, msg, diff])
+    end
+  end
+  !ret
+end
+
+def assert_equal(arg1, arg2 = nil, arg3 = nil)
+  if block_given?
+    exp, act, msg = arg1, yield, arg2
+  else
+    exp, act, msg = arg1, arg2, arg3
+  end
+  
   msg = "Expected to be equal" unless msg
   diff = assertion_diff(exp, act)
   assert_true(exp == act, msg, diff)
+end
+
+def assert_not_equal(arg1, arg2 = nil, arg3 = nil)
+  if block_given?
+    exp, act, msg = arg1, yield, arg2
+  else
+    exp, act, msg = arg1, arg2, arg3
+  end
+
+  msg = "Expected to be not equal" unless msg
+  diff = assertion_diff(exp, act)
+  assert_false(exp == act, msg, diff)
 end
 
 def assert_nil(obj, msg = nil)
@@ -89,6 +135,13 @@ def assert_include(collection, obj, msg = nil)
   diff = "    Collection: #{collection.inspect}\n" +
          "        Object: #{obj.inspect}"
   assert_true(collection.include?(obj), msg, diff)
+end
+
+def assert_not_include(collection, obj, msg = nil)
+  msg = "Expected #{collection.inspect} to not include #{obj.inspect}" unless msg
+  diff = "    Collection: #{collection.inspect}\n" +
+         "        Object: #{obj.inspect}"
+  assert_false(collection.include?(obj), msg, diff)
 end
 
 def assert_raise(*exp)
@@ -121,35 +174,59 @@ def assert_raise(*exp)
   ret
 end
 
+def assert_nothing_raised(*exp)
+  ret = true
+  if $mrbtest_assert
+    $mrbtest_assert_idx += 1
+    msg = exp.last.class == String ? exp.pop : ""
+    begin
+      yield
+    rescue Exception => e
+      msg = "#{msg} exception raised."
+      diff = "      Class: <#{e.class}>\n" +
+             "    Message: #{e.message}"
+      $mrbtest_assert.push([$mrbtest_assert_idx, msg, diff])
+      ret = false
+    end
+  end
+  ret
+end
+
+##
+# Fails unless +obj+ is a kind of +cls+.
+def assert_kind_of(cls, obj, msg = nil)
+  msg = "Expected #{obj.inspect} to be a kind of #{cls}, not #{obj.class}" unless msg
+  diff = assertion_diff(cls, obj.class)
+  assert_true(obj.kind_of?(cls), msg, diff)
+end
+
+##
+# Fails unless +exp+ is equal to +act+ in terms of a Float
+def assert_float(exp, act, msg = nil)
+  msg = "Float #{exp} expected to be equal to float #{act}" unless msg
+  diff = assertion_diff(exp, act)
+  assert_true check_float(exp, act), msg, diff
+end
+
 ##
 # Report the test result and print all assertions
 # which were reported broken.
 def report()
-  print "\n"
+  t_print("\n")
 
   $asserts.each do |msg|
     puts msg
   end
 
   $total_test = $ok_test.+($ko_test)
-  print('Total: ')
-  print($total_test)
-  print("\n")
+  t_print("Total: #{$total_test}\n")
 
-  print('   OK: ')
-  print($ok_test)
-  print("\n")
-  print('   KO: ')
-  print($ko_test)
-  print("\n")
-  print('Crash: ')
-  print($kill_test)
-  print("\n")
+  t_print("   OK: #{$ok_test}\n")
+  t_print("   KO: #{$ko_test}\n")
+  t_print("Crash: #{$kill_test}\n")
 
   if Object.const_defined?(:Time)
-    print(' Time: ')
-    print(Time.now - $test_start)
-    print(" seconds\n")
+    t_print(" Time: #{Time.now - $test_start} seconds\n")
   end
 end
 

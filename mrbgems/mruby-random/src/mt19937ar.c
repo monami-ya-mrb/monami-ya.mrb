@@ -4,18 +4,20 @@
 ** See Copyright Notice in mruby.h
 */
 
-#include <stdio.h>
+#include "mruby.h"
 #include "mt19937ar.h"
 
 /* Period parameters */  
-//#define N 624
+/* #define N 624 */  
 #define M 397
 #define MATRIX_A 0x9908b0dfUL   /* constant vector a */
 #define UPPER_MASK 0x80000000UL /* most significant w-r bits */
 #define LOWER_MASK 0x7fffffffUL /* least significant r bits */
 
+#if 0 /* dead_code */
 static unsigned long mt[N]; /* the array for the state vector  */
 static int mti=N+1; /* mti==N+1 means mt[N] is not initialized */
+#endif /* dead_code */
 
 void mrb_random_init_genrand(mt_state *t, unsigned long s)
 {
@@ -61,7 +63,7 @@ unsigned long mrb_random_genrand_int32(mt_state *t)
     y ^= (y << 15) & 0xefc60000UL;
     y ^= (y >> 18);
     
-    t->gen_int = y;
+    t->gen.int_ = y;
 
     return y;
 }
@@ -69,11 +71,12 @@ unsigned long mrb_random_genrand_int32(mt_state *t)
 double mrb_random_genrand_real1(mt_state *t)
 {
     mrb_random_genrand_int32(t);
-    t->gen_dbl =  t->gen_int*(1.0/4294967295.0); 
-    return t->gen_dbl;
+    t->gen.double_ =  t->gen.int_*(1.0/4294967295.0); 
+    return t->gen.double_;
     /* divided by 2^32-1 */ 
 }
 
+#if 0 /* dead_code */
 /* initializes mt[N] with a seed */
 void init_genrand(unsigned long s)
 {
@@ -191,3 +194,4 @@ double genrand_res53(void)
     return(a*67108864.0+b)*(1.0/9007199254740992.0); 
 } 
 /* These real versions are due to Isaku Wada, 2002/01/09 added */
+#endif /* dead_code */

@@ -2,11 +2,11 @@
 # NameError ISO Test
 
 assert('NameError', '15.2.31') do
-  NameError.class == Class
+  assert_equal Class, NameError.class
 end
 
 assert('NameError superclass', '15.2.31.2') do
-  NameError.superclass == StandardError
+  assert_equal StandardError, NameError.superclass
 end
 
 assert('NameError#name', '15.2.31.2.1') do
@@ -20,13 +20,13 @@ assert('NameError#name', '15.2.31.2.1') do
     $test_dummy_result = e.name
   end
 
-  $test_dummy_result == :bar
+  assert_equal :bar, $test_dummy_result
 end
 
 assert('NameError#initialize', '15.2.31.2.2') do
    e = NameError.new('a', :foo)
 
-   e.class == NameError and
-   e.message == 'a' and
-   e.name == :foo
+   assert_equal NameError, e.class
+   assert_equal 'a', e.message
+   assert_equal :foo, e.name
 end

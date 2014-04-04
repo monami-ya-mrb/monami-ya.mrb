@@ -43,7 +43,7 @@ module MRuby
     end
     include Rake::DSL
     include LoadGems
-    attr_accessor :name, :bins, :exts, :file_separator
+    attr_accessor :name, :bins, :exts, :file_separator, :build_dir, :gem_clone_dir, :enable_bintest
     attr_reader :libmruby, :gems
 
     COMPILERS = %w(cc cxx objc asm)
@@ -52,7 +52,7 @@ module MRuby
 
     Exts = Struct.new(:object, :executable, :library)
 
-    def initialize(name='host', &block)
+    def initialize(name='host', build_dir=nil, &block)
       @name = name.to_s
 
       unless MRuby.targets[@name]
@@ -62,7 +62,11 @@ module MRuby
           @exts = Exts.new('.o', '', '.a')
         end
 
+        build_dir = build_dir || ENV['MRUBY_BUILD_DIR'] || "#{MRUBY_ROOT}/build"
+
         @file_separator = '/'
+        @build_dir = "#{build_dir}/#{@name}"
+        @gem_clone_dir = "#{build_dir}/mrbgems"
         @cc = Command::Compiler.new(self, %w(.c))
         @cxx = Command::Compiler.new(self, %w(.cc .cxx .cpp))
         @objc = Command::Compiler.new(self, %w(.m))
@@ -74,15 +78,32 @@ module MRuby
         @git = Command::Git.new(self)
         @mrbc = Command::Mrbc.new(self)
 
-        @bins = %w(mruby mrbc mirb)
-        @gems, @libmruby = [], []
+        @bins = %w(mrbc)
+        @gems, @libmruby = MRuby::Gem::List.new, []
         @build_mrbtest_lib_only = false
+        @cxx_abi_enabled = false
 
         MRuby.targets[@name] = self
       end
 
       MRuby::Build.current = MRuby.targets[@name]
       MRuby.targets[@name].instance_eval(&block)
+    end
+
+    def enable_debug
+      compilers.each { |c| c.defines += %w(MRB_DEBUG) }
+      @mrbc.compile_options += ' -g'
+    end
+
+    def cxx_abi_enabled?
+      @cxx_abi_enabled
+    end
+
+    def enable_cxx_abi
+      return if @cxx_abi_enabled
+      compilers.each { |c| c.defines += %w(MRB_ENABLE_CXX_EXCEPTION) }
+      linker.command = cxx.command
+      @cxx_abi_enabled = true
     end
 
     def toolchain(name)
@@ -95,12 +116,8 @@ module MRuby
       MRUBY_ROOT
     end
 
-    def build_dir
-      "#{MRUBY_ROOT}/build/#{self.name}"
-    end
-
     def mrbcfile
-      MRuby.targets['host'].exefile("#{MRuby.targets['host'].build_dir}/bin/mrbc")
+      MRuby.targets[@name].exefile("#{MRuby.targets[@name].build_dir}/bin/mrbc")
     end
 
     def compilers
@@ -172,7 +189,13 @@ module MRuby
       puts ">>> Test #{name} <<<"
       mrbtest = exefile("#{build_dir}/test/mrbtest")
       sh "#{filename mrbtest.relative_path}#{$verbose ? ' -v' : ''}"
-      puts 
+      puts
+      run_bintest if @enable_bintest
+    end
+
+    def run_bintest
+      targets = @gems.select { |v| Dir.exists? "#{v.dir}/bintest" }.map { |v| filename v.dir }
+      sh "ruby test/bintest.rb #{targets.join ' '}"
     end
 
     def print_build_summary
@@ -183,8 +206,9 @@ module MRuby
       unless @gems.empty?
         puts "    Included Gems:"
         @gems.map do |gem|
-          gem_version = "- #{gem.version}" if gem.version
-          puts "             #{gem.name} #{gem_version}"
+          gem_version = " - #{gem.version}" if gem.version != '0.0.0'
+          gem_summary = " - #{gem.summary}" if gem.summary
+          puts "             #{gem.name}#{gem_version}#{gem_summary}"
           puts "               - Binaries: #{gem.bins.join(', ')}" unless gem.bins.empty?
         end
       end
@@ -196,9 +220,13 @@ module MRuby
   class CrossBuild < Build
     attr_block %w(test_runner)
 
-    def initialize(name, &block)
-	@test_runner = Command::CrossTestRunner.new(self)
-	super
+    def initialize(name, build_dir=nil, &block)
+      @test_runner = Command::CrossTestRunner.new(self)
+      super
+    end
+
+    def mrbcfile
+      MRuby.targets['host'].exefile("#{MRuby.targets['host'].build_dir}/bin/mrbc")
     end
 
     def run_test

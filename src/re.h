@@ -7,6 +7,6 @@
 #ifndef RE_H
 #define RE_H
 
-#define REGEXP_CLASS "Regexp"
+#define REGEXP_CLASS          "Regexp"
 
-#endif
+#endif  /* RE_H */

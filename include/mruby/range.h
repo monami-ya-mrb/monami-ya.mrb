@@ -24,11 +24,11 @@ struct RRange {
   int excl;
 };
 
-#define mrb_range_ptr(v)    ((struct RRange*)((v).value.p))
+#define mrb_range_ptr(v)    ((struct RRange*)(mrb_ptr(v)))
 #define mrb_range_value(p)  mrb_obj_value((void*)(p))
 
 mrb_value mrb_range_new(mrb_state*, mrb_value, mrb_value, int);
-mrb_int mrb_range_beg_len(mrb_state *mrb, mrb_value range, mrb_int *begp, mrb_int *lenp, mrb_int len);
+mrb_bool mrb_range_beg_len(mrb_state *mrb, mrb_value range, mrb_int *begp, mrb_int *lenp, mrb_int len);
 
 #if defined(__cplusplus)
 }  /* extern "C" { */

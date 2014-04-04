@@ -2,62 +2,55 @@
 # Exception ISO Test
 
 assert('Exception', '15.2.22') do
-  Exception.class == Class
+  assert_equal Class, Exception.class
 end
 
 assert('Exception superclass', '15.2.22.2') do
-  Exception.superclass == Object
+  assert_equal Object, Exception.superclass
 end
 
 assert('Exception.exception', '15.2.22.4.1') do
   e = Exception.exception('a')
 
-  e.class == Exception
+  assert_equal Exception, e.class
 end
 
 assert('Exception#exception', '15.2.22.5.1') do
   e1 = Exception.exception()
   e2 = Exception.exception('b')
 
-  e1.class == Exception and e2.class == Exception
+  assert_equal Exception, e1.class
+  assert_equal Exception, e2.class
 end
 
 assert('Exception#message', '15.2.22.5.2') do
   e = Exception.exception('a')
 
-  e.message == 'a'
+  assert_equal 'a', e.message
 end
 
 assert('Exception#to_s', '15.2.22.5.3') do
   e = Exception.exception('a')
 
-  e.to_s == 'a'
+  assert_equal 'a', e.to_s
 end
 
 assert('Exception.exception', '15.2.22.4.1') do
   e = Exception.exception()
   e.initialize('a')
 
-  e.message == 'a'
+  assert_equal 'a', e.message
 end
 
 assert('ScriptError', '15.2.37') do
-  begin
+  assert_raise(ScriptError) do
     raise ScriptError.new
-  rescue ScriptError
-    true
-  else
-    false
   end
 end
 
 assert('SyntaxError', '15.2.38') do
-  begin
+  assert_raise(SyntaxError) do
     raise SyntaxError.new
-  rescue SyntaxError
-    true
-  else
-    false
   end
 end
 
@@ -110,7 +103,7 @@ assert('Exception 4') do
     end
     a = err.class
   }
-  a == NilClass
+  assert_equal NilClass, a
 end
 
 assert('Exception 5') do
@@ -128,7 +121,7 @@ assert('Exception 5') do
     }
   end
   m2
-  $ans == [nil]
+  assert_equal [nil], $ans
 end
 
 assert('Exception 6') do
@@ -154,7 +147,7 @@ assert('Exception 6') do
     yield
   end
   m
-  $i == 7
+  assert_equal 7, $i
 end
 
 assert('Exception 7') do
@@ -174,7 +167,7 @@ assert('Exception 7') do
     p :end
   end
   m
-  $i == 10
+  assert_equal 10, $i
 end
 
 assert('Exception 8') do
@@ -228,7 +221,7 @@ assert('Exception 11') do
     end
   rescue Exception
   end
-  a == :ok
+  assert_equal :ok, a
 end
 
 assert('Exception 12') do
@@ -237,7 +230,7 @@ assert('Exception 12') do
     raise Exception rescue a = :ng
   rescue Exception
   end
-  a == :ok
+  assert_equal :ok, a
 end
 
 assert('Exception 13') do
@@ -251,14 +244,11 @@ assert('Exception 13') do
   else
     a = :ng
   end
-  a == :ok
-end
-
-def exception_test14
-  UnknownConstant
+  assert_equal :ok, a
 end
 
 assert('Exception 14') do
+  def exception_test14; UnknownConstant; end
   a = :ng
   begin
     send(:exception_test14)
@@ -266,16 +256,16 @@ assert('Exception 14') do
     a = :ok
   end
 
-  a == :ok
+  assert_equal :ok, a
 end
 
 assert('Exception 15') do
   a = begin
         :ok
       rescue
-        :ng
+        :ko
       end
-  a == :ok
+  assert_equal :ok, a
 end
 
 assert('Exception 16') do
@@ -315,8 +305,57 @@ assert('Exception 18') do
   end == 3
 end
 
+assert('Exception 19') do
+  class Class4Exception19
+    def a
+      r = @e = false
+      begin
+        b
+      rescue TypeError
+        r = self.z
+      end
+      [ r, @e ]
+    end
+
+    def b
+      begin
+        1 * "b"
+      ensure
+        @e = self.z
+      end
+    end
+
+    def z
+      true
+    end
+  end
+  assert_equal [true, true], Class4Exception19.new.a
+end
+
 assert('Exception#inspect without message') do
   Exception.new.inspect
+end
+
+assert('Exception#backtrace') do
+  begin
+    raise "get backtrace"
+  rescue => e
+    e.backtrace
+  end
+
+  true
+end
+
+assert('Raise in ensure') do
+
+  assert_raise(RuntimeError) do
+    begin
+      raise ""
+    ensure
+      raise ""
+    end
+  end
+
 end
 
 # very deeply recursive function that stil returns albeit very deeply so
@@ -338,6 +377,5 @@ assert('Infinite recursion should result in an exception being raised') do
         end
     # OK if an exception was caught, otherwise a number will be stored in a
     a == :ok
+
 end
-
-

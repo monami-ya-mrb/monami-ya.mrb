@@ -7,16 +7,14 @@
 #ifndef MRUBYCONF_H
 #define MRUBYCONF_H
 
-#include "mruby.h"
-
-#include <stdint.h>
-#include <stddef.h>
-
 /* configuration options: */
 /* add -DMRB_USE_FLOAT to use float instead of double for floating point numbers */
 //#define MRB_USE_FLOAT
 
-/* add -DMRB_INT64 to use 64bit integer for mrb_int */
+/* add -DMRB_INT16 to use 16bit integer for mrb_int; conflict with MRB_INT64 */
+//#define MRB_INT16
+
+/* add -DMRB_INT64 to use 64bit integer for mrb_int; conflict with MRB_INT16 */
 //#define MRB_INT64
 
 /* represent mrb_value in boxed double; conflict with MRB_USE_FLOAT */
@@ -24,6 +22,9 @@
 
 /* define on big endian machines; used by MRB_NAN_BOXING */
 //#define MRB_ENDIAN_BIG
+
+/* represent mrb_value as a word (natural unit of data for the processor) */
+// #define MRB_WORD_BOXING
 
 /* argv max size in mrb_funcall */
 //#define MRB_FUNCALL_ARGC_MAX 16
@@ -37,8 +38,8 @@
 /* initial size for IV khash; ignored when MRB_USE_IV_SEGLIST is set */
 //#define MRB_IVHASH_INIT_SIZE 8
 
-/* initial size for IREP array */
-//#define MRB_IREP_ARRAY_INIT_SIZE (256u)
+/* turn off generational GC by default */
+//#define MRB_GC_TURN_OFF_GENERATIONAL
 
 /* default size of khash table bucket */
 //#define KHASH_DEFAULT_SIZE 32
@@ -55,8 +56,11 @@
 /* initial minimum size for string buffer */
 //#define MRB_STR_BUF_MIN_SIZE 128
 
-/* array size for parser buffer */
-//#define MRB_PARSER_BUF_SIZE 1024
+/* arena size */
+//#define MRB_GC_ARENA_SIZE 100
+
+/* fixed size GC arena */
+//#define MRB_GC_FIXED_ARENA
 
 /* Default panic behavior */
 //#define MRB_PANIC_ABORT() abort()
@@ -70,82 +74,12 @@
 
 /* end of configuration */
 
-#ifdef MRB_USE_FLOAT
-  typedef float mrb_float;
-# define mrb_float_to_str(buf, i) sprintf(buf, "%.7e", i)
-# define str_to_mrb_float(buf) strtof(buf, NULL)
-#else
-  typedef double mrb_float;
-# define mrb_float_to_str(buf, i) sprintf(buf, "%.16e", i)
-# define str_to_mrb_float(buf) strtod(buf, NULL)
-#endif
-
-#if defined(MRB_INT64)
-# ifdef MRB_NAN_BOXING
-#  error Cannot use NaN boxing when mrb_int is 64bit
-# else
-   typedef int64_t mrb_int;
-#  define MRB_INT_MIN INT64_MIN
-#  define MRB_INT_MAX INT64_MAX
-#  define PRIdMRB_INT PRId64
-#  define PRIiMRB_INT PRIi64
-#  define PRIoMRB_INT PRIo64
-#  define PRIxMRB_INT PRIx64
-#  define PRIXMRB_INT PRIX64
-# endif
-#elif defined(MRB_INT16)
-  typedef int16_t mrb_int;
-# define MRB_INT_MIN INT16_MIN
-# define MRB_INT_MAX INT16_MAX
-#else
-  typedef int32_t mrb_int;
-# define MRB_INT_MIN INT32_MIN
-# define MRB_INT_MAX INT32_MAX
-# define PRIdMRB_INT PRId32
-# define PRIiMRB_INT PRIi32
-# define PRIoMRB_INT PRIo32
-# define PRIxMRB_INT PRIx32
-# define PRIXMRB_INT PRIX32
-#endif
-typedef short mrb_sym;
-
 /* define ENABLE_XXXX from DISABLE_XXX */
 #ifndef DISABLE_STDIO
 #define ENABLE_STDIO
 #endif
 #ifndef ENABLE_DEBUG
 #define DISABLE_DEBUG
-#endif
-
-#ifdef _MSC_VER
-# include <float.h>
-# define inline __inline
-# define snprintf _snprintf
-# define isnan _isnan
-# define isinf(n) (!_finite(n) && !_isnan(n))
-# define strtoll _strtoi64
-# define PRId32 "I32d"
-# define PRIi32 "I32i"
-# define PRIo32 "I32o"
-# define PRIx32 "I32x"
-# define PRIX32 "I32X"
-# define PRId64 "I64d"
-# define PRIi64 "I64i"
-# define PRIo64 "I64o"
-# define PRIx64 "I64x"
-# define PRIX64 "I64X"
-# ifdef __cplusplus
-typedef bool mrb_bool;
-# else
-typedef unsigned int mrb_bool;
-# endif
-#else
-# include <inttypes.h>
-# ifdef __cplusplus
-typedef bool mrb_bool;
-# else
-typedef _Bool mrb_bool;
-# endif
 #endif
 
 #ifdef ENABLE_STDIO

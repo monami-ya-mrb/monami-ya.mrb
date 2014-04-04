@@ -15,18 +15,11 @@
 #include <math.h>
 #include <ctype.h>
 
-#ifdef _MSC_VER
-#include <float.h>
-#endif
-
-#ifdef HAVE_IEEEFP_H
-#include <ieeefp.h>
-#endif
-
 #define BIT_DIGITS(N)   (((N)*146)/485 + 1)  /* log2(10) =~ 146/485 */
-#define BITSPERDIG (sizeof(mrb_int)*CHAR_BIT)
+#define BITSPERDIG MRB_INT_BIT
 #define EXTENDSIGN(n, l) (((~0 << (n)) >> (((n)*(l)) % BITSPERDIG)) & ~(~0 << (n)))
 
+mrb_value mrb_str_format(mrb_state *, int, const mrb_value *, mrb_value);
 static void fmt_setup(char*,size_t,int,int,mrb_int,mrb_int);
 
 static char*
@@ -91,7 +84,7 @@ mrb_fix2binstr(mrb_state *mrb, mrb_value x, int base)
     val &= 0x3ff;
 
   if (val == 0) {
-    return mrb_str_new(mrb, "0", 1);
+    return mrb_str_new_lit(mrb, "0");
   }
   *--b = '\0';
   do {
@@ -661,7 +654,7 @@ retry:
       case '\n':
       case '\0':
         p--;
-
+        /* fallthrough */
       case '%':
         if (flags != FNONE) {
           mrb_raise(mrb, E_ARGUMENT_ERROR, "invalid format character - %");
@@ -672,38 +665,37 @@ retry:
       case 'c': {
         mrb_value val = GETARG();
         mrb_value tmp;
-        unsigned int c;
+        char *c;
 
         tmp = mrb_check_string_type(mrb, val);
         if (!mrb_nil_p(tmp)) {
-          if (RSTRING_LEN(tmp) != 1 ) {
+          if (mrb_fixnum(mrb_funcall(mrb, tmp, "size", 0)) != 1 ) {
             mrb_raise(mrb, E_ARGUMENT_ERROR, "%c requires a character");
           }
-          c = RSTRING_PTR(tmp)[0];
-          n = 1;
+        }
+        else if (mrb_fixnum_p(val)) {
+          tmp = mrb_funcall(mrb, val, "chr", 0);
         }
         else {
-          c = mrb_fixnum(val);
-          n = 1;
-        }
-        if (n <= 0) {
           mrb_raise(mrb, E_ARGUMENT_ERROR, "invalid character");
         }
+        c = RSTRING_PTR(tmp);
+        n = RSTRING_LEN(tmp);
         if (!(flags & FWIDTH)) {
           CHECK(n);
-          buf[blen] = c;
+          memcpy(buf+blen, c, n);
           blen += n;
         }
         else if ((flags & FMINUS)) {
           CHECK(n);
-          buf[blen] = c;
+          memcpy(buf+blen, c, n);
           blen += n;
           FILL(' ', width-1);
         }
         else {
           FILL(' ', width-1);
           CHECK(n);
-          buf[blen] = c;
+          memcpy(buf+blen, c, n);
           blen += n;
         }
       }
@@ -720,7 +712,13 @@ retry:
         if (*p == 'p') arg = mrb_inspect(mrb, arg);
         str = mrb_obj_as_string(mrb, arg);
         len = RSTRING_LEN(str);
-        RSTRING_LEN(result) = blen;
+        if (RSTRING(result)->flags & MRB_STR_EMBED) {
+          int tmp_n = len;
+          RSTRING(result)->flags &= ~MRB_STR_EMBED_LEN_MASK;
+          RSTRING(result)->flags |= tmp_n << MRB_STR_EMBED_LEN_SHIFT;
+        } else {
+          RSTRING(result)->as.heap.len = blen;
+        }
         if (flags&(FPREC|FWIDTH)) {
           slen = RSTRING_LEN(str);
           if (slen < 0) {
@@ -1018,7 +1016,7 @@ retry:
             need = width;
 
           CHECK(need + 1);
-          n = snprintf(&buf[blen], need + 1, "%*s", need, "");
+          snprintf(&buf[blen], need + 1, "%*s", need, "");
           if (flags & FMINUS) {
             if (!isnan(fval) && fval < 0.0)
               buf[blen++] = '-';
@@ -1070,7 +1068,7 @@ retry:
   if (posarg >= 0 && nextarg < argc) {
     const char *mesg = "too many arguments for format string";
     if (mrb_test(ruby_debug)) mrb_raise(mrb, E_ARGUMENT_ERROR, mesg);
-    if (mrb_test(ruby_verbose)) mrb_warn("%s", mesg);
+    if (mrb_test(ruby_verbose)) mrb_warn(mrb, "%S", mrb_str_new_cstr(mrb, mesg));
   }
 #endif
   mrb_str_resize(mrb, result, blen);

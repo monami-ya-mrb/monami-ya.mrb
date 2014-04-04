@@ -3,7 +3,7 @@
 #
 # ISO 15.2.10
 class String
-
+  include Comparable
   ##
   # Calls the given block for each line
   # and pass the respective line.
@@ -132,6 +132,21 @@ class String
     b = self[0, pos]
     a = self[pos+1..-1]
     self.replace([b, value, a].join(''))
+  end
+
+  ##
+  # ISO 15.2.10.5.3
+  def =~(re)
+    if re.respond_to? :to_str
+      raise TypeError, "type mismatch: String given"
+    end
+    re =~ self
+  end
+
+  ##
+  # ISO 15.2.10.5.27
+  def match(re, &block)
+    re.match(self, &block)
   end
 end
 
