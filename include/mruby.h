@@ -80,6 +80,7 @@ enum mrb_fiber_state {
   MRB_FIBER_RUNNING,
   MRB_FIBER_RESUMING,
   MRB_FIBER_SUSPENDED,
+  MRB_FIBER_TRANSFERRED,
   MRB_FIBER_TERMINATED,
 };
 
@@ -230,7 +231,7 @@ struct RClass * mrb_define_module_under(mrb_state *mrb, struct RClass *outer, co
 #define MRB_ARGS_BLOCK()    ((mrb_aspec)1)
 
 /* accept any number of arguments */
-#define MRB_ARGS_ANY()      ARGS_REST()
+#define MRB_ARGS_ANY()      MRB_ARGS_REST()
 /* accept no arguments */
 #define MRB_ARGS_NONE()     ((mrb_aspec)0)
 
@@ -290,6 +291,7 @@ void mrb_close(mrb_state*);
 
 mrb_value mrb_top_self(mrb_state *);
 mrb_value mrb_run(mrb_state*, struct RProc*, mrb_value);
+mrb_value mrb_toplevel_run(mrb_state*, struct RProc*);
 mrb_value mrb_context_run(mrb_state*, struct RProc*, mrb_value, unsigned int);
 
 void mrb_p(mrb_state*, mrb_value);
@@ -404,6 +406,7 @@ mrb_bool mrb_obj_is_instance_of(mrb_state *mrb, mrb_value obj, struct RClass* c)
 
 /* fiber functions (you need to link mruby-fiber mrbgem to use) */
 mrb_value mrb_fiber_yield(mrb_state *mrb, int argc, mrb_value *argv);
+#define E_FIBER_ERROR (mrb_class_get(mrb, "FiberError"))
 
 /* memory pool implementation */
 typedef struct mrb_pool mrb_pool;

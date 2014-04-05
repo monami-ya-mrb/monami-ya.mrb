@@ -297,7 +297,7 @@ class Enumerator
   # side-effect
   #
   def next
-    ary2sv next_values, false
+    next_values.__svalue
   end
 
   ##
@@ -405,7 +405,7 @@ class Enumerator
   #   p e.next   #raises StopIteration
   #
   def peek
-    ary2sv peek_values, true
+    peek_values.__svalue
   end
 
   ##
@@ -511,22 +511,6 @@ class Enumerator
   end
 
   # just for internal
-  def ary2sv args, dup
-    return args unless args.kind_of? Array
-
-    case args.length
-    when 0
-      nil
-    when 1
-      args[0]
-    else
-      return args.dup if dup
-      args
-    end
-  end
-  private :ary2sv
-
-  # just for internal
   class Generator
     def initialize &block
       raise TypeError, "wrong argument type #{self.class} (expected Proc)" unless block.kind_of? Proc
@@ -622,4 +606,29 @@ module Kernel
     Enumerator.new self, meth, *args
   end
   alias :enum_for :to_enum
+end
+
+module Enumerable
+  # use Enumerator to use infinite sequence
+  def zip(*arg)
+    ary = []
+    arg = arg.map{|a|a.each}
+    i = 0
+    self.each do |*val|
+      a = []
+      a.push(val.__svalue)
+      idx = 0
+      while idx < arg.size
+        begin
+          a.push(arg[idx].next)
+        rescue StopIteration
+          a.push(nil)
+        end
+        idx += 1
+      end
+      ary.push(a)
+      i += 1
+    end
+    ary
+  end
 end
