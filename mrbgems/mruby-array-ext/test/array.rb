@@ -107,3 +107,42 @@ assert("Array#compact!") do
   a.compact!
   a == [1, "2", :t, false]
 end
+
+assert("Array#fetch") do
+  a = [ 11, 22, 33, 44 ]
+  assert_equal 22, a.fetch(1)
+  assert_equal 44, a.fetch(-1)
+  assert_equal 'cat', a.fetch(4, 'cat')
+  ret = 0
+  a.fetch(100) { |i| ret = i }
+  assert_equal 100, ret
+  assert_raise(IndexError) { a.fetch(100) }
+end
+
+assert("Array#fill") do
+  a = [ "a", "b", "c", "d" ]
+  assert_equal ["x", "x", "x", "x"], a.fill("x")
+  assert_equal ["x", "x", "x", "w"], a.fill("w", -1) 
+  assert_equal ["x", "x", "z", "z"], a.fill("z", 2, 2)
+  assert_equal ["y", "y", "z", "z"], a.fill("y", 0..1)
+  assert_equal [0, 1, 4, 9], a.fill { |i| i*i } 
+  assert_equal [0, 1, 8, 27], a.fill(-2) { |i| i*i*i }
+  assert_equal [0, 2, 3, 27], a.fill(1, 2) { |i| i+1 }
+  assert_equal [1, 2, 3, 27], a.fill(0..1) { |i| i+1 }
+  assert_raise(ArgumentError) { a.fill }
+end
+
+assert("Array#reverse_each") do
+  a = [ "a", "b", "c", "d" ]
+  b = []
+  a.reverse_each do |i|
+    b << i
+  end
+  assert_equal [ "d", "c", "b", "a" ], b
+
+  if Object.const_defined?(:Enumerator)
+    assert_equal [ "d", "c", "b", "a" ], a.reverse_each.to_a
+  else
+    true
+  end
+end

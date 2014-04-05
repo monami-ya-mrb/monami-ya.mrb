@@ -41,7 +41,7 @@ closure_setup(mrb_state *mrb, struct RProc *p, int nlocals)
 
   if (!mrb->c->ci->env) {
     e = (struct REnv*)mrb_obj_alloc(mrb, MRB_TT_ENV, (struct RClass*)mrb->c->ci->proc->env);
-    e->flags= (unsigned int)nlocals;
+    MRB_ENV_STACK_LEN(e)= (unsigned int)nlocals;
     e->mid = mrb->c->ci->mid;
     e->cioff = mrb->c->ci - mrb->c->cibase;
     e->stack = mrb->c->stack;
@@ -70,6 +70,7 @@ mrb_proc_new_cfunc(mrb_state *mrb, mrb_func_t func)
   p = (struct RProc*)mrb_obj_alloc(mrb, MRB_TT_PROC, mrb->proc_class);
   p->body.func = func;
   p->flags |= MRB_PROC_CFUNC;
+  p->env = 0;
 
   return p;
 }
@@ -196,9 +197,6 @@ mrb_init_proc(mrb_state *mrb)
   static const mrb_irep mrb_irep_zero = { 0 };
 
   MRB_STATIC_ASSERT(call_iseq != NULL, "call_iseq should not be NULL.");
-
-  if (call_irep == NULL)
-    return;
 
   *call_irep = mrb_irep_zero;
   call_irep->flags = MRB_ISEQ_NO_FREE;
