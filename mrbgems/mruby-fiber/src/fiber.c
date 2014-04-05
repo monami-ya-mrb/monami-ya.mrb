@@ -178,7 +178,6 @@ fiber_switch(mrb_state *mrb, mrb_value self, int len, const mrb_value *a, mrb_bo
     if (c->prev->fib) 
       mrb_field_write_barrier(mrb, (struct RBasic*)c->fib, (struct RBasic*)c->prev->fib);
     mrb_write_barrier(mrb, (struct RBasic*)c->fib);
-    mrb->c->status = MRB_FIBER_SUSPENDED;
     c->status = MRB_FIBER_RUNNING;
     mrb->c = c;
 
@@ -189,7 +188,6 @@ fiber_switch(mrb_state *mrb, mrb_value self, int len, const mrb_value *a, mrb_bo
   if (c->prev->fib) 
     mrb_field_write_barrier(mrb, (struct RBasic*)c->fib, (struct RBasic*)c->prev->fib);
   mrb_write_barrier(mrb, (struct RBasic*)c->fib);
-  mrb->c->status = MRB_FIBER_SUSPENDED;
   c->status = MRB_FIBER_RUNNING;
   mrb->c = c;
   return fiber_result(mrb, a, len);
