@@ -1,5 +1,5 @@
 MRuby::Build.new('debug') do |conf|
-  toolchain :gcc
+  toolchain :clang
   enable_debug
 
   # include all core GEMs
