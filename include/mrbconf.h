@@ -50,8 +50,8 @@
 /* page size of memory pool */
 //#define POOL_PAGE_SIZE 16000
 
-/* heap size for tlsf memory allocator. */
-//#define TLSF_HEAP_SIZE	(1024 * 630)
+/* Use TLSF memory allocator */
+#define MRB_USE_TLSF
 
 /* initial minimum size for string buffer */
 //#define MRB_STR_BUF_MIN_SIZE 128

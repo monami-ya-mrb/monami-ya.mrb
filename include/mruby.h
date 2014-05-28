@@ -180,6 +180,10 @@ typedef struct mrb_state {
 
   mrb_log_printer log_printer[MRB_LOG_LEVEL_MAX + 1];
 
+#ifdef MRB_USE_TLSF
+  void *tlsf_handle;
+#endif
+
   uintptr_t ud; /* auxiliary data */
 
 } mrb_state;
