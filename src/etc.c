@@ -8,6 +8,8 @@
 #include "mruby/string.h"
 #include "mruby/data.h"
 #include "mruby/class.h"
+#include "mruby/re.h"
+#include "mruby/irep.h"
 
 struct RData*
 mrb_data_object_alloc(mrb_state *mrb, struct RClass *klass, void *ptr, const mrb_data_type *type)
@@ -107,7 +109,7 @@ mrb_obj_id(mrb_value obj)
 {
   mrb_int tt = mrb_type(obj);
 
-#define MakeID2(p,t) (((intptr_t)(p))^(t))
+#define MakeID2(p,t) (mrb_int)(((intptr_t)(p))^(t))
 #define MakeID(p)    MakeID2(p,tt)
 
   switch (tt) {
@@ -176,3 +178,8 @@ mrb_cptr_value(mrb_state *mrb, void *p)
 }
 #endif  /* MRB_WORD_BOXING */
 
+mrb_bool
+mrb_regexp_p(mrb_state *mrb, mrb_value v)
+{
+  return mrb_class_defined(mrb, REGEXP_CLASS) && mrb_obj_is_kind_of(mrb, v, mrb_class_get(mrb, REGEXP_CLASS));
+}

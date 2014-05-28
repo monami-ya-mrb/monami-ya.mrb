@@ -31,7 +31,7 @@ assert('String#strip') do
 end
 
 assert('String#lstrip') do
-  s = "  abc  " 
+  s = "  abc  "
   s.lstrip
   "".lstrip == "" and " \t\r\n\f\v".lstrip == "" and
   "\0a\0".lstrip == "\0a\0" and
@@ -43,7 +43,7 @@ assert('String#lstrip') do
 end
 
 assert('String#rstrip') do
-  s = "  abc  " 
+  s = "  abc  "
   s.rstrip
   "".rstrip == "" and " \t\r\n\f\v".rstrip == "" and
   "\0a\0".rstrip == "\0a" and
@@ -98,6 +98,11 @@ assert('String#casecmp') do
   assert_equal 0, "aBcDeF".casecmp("abcdef")
   assert_equal(-1, "abcdef".casecmp("abcdefg"))
   assert_equal 0, "abcdef".casecmp("ABCDEF")
+  o = Object.new
+  def o.to_str
+    "ABCDEF"
+  end
+  assert_equal 0, "abcdef".casecmp(o)
 end
 
 assert('String#start_with?') do
@@ -117,7 +122,7 @@ end
 assert('String#partition') do
   assert_equal ["a", "x", "axa"], "axaxa".partition("x")
   assert_equal ["aaaaa", "", ""], "aaaaa".partition("x")
-  assert_equal ["", "", "aaaaa"], "aaaaa".partition("") 
+  assert_equal ["", "", "aaaaa"], "aaaaa".partition("")
   assert_equal ["", "a", "aaaa"], "aaaaa".partition("a")
   assert_equal ["aaaa", "b", ""], "aaaab".partition("b")
   assert_equal ["", "b", "aaaa"], "baaaa".partition("b")
@@ -127,7 +132,7 @@ end
 assert('String#rpartition') do
   assert_equal ["axa", "x", "a"], "axaxa".rpartition("x")
   assert_equal ["", "", "aaaaa"], "aaaaa".rpartition("x")
-  assert_equal ["aaaaa", "", ""], "aaaaa".rpartition("") 
+  assert_equal ["aaaaa", "", ""], "aaaaa".rpartition("")
   assert_equal ["aaaa", "a", ""], "aaaaa".rpartition("a")
   assert_equal ["aaaa", "b", ""], "aaaab".rpartition("b")
   assert_equal ["", "b", "aaaa"], "baaaa".rpartition("b")

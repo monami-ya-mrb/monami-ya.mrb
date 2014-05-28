@@ -54,11 +54,11 @@ sym_intern(mrb_state *mrb, const char *name, size_t len, mrb_bool lit)
   mrb_sym sym;
   char *p;
 
-  if (len > UINT16_MAX) {
+  if (len > (UINT16_MAX-1)) {   /* UINT16_MAX is reverved */
     mrb_raise(mrb, E_ARGUMENT_ERROR, "symbol length too long");
   }
   sname.lit = lit;
-  sname.len = len;
+  sname.len = (uint16_t)len;
   sname.name = name;
   k = kh_get(n2s, mrb, h, sname);
   if (k != kh_end(h))
@@ -114,7 +114,7 @@ mrb_check_intern(mrb_state *mrb, const char *name, size_t len)
   if (len > UINT16_MAX) {
     mrb_raise(mrb, E_ARGUMENT_ERROR, "symbol length too long");
   }
-  sname.len = len;
+  sname.len = (uint16_t)len;
   sname.name = name;
 
   k = kh_get(n2s, mrb, h, sname);
@@ -405,14 +405,19 @@ sym_inspect(mrb_state *mrb, mrb_value sym)
   const char *name;
   mrb_int len;
   mrb_sym id = mrb_symbol(sym);
+  char *sp;
 
   name = mrb_sym2name_len(mrb, id, &len);
   str = mrb_str_new(mrb, 0, len+1);
+  sp = RSTRING_PTR(str);
   RSTRING_PTR(str)[0] = ':';
-  memcpy(RSTRING_PTR(str)+1, name, len);
-  if (!symname_p(name) || strlen(name) != len) {
+  memcpy(sp+1, name, len);
+  mrb_assert_int_fit(mrb_int, len, size_t, SIZE_MAX);
+  if (!symname_p(name) || strlen(name) != (size_t)len) {
     str = mrb_str_dump(mrb, str);
-    memcpy(RSTRING_PTR(str), ":\"", 2);
+    sp = RSTRING_PTR(str);
+    sp[0] = ':';
+    sp[1] = '"';
   }
   return str;
 }
@@ -480,7 +485,7 @@ mrb_init_symbol(mrb_state *mrb)
 {
   struct RClass *sym;
 
-  sym = mrb->symbol_class = mrb_define_class(mrb, "Symbol", mrb->object_class);
+  sym = mrb->symbol_class = mrb_define_class(mrb, "Symbol", mrb->object_class);                 /* 15.2.11 */
 
   mrb_define_method(mrb, sym, "===",             sym_equal,      MRB_ARGS_REQ(1));              /* 15.2.11.3.1  */
   mrb_define_method(mrb, sym, "id2name",         mrb_sym_to_s,   MRB_ARGS_NONE());              /* 15.2.11.3.2  */

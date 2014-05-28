@@ -116,41 +116,51 @@ exc_message(mrb_state *mrb, mrb_value exc)
  * call-seq:
  *   exception.inspect   -> string
  *
- * Return this exception's class name an message
+ * Returns this exception's file name, line number,
+ * message and class name.
+ * If file name or line number is not set,
+ * returns message and class name.
  */
 
 static mrb_value
 exc_inspect(mrb_state *mrb, mrb_value exc)
 {
   mrb_value str, mesg, file, line;
+  mrb_bool append_mesg;
 
   mesg = mrb_attr_get(mrb, exc, mrb_intern_lit(mrb, "mesg"));
   file = mrb_attr_get(mrb, exc, mrb_intern_lit(mrb, "file"));
   line = mrb_attr_get(mrb, exc, mrb_intern_lit(mrb, "line"));
 
+  append_mesg = !mrb_nil_p(mesg);
+  if (append_mesg) {
+    mesg = mrb_obj_as_string(mrb, mesg);
+    append_mesg = RSTRING_LEN(mesg) > 0;
+  }
+
   if (!mrb_nil_p(file) && !mrb_nil_p(line)) {
-    str = file;
+    str = mrb_str_dup(mrb, file);
     mrb_str_cat_lit(mrb, str, ":");
     mrb_str_append(mrb, str, line);
     mrb_str_cat_lit(mrb, str, ": ");
-    if (!mrb_nil_p(mesg) && RSTRING_LEN(mesg) > 0) {
+    if (append_mesg) {
       mrb_str_append(mrb, str, mesg);
       mrb_str_cat_lit(mrb, str, " (");
     }
     mrb_str_cat_cstr(mrb, str, mrb_obj_classname(mrb, exc));
-    if (!mrb_nil_p(mesg) && RSTRING_LEN(mesg) > 0) {
+    if (append_mesg) {
       mrb_str_cat_lit(mrb, str, ")");
     }
   }
   else {
-    str = mrb_str_new_cstr(mrb, mrb_obj_classname(mrb, exc));
-    if (!mrb_nil_p(mesg) && RSTRING_LEN(mesg) > 0) {
-      mrb_str_cat_lit(mrb, str, ": ");
+    const char *cname = mrb_obj_classname(mrb, exc);
+    str = mrb_str_new_cstr(mrb, cname);
+    mrb_str_cat_lit(mrb, str, ": ");
+    if (append_mesg) {
       mrb_str_append(mrb, str, mesg);
     }
     else {
-      mrb_str_cat_lit(mrb, str, ": ");
-      mrb_str_cat_cstr(mrb, str, mrb_obj_classname(mrb, exc));
+      mrb_str_cat_cstr(mrb, str, cname);
     }
   }
   return str;
@@ -167,7 +177,7 @@ exc_equal(mrb_state *mrb, mrb_value exc)
 
   mrb_get_args(mrb, "o", &obj);
   if (mrb_obj_equal(mrb, exc, obj)) {
-    equal_p = 1;
+    equal_p = TRUE;
   }
   else {
     if (mrb_obj_class(mrb, exc) != mrb_obj_class(mrb, obj)) {
@@ -193,7 +203,7 @@ exc_debug_info(mrb_state *mrb, struct RObject *exc)
   mrb_callinfo *ci = mrb->c->ci;
   mrb_code *pc = ci->pc;
 
-  mrb_obj_iv_set(mrb, exc, mrb_intern_lit(mrb, "ciidx"), mrb_fixnum_value(ci - mrb->c->cibase));
+  mrb_obj_iv_set(mrb, exc, mrb_intern_lit(mrb, "ciidx"), mrb_fixnum_value((mrb_int)(ci - mrb->c->cibase)));
   while (ci >= mrb->c->cibase) {
     mrb_code *err = ci->err;
 
@@ -201,8 +211,8 @@ exc_debug_info(mrb_state *mrb, struct RObject *exc)
     if (err && ci->proc && !MRB_PROC_CFUNC_P(ci->proc)) {
       mrb_irep *irep = ci->proc->body.irep;
 
-      int32_t const line = mrb_debug_get_line(irep, err - irep->iseq);
-      char const* file = mrb_debug_get_filename(irep, err - irep->iseq);
+      int32_t const line = mrb_debug_get_line(irep, (uint32_t)(err - irep->iseq));
+      char const* file = mrb_debug_get_filename(irep, (uint32_t)(err - irep->iseq));
       if (line != -1 && file) {
         mrb_obj_iv_set(mrb, exc, mrb_intern_lit(mrb, "file"), mrb_str_new_cstr(mrb, file));
         mrb_obj_iv_set(mrb, exc, mrb_intern_lit(mrb, "line"), mrb_fixnum_value(line));
@@ -214,7 +224,7 @@ exc_debug_info(mrb_state *mrb, struct RObject *exc)
   }
 }
 
-void
+mrb_noreturn void
 mrb_exc_raise(mrb_state *mrb, mrb_value exc)
 {
   mrb->exc = mrb_obj_ptr(exc);
@@ -226,7 +236,7 @@ mrb_exc_raise(mrb_state *mrb, mrb_value exc)
   MRB_THROW(mrb->jmp);
 }
 
-void
+mrb_noreturn void
 mrb_raise(mrb_state *mrb, struct RClass *c, const char *msg)
 {
   mrb_value mesg;
@@ -288,7 +298,7 @@ mrb_format(mrb_state *mrb, const char *format, ...)
   return str;
 }
 
-void
+mrb_noreturn void
 mrb_raisef(mrb_state *mrb, struct RClass *c, const char *fmt, ...)
 {
   va_list args;
@@ -300,7 +310,7 @@ mrb_raisef(mrb_state *mrb, struct RClass *c, const char *fmt, ...)
   mrb_exc_raise(mrb, mrb_exc_new_str(mrb, c, mesg));
 }
 
-void
+mrb_noreturn void
 mrb_name_error(mrb_state *mrb, mrb_sym id, const char *fmt, ...)
 {
   mrb_value exc;
@@ -331,7 +341,7 @@ mrb_warn(mrb_state *mrb, const char *fmt, ...)
 #endif
 }
 
-void
+mrb_noreturn void
 mrb_bug(mrb_state *mrb, const char *fmt, ...)
 {
 #ifdef ENABLE_STDIO
@@ -354,7 +364,7 @@ set_backtrace(mrb_state *mrb, mrb_value info, mrb_value bt)
 }
 
 static mrb_value
-make_exception(mrb_state *mrb, int argc, mrb_value *argv, mrb_bool isstr)
+make_exception(mrb_state *mrb, int argc, const mrb_value *argv, mrb_bool isstr)
 {
   mrb_value mesg;
   int n;
@@ -407,7 +417,7 @@ exception_call:
 }
 
 mrb_value
-mrb_make_exception(mrb_state *mrb, int argc, mrb_value *argv)
+mrb_make_exception(mrb_state *mrb, int argc, const mrb_value *argv)
 {
   return make_exception(mrb, argc, argv, TRUE);
 }
@@ -436,20 +446,20 @@ mrb_sys_fail(mrb_state *mrb, const char *mesg)
 void
 mrb_init_exception(mrb_state *mrb)
 {
-  struct RClass *e;
+  struct RClass *exception, *script_error;
 
-  mrb->eException_class = e = mrb_define_class(mrb, "Exception",           mrb->object_class);         /* 15.2.22 */
-  mrb_define_class_method(mrb, e, "exception", mrb_instance_new, MRB_ARGS_ANY());
-  mrb_define_method(mrb, e, "exception", exc_exception, MRB_ARGS_ANY());
-  mrb_define_method(mrb, e, "initialize", exc_initialize, MRB_ARGS_ANY());
-  mrb_define_method(mrb, e, "==", exc_equal, MRB_ARGS_REQ(1));
-  mrb_define_method(mrb, e, "to_s", exc_to_s, MRB_ARGS_NONE());
-  mrb_define_method(mrb, e, "message", exc_message, MRB_ARGS_NONE());
-  mrb_define_method(mrb, e, "inspect", exc_inspect, MRB_ARGS_NONE());
-  mrb_define_method(mrb, e, "backtrace", mrb_exc_backtrace, MRB_ARGS_NONE());
+  mrb->eException_class = exception = mrb_define_class(mrb, "Exception", mrb->object_class);                   /* 15.2.22 */
+  mrb_define_class_method(mrb, exception, "exception", mrb_instance_new,  MRB_ARGS_ANY());
+  mrb_define_method(mrb, exception, "exception",       exc_exception,     MRB_ARGS_ANY());
+  mrb_define_method(mrb, exception, "initialize",      exc_initialize,    MRB_ARGS_ANY());
+  mrb_define_method(mrb, exception, "==",              exc_equal,         MRB_ARGS_REQ(1));
+  mrb_define_method(mrb, exception, "to_s",            exc_to_s,          MRB_ARGS_NONE());
+  mrb_define_method(mrb, exception, "message",         exc_message,       MRB_ARGS_NONE());
+  mrb_define_method(mrb, exception, "inspect",         exc_inspect,       MRB_ARGS_NONE());
+  mrb_define_method(mrb, exception, "backtrace",       mrb_exc_backtrace, MRB_ARGS_NONE());
 
-  mrb->eStandardError_class     = mrb_define_class(mrb, "StandardError",       mrb->eException_class); /* 15.2.23 */
+  mrb->eStandardError_class = mrb_define_class(mrb, "StandardError", mrb->eException_class);           /* 15.2.23 */
   mrb_define_class(mrb, "RuntimeError", mrb->eStandardError_class);                                    /* 15.2.28 */
-  e = mrb_define_class(mrb, "ScriptError",  mrb->eException_class);                                    /* 15.2.37 */
-  mrb_define_class(mrb, "SyntaxError",  e);                                                            /* 15.2.38 */
+  script_error = mrb_define_class(mrb, "ScriptError", mrb->eException_class);                                     /* 15.2.37 */
+  mrb_define_class(mrb, "SyntaxError", script_error);                                                             /* 15.2.38 */
 }

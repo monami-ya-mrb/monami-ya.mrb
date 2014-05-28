@@ -471,7 +471,7 @@ get_hash(mrb_state *mrb, mrb_value *hash, int argc, const mrb_value *argv)
 mrb_value
 mrb_f_sprintf(mrb_state *mrb, mrb_value obj)
 {
-  int argc;
+  mrb_int argc;
   mrb_value *argv;
 
   mrb_get_args(mrb, "*", &argv, &argc);
@@ -999,7 +999,7 @@ retry:
         char fbuf[32];
 
         fval = mrb_float(mrb_Float(mrb, val));
-        if (isnan(fval) || isinf(fval)) {
+        if (!isfinite(fval)) {
           const char *expr;
           const int elen = 3;
 

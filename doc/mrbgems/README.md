@@ -25,19 +25,19 @@ A remote GIT repository location for a GEM is also supported:
 
 	conf.gem :bitbucket => 'mruby/mrbgems-example', :branch => 'master'
 
-To pull all gems from remote GIT repository on build, call ```./minirake -p```, 
+To pull all gems from remote GIT repository on build, call ```./minirake -p```,
 or ```./minirake --pull-gems```.
 
 NOTE: `:bitbucket` option supports only git. Hg is unsupported in this version.
 
 ## GemBox
 
-There are instances when you wish to add a collection of mrbgems into mruby at 
+There are instances when you wish to add a collection of mrbgems into mruby at
 once, or be able to substitute mrbgems based on configuration, without having to
-add each gem to the *build_config.rb* file.  A packaged collection of mrbgems 
-is called a GemBox.  A GemBox is a file that contains a list of mrbgems to load 
+add each gem to the *build_config.rb* file.  A packaged collection of mrbgems
+is called a GemBox.  A GemBox is a file that contains a list of mrbgems to load
 into mruby, in the same format as if you were adding them to *build_config.rb*
-via `config.gem`, but wrapped in an `MRuby::GemBox` object.  GemBoxes are 
+via `config.gem`, but wrapped in an `MRuby::GemBox` object.  GemBoxes are
 loaded into mruby via `config.gembox 'boxname'`.
 
 Below we have created a GemBox containing *mruby-time* and *mrbgems-example*:
@@ -51,8 +51,8 @@ As mentioned, the GemBox uses the same conventions as `MRuby::Build`.  The GemBo
 must be saved with a *.gembox* extension inside the *mrbgems* directory to to be
 picked up by mruby.
 
-To use this example GemBox, we save it as `custom.gembox` inside the *mrbgems* 
-directory in mruby, and add the following to our *build_config.rb* file inside 
+To use this example GemBox, we save it as `custom.gembox` inside the *mrbgems*
+directory in mruby, and add the following to our *build_config.rb* file inside
 the build block:
 
     conf.gembox 'custom'
@@ -60,7 +60,7 @@ the build block:
 This will cause the *custom* GemBox to be read in during the build process,
 adding *mruby-time* and *mrbgems-example* to the build.
 
-If you want, you can put GemBox outside of mruby directory. In that case you must 
+If you want, you can put GemBox outside of mruby directory. In that case you must
 specify absolute path like below.
 
 	conf.gembox "#{ENV["HOME"]}/mygemboxes/custom"
@@ -120,22 +120,44 @@ information purpose:
 The license and author properties are required in every GEM!
 
 In case your GEM is depending on other GEMs please use
-`spec.add_dependency(gem, *requirements)` like:
+`spec.add_dependency(gem, *requirements[, default_get_info])` like:
 
 	MRuby::Gem::Specification.new('c_and_ruby_extension_example') do |spec|
 	  spec.license = 'MIT'
 	  spec.author  = 'mruby developers'
 
-	  # add GEM dependency mruby-parser.
-	  # Version has to be between 1.0.0 and 1.5.2
-	  spec.add_dependency('mruby-parser', '> 1.0.0', '< 1.5.2')
+	  # Add GEM dependency mruby-parser.
+	  # The version must be between 1.0.0 and 1.5.2 .
+	  spec.add_dependency('mruby-parser', '>= 1.0.0', '<= 1.5.2')
+
+	  # Use any version of mruby-uv from github.
+	  spec.add_dependency('mruby-uv', '>= 0.0.0', :github => 'mattn/mruby-uv')
+
+	  # Use latest mruby-onig-regexp from github. (version requirements can be ignored)
+	  spec.add_dependency('mruby-onig-regexp', :github => 'mattn/mruby-onig-regexp')
 	end
 
-The usage of versions is optional.
+The version requirements and default gem information are optional.
 
-__ATTENTION:__
-The dependency system is currently (May 2013) under development and doesn't check
-or resolve dependencies!
+Version requirement supports following operators:
+* '=': is equal
+* '!=': is not equal
+* '>': is greater
+* '<': is lesser
+* '>=': is equal or greater
+* '<=': is equal or lesser
+* '~>': is equal or greater and is lesser than the next major version
+    * example 1: '~> 2.2.2' means '>= 2.2.2' and '< 2.3.0'
+    * example 2: '~> 2.2'   means '>= 2.2.0' and '< 3.0.0'
+
+When more than one version requirements is passed, the dependency must satisfy all of it.
+
+You can have default gem to use as depedency when it's not defined in *build_config.rb*.
+When the last argument of `add_dependency` call is `Hash`, it will be treated as default gem information.
+Its format is same as argument of method `MRuby::Build#gem`, expect that it can't be treated as path gem location.
+
+When a special version of depedency is required,
+use `MRuby::Build#gem` in *build_config.rb* to override default gem.
 
 In case your GEM has more complex build requirements you can use
 the following options additionally inside of your GEM specification:

@@ -118,7 +118,7 @@ iv_put(mrb_state *mrb, iv_tbl *t, mrb_sym sym, mrb_value val)
 }
 
 /*
- * Get a value for a symbol from the instance the variable table.
+ * Get a value for a symbol from the instance variable table.
  *
  * Parameters
  *   mrb
@@ -353,7 +353,7 @@ iv_foreach(mrb_state *mrb, iv_tbl *t, iv_foreach_func *func, void *p)
 
   if (h) {
     for (k = kh_begin(h); k != kh_end(h); k++) {
-      if (kh_exist(h, k)){
+      if (kh_exist(h, k)) {
         n = (*func)(mrb, kh_key(h, k), kh_value(h, k), p);
         if (n > 0) return FALSE;
         if (n < 0) {
@@ -563,10 +563,11 @@ inspect_i(mrb_state *mrb, mrb_sym sym, mrb_value v, void *p)
   const char *s;
   mrb_int len;
   mrb_value ins;
+  char *sp = RSTRING_PTR(str);
 
   /* need not to show internal data */
-  if (RSTRING_PTR(str)[0] == '-') { /* first element */
-    RSTRING_PTR(str)[0] = '#';
+  if (sp[0] == '-') { /* first element */
+    sp[0] = '#';
     mrb_str_cat_lit(mrb, str, " ");
   }
   else {
@@ -969,13 +970,16 @@ mrb_value
 mrb_mod_constants(mrb_state *mrb, mrb_value mod)
 {
   mrb_value ary;
+  mrb_bool inherit = TRUE;
   struct RClass *c = mrb_class_ptr(mod);
 
+  mrb_get_args(mrb, "|b", &inherit);
   ary = mrb_ary_new(mrb);
   while (c) {
     if (c->iv) {
       iv_foreach(mrb, c->iv, const_i, &ary);
     }
+    if (!inherit) break;
     c = c->super;
     if (c == mrb->object_class) break;
   }

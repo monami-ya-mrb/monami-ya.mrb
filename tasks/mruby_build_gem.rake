@@ -30,12 +30,15 @@ module MRuby
       load gemrake
       return nil unless Gem.current
 
-      enable_cxx_abi if Gem.current.cxx_abi_enabled?
-
       Gem.current.dir = gemdir
       Gem.current.build = MRuby::Build.current
       Gem.current.build_config_initializer = block
       gems << Gem.current
+
+      cxx_srcs = Dir.glob("#{Gem.current.dir}/src/*.{cpp,cxx,cc}")
+      cxx_srcs += Dir.glob("#{Gem.current.dir}/test/*.{cpp,cxx,cc}")
+      enable_cxx_abi unless cxx_srcs.empty?
+
       Gem.current
     end
 
@@ -56,6 +59,9 @@ module MRuby
         url = params[:git]
         gemdir = "#{gem_clone_dir}/#{url.match(/([-\w]+)(\.[-\w]+|)$/).to_a[1]}"
 
+        # by default the 'master' branch is used
+        branch = params[:branch] ? params[:branch] : 'master'
+
         if File.exist?(gemdir)
           if $pull_gems
             git.run_pull gemdir, url
@@ -64,9 +70,18 @@ module MRuby
           end
         else
           options = [params[:options]] || []
-          options << "--branch \"#{params[:branch]}\"" if params[:branch]
+          options << "--branch \"#{branch}\""
+          options << "--depth 1" unless params[:checksum_hash]
           FileUtils.mkdir_p "#{gem_clone_dir}"
           git.run_clone gemdir, url, options
+        end
+
+        if params[:checksum_hash]
+          # Jump to the specified commit
+          git.run_checkout gemdir, params[:checksum_hash]
+        else
+          # Jump to the top of the branch
+          git.run_checkout gemdir, branch
         end
       else
         fail "unknown gem option #{params}"

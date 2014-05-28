@@ -41,16 +41,11 @@ module MRuby
         @name = name
         @initializer = block
         @version = "0.0.0"
-        @cxx_abi_enabled = false
         MRuby::Gem.current = self
       end
 
       def run_test_in_other_mrb_state?
         not test_preload.nil? or not test_objs.empty?
-      end
-
-      def cxx_abi_enabled?
-        @cxx_abi_enabled
       end
 
       def setup
@@ -64,14 +59,14 @@ module MRuby
         @linker = LinkerConfig.new([], [], [], [])
 
         @rbfiles = Dir.glob("#{dir}/mrblib/*.rb").sort
-        @objs = Dir.glob("#{dir}/src/*.{c,cpp,cxx,m,asm,s,S}").map do |f|
+        @objs = Dir.glob("#{dir}/src/*.{c,cpp,cxx,cc,m,asm,s,S}").map do |f|
           @cxx_abi_enabled = true if f =~ /(cxx|cpp)$/
           objfile(f.relative_path_from(@dir).to_s.pathmap("#{build_dir}/%X"))
         end
         @objs << objfile("#{build_dir}/gem_init")
 
         @test_rbfiles = Dir.glob("#{dir}/test/*.rb")
-        @test_objs = Dir.glob("#{dir}/test/*.{c,cpp,cxx,m,asm,s,S}").map do |f|
+        @test_objs = Dir.glob("#{dir}/test/*.{c,cpp,cxx,cc,m,asm,s,S}").map do |f|
           @cxx_abi_enabled = true if f =~ /(cxx|cpp)$/
           objfile(f.relative_path_from(dir).to_s.pathmap("#{build_dir}/%X"))
         end
@@ -95,15 +90,17 @@ module MRuby
 
         compilers.each do |compiler|
           compiler.define_rules build_dir, "#{dir}"
+          compiler.defines << %Q[MRBGEM_#{funcname.upcase}_VERSION=#{version}]
         end
 
         define_gem_init_builder
       end
 
       def add_dependency(name, *requirements)
+        default_gem = requirements.last.kind_of?(Hash) ? requirements.pop : nil
         requirements = ['>= 0.0.0'] if requirements.empty?
         requirements.flatten!
-        @dependencies << {:gem => name, :requirements => requirements}
+        @dependencies << {:gem => name, :requirements => requirements, :default => default_gem}
       end
 
       def self.bin=(bin)
@@ -292,8 +289,28 @@ module MRuby
         @ary.empty?
       end
 
-      def check
+      def check(build)
         gem_table = @ary.reduce({}) { |res,v| res[v.name] = v; res }
+
+        default_gems = []
+        each do |g|
+          g.dependencies.each do |dep|
+            default_gems << dep if dep[:default] and not gem_table.key? dep[:gem]
+          end
+        end
+
+        until default_gems.empty?
+          def_gem = default_gems.pop
+
+          spec = build.gem def_gem[:default]
+          fail "Invalid gem name: #{spec.name} (Expected: #{def_gem[:gem]})" if spec.name != def_gem[:gem]
+          spec.setup
+
+          spec.dependencies.each do |dep|
+            default_gems << dep if dep[:default] and not gem_table.key? dep[:gem]
+          end
+          gem_table[spec.name] = spec
+        end
 
         each do |g|
           g.dependencies.each do |dep|

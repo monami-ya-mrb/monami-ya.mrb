@@ -235,12 +235,11 @@ static mrb_value
 mrb_ary_s_create(mrb_state *mrb, mrb_value self)
 {
   mrb_value *vals;
-  int len;
+  mrb_int len;
 
   mrb_get_args(mrb, "*", &vals, &len);
-  mrb_assert(len <= MRB_INT_MAX); /* A rare case. So choosed assert() not raise(). */
 
-  return mrb_ary_new_from_values(mrb, (mrb_int)len, vals);
+  return mrb_ary_new_from_values(mrb, len, vals);
 }
 
 static void
@@ -402,14 +401,14 @@ mrb_ary_push(mrb_state *mrb, mrb_value ary, mrb_value elem)
   if (a->len == a->aux.capa)
     ary_expand_capa(mrb, a, a->len + 1);
   a->ptr[a->len++] = elem;
-  mrb_write_barrier(mrb, (struct RBasic*)a);
+  mrb_field_write_barrier_value(mrb, (struct RBasic*)a, elem);
 }
 
 static mrb_value
 mrb_ary_push_m(mrb_state *mrb, mrb_value self)
 {
   mrb_value *argv;
-  int len;
+  mrb_int len;
 
   mrb_get_args(mrb, "*", &argv, &len);
   while (len--) {
@@ -485,7 +484,7 @@ mrb_ary_unshift(mrb_state *mrb, mrb_value self, mrb_value item)
     a->ptr[0] = item;
   }
   a->len++;
-  mrb_write_barrier(mrb, (struct RBasic*)a);
+  mrb_field_write_barrier_value(mrb, (struct RBasic*)a, item);
 
   return self;
 }
@@ -495,7 +494,7 @@ mrb_ary_unshift_m(mrb_state *mrb, mrb_value self)
 {
   struct RArray *a = mrb_ary_ptr(self);
   mrb_value *vals;
-  int len;
+  mrb_int len;
 
   mrb_get_args(mrb, "*", &vals, &len);
   if (ARY_SHARED_P(a)
@@ -512,7 +511,9 @@ mrb_ary_unshift_m(mrb_state *mrb, mrb_value self)
   }
   array_copy(a->ptr, vals, len);
   a->len += len;
-  mrb_write_barrier(mrb, (struct RBasic*)a);
+  while (len--) {
+    mrb_field_write_barrier_value(mrb, (struct RBasic*)a, vals[len]);
+  }
 
   return self;
 }
@@ -550,7 +551,7 @@ mrb_ary_set(mrb_state *mrb, mrb_value ary, mrb_int n, mrb_value val)
   }
 
   a->ptr[n] = val;
-  mrb_write_barrier(mrb, (struct RBasic*)a);
+  mrb_field_write_barrier_value(mrb, (struct RBasic*)a, val);
 }
 
 mrb_value
@@ -562,6 +563,10 @@ mrb_ary_splice(mrb_state *mrb, mrb_value ary, mrb_int head, mrb_int len, mrb_val
   mrb_int i, argc;
 
   ary_modify(mrb, a);
+
+  /* len check */
+  if (len < 0) mrb_raisef(mrb, E_INDEX_ERROR, "negative length (%S)", mrb_fixnum_value(len));
+
   /* range check */
   if (head < 0) {
     head += a->len;
@@ -598,6 +603,7 @@ mrb_ary_splice(mrb_state *mrb, mrb_value ary, mrb_int head, mrb_int len, mrb_val
 
   for (i = 0; i < argc; i++) {
     *(a->ptr + head + i) = *(argv + i);
+    mrb_field_write_barrier_value(mrb, (struct RBasic*)a, argv[i]);
   }
 
   a->len = size;
@@ -825,18 +831,10 @@ mrb_ary_last(mrb_state *mrb, mrb_value self)
 {
   struct RArray *a = mrb_ary_ptr(self);
   mrb_int size;
-  mrb_value *vals;
-  int len;
 
-  mrb_get_args(mrb, "*", &vals, &len);
-  if (len > 1) {
-    mrb_raise(mrb, E_ARGUMENT_ERROR, "wrong number of arguments");
-  }
+  if (mrb_get_args(mrb, "|i", &size) == 0)
+    return (a->len > 0)? a->ptr[a->len - 1]: mrb_nil_value();
 
-  if (len == 0) return (a->len > 0)? a->ptr[a->len - 1]: mrb_nil_value();
-
-  /* len == 1 */
-  size = mrb_fixnum(*vals);
   if (size < 0) {
     mrb_raise(mrb, E_ARGUMENT_ERROR, "negative array size");
   }
@@ -955,7 +953,7 @@ join_ary(mrb_state *mrb, mrb_value ary, mrb_value sep, mrb_value list)
 
   for (i=0; i<RARRAY_LEN(ary); i++) {
     if (i > 0 && !mrb_nil_p(sep)) {
-      mrb_str_buf_cat(mrb, result, RSTRING_PTR(sep), RSTRING_LEN(sep));
+      mrb_str_cat_str(mrb, result, sep);
     }
 
     val = RARRAY_PTR(ary)[i];
@@ -967,7 +965,7 @@ join_ary(mrb_state *mrb, mrb_value ary, mrb_value sep, mrb_value list)
 
     case MRB_TT_STRING:
     str_join:
-      mrb_str_buf_cat(mrb, result, RSTRING_PTR(val), RSTRING_LEN(val));
+      mrb_str_cat_str(mrb, result, val);
       break;
 
     default:
@@ -1054,7 +1052,7 @@ mrb_init_array(mrb_state *mrb)
 {
   struct RClass *a;
 
-  a = mrb->array_class = mrb_define_class(mrb, "Array", mrb->object_class);
+  a = mrb->array_class = mrb_define_class(mrb, "Array", mrb->object_class);            /* 15.2.12 */
   MRB_SET_INSTANCE_TT(a, MRB_TT_ARRAY);
 
   mrb_define_class_method(mrb, a, "[]",        mrb_ary_s_create,     MRB_ARGS_ANY());  /* 15.2.12.4.1 */

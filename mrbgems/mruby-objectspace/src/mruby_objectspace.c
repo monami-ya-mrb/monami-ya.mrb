@@ -1,7 +1,7 @@
-#include <mruby.h>
-#include <mruby/gc.h>
-#include <mruby/hash.h>
-#include <mruby/class.h>
+#include "mruby.h"
+#include "mruby/gc.h"
+#include "mruby/hash.h"
+#include "mruby/class.h"
 
 struct os_count_struct {
   mrb_int total;
@@ -15,12 +15,13 @@ os_count_object_type(mrb_state *mrb, struct RBasic *obj, void *data)
   struct os_count_struct *obj_count;
   obj_count = (struct os_count_struct*)data;
 
+  obj_count->total++;
+
   if (is_dead(mrb, obj)) {
     obj_count->freed++;
   }
   else {
     obj_count->counts[obj->tt]++;
-    obj_count->total++;
   }
 }
 
@@ -34,8 +35,8 @@ os_count_object_type(mrb_state *mrb, struct RBasic *obj, void *data)
  *  {
  *    :TOTAL=>10000,
  *    :FREE=>3011,
- *    :MRB_TT_OBJECT=>6,
- *    :MRB_TT_CLASS=>404,
+ *    :T_OBJECT=>6,
+ *    :T_CLASS=>404,
  *    # ...
  *  }
  *
@@ -126,6 +127,20 @@ os_each_object_cb(mrb_state *mrb, struct RBasic *obj, void *ud)
   mrb_yield(mrb, d->block, mrb_obj_value(obj));
   ++d->count;
 }
+
+/*
+ *  call-seq:
+ *     ObjectSpace.each_object([module]) {|obj| ... } -> fixnum
+ *
+ *  Calls the block once for each object in this Ruby process.
+ *  Returns the number of objects found.
+ *  If the optional argument +module+ is given,
+ *  calls the block for only those classes or modules
+ *  that match (or are a subclass of) +module+.
+ *
+ *  If no block is given, ArgumentError is raised.
+ *
+ */
 
 static mrb_value
 os_each_object(mrb_state *mrb, mrb_value self)

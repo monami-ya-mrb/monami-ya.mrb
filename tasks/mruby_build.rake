@@ -43,8 +43,9 @@ module MRuby
     end
     include Rake::DSL
     include LoadGems
-    attr_accessor :name, :bins, :exts, :file_separator, :build_dir, :gem_clone_dir, :enable_bintest
+    attr_accessor :name, :bins, :exts, :file_separator, :build_dir, :gem_clone_dir
     attr_reader :libmruby, :gems
+    attr_writer :enable_bintest
 
     COMPILERS = %w(cc cxx objc asm)
     COMMANDS = COMPILERS + %w(linker archiver yacc gperf git exts mrbc)
@@ -82,6 +83,7 @@ module MRuby
         @gems, @libmruby = MRuby::Gem::List.new, []
         @build_mrbtest_lib_only = false
         @cxx_abi_enabled = false
+        @cxx_exception_disabled = false
 
         MRuby.targets[@name] = self
       end
@@ -95,15 +97,27 @@ module MRuby
       @mrbc.compile_options += ' -g'
     end
 
+    def disable_cxx_exception
+      @cxx_exception_disabled = true
+    end
+
     def cxx_abi_enabled?
       @cxx_abi_enabled
     end
 
     def enable_cxx_abi
-      return if @cxx_abi_enabled
+      return if @cxx_exception_disabled or @cxx_abi_enabled
       compilers.each { |c| c.defines += %w(MRB_ENABLE_CXX_EXCEPTION) }
       linker.command = cxx.command
       @cxx_abi_enabled = true
+    end
+
+    def enable_bintest
+      @enable_bintest = true
+    end
+
+    def bintest_enabled?
+      @enable_bintest
     end
 
     def toolchain(name)
@@ -129,9 +143,9 @@ module MRuby
     def define_rules
       compilers.each do |compiler|
         if respond_to?(:enable_gems?) && enable_gems?
-          compiler.defines -= %w(DISABLE_GEMS) 
+          compiler.defines -= %w(DISABLE_GEMS)
         else
-          compiler.defines += %w(DISABLE_GEMS) 
+          compiler.defines += %w(DISABLE_GEMS)
         end
         compiler.define_rules build_dir, File.expand_path(File.join(File.dirname(__FILE__), '..'))
       end

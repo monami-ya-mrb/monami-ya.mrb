@@ -28,28 +28,29 @@ mrb_hash_ht_hash_func(mrb_state *mrb, mrb_value key)
   case MRB_TT_STRING:
     p = RSTRING_PTR(key);
     len = RSTRING_LEN(key);
-    break;
+    h = 0;
+    for (i=0; i<len; i++) {
+      h = (h << 5) - h + *p++;
+    }
+    return h;
 
   case MRB_TT_SYMBOL:
-    p = mrb_sym2name_len(mrb, mrb_symbol(key), &len);
-    break;
+    h = (khint_t)mrb_symbol(key);
+    return kh_int_hash_func(mrb,h);
 
   case MRB_TT_FIXNUM:
-    return (khint_t)mrb_float_id((mrb_float)mrb_fixnum(key));
+    h = (khint_t)mrb_float_id((mrb_float)mrb_fixnum(key));
+    return kh_int_hash_func(mrb,h);
 
   case MRB_TT_FLOAT:
-    return (khint_t)mrb_float_id(mrb_float(key));
+    h = (khint_t)mrb_float_id(mrb_float(key));
+    return kh_int_hash_func(mrb,h);
 
   default:
     hv = mrb_funcall(mrb, key, "hash", 0);
-    return (khint_t)t ^ mrb_fixnum(hv);
+    h = (khint_t)t ^ mrb_fixnum(hv);
+    return kh_int_hash_func(mrb,h);
   }
-
-  h = 0;
-  for (i=0; i<len; i++) {
-    h = (h << 5) - h + *p++;
-  }
-  return h;
 }
 
 static inline khint_t
@@ -203,22 +204,24 @@ mrb_hash_set(mrb_state *mrb, mrb_value hash, mrb_value key, mrb_value val)
 {
   khash_t(ht) *h;
   khiter_t k;
+  int r;
 
   mrb_hash_modify(mrb, hash);
   h = RHASH_TBL(hash);
 
   if (!h) h = RHASH_TBL(hash) = kh_init(ht, mrb);
-  k = kh_get(ht, mrb, h, key);
-  if (k == kh_end(h)) {
+  k = kh_put2(ht, mrb, h, key, &r);
+  kh_value(h, k).v = val;
+
+  if (r != 0) {
     /* expand */
     int ai = mrb_gc_arena_save(mrb);
-    k = kh_put(ht, mrb, h, KEY(key));
+    kh_key(h, k) = KEY(key);
     mrb_gc_arena_restore(mrb, ai);
     kh_value(h, k).n = kh_size(h)-1;
   }
 
-  kh_value(h, k).v = val;
-  mrb_write_barrier(mrb, (struct RBasic*)RHASH(hash));
+  mrb_field_write_barrier_value(mrb, (struct RBasic*)RHASH(hash), val);
   return;
 }
 
@@ -675,7 +678,7 @@ mrb_hash_empty_p(mrb_state *mrb, mrb_value self)
 static mrb_value
 mrb_hash_to_hash(mrb_state *mrb, mrb_value hash)
 {
-    return hash;
+  return hash;
 }
 
 /* 15.2.13.4.19 */
@@ -736,7 +739,7 @@ mrb_hash_values(mrb_state *mrb, mrb_value hash)
   if (!h) return mrb_ary_new(mrb);
   ary = mrb_ary_new_capa(mrb, kh_size(h));
   for (k = kh_begin(h); k != kh_end(h); k++) {
-    if (kh_exist(h, k)){
+    if (kh_exist(h, k)) {
       mrb_hash_value hv = kh_value(h,k);
 
       mrb_ary_set(mrb, ary, hv.n, hv.v);
@@ -823,7 +826,7 @@ mrb_init_hash(mrb_state *mrb)
 {
   struct RClass *h;
 
-  h = mrb->hash_class = mrb_define_class(mrb, "Hash", mrb->object_class);
+  h = mrb->hash_class = mrb_define_class(mrb, "Hash", mrb->object_class);              /* 15.2.13 */
   MRB_SET_INSTANCE_TT(h, MRB_TT_HASH);
 
   mrb_define_method(mrb, h, "[]",              mrb_hash_aget,        MRB_ARGS_REQ(1)); /* 15.2.13.4.2  */

@@ -153,9 +153,7 @@ mrb_irep_free(mrb_state *mrb, mrb_irep *irep)
     mrb_free(mrb, irep->iseq);
   for (i=0; i<irep->plen; i++) {
     if (mrb_type(irep->pool[i]) == MRB_TT_STRING) {
-      if ((mrb_str_ptr(irep->pool[i])->flags & (MRB_STR_NOFREE|MRB_STR_EMBED)) == 0) {
-        mrb_free(mrb, RSTRING_PTR(irep->pool[i]));
-      }
+      mrb_gc_free_str(mrb, RSTRING(irep->pool[i]));
       mrb_free(mrb, mrb_obj_ptr(irep->pool[i]));
     }
 #ifdef MRB_WORD_BOXING
@@ -170,6 +168,7 @@ mrb_irep_free(mrb_state *mrb, mrb_irep *irep)
     mrb_irep_decref(mrb, irep->reps[i]);
   }
   mrb_free(mrb, irep->reps);
+  mrb_free(mrb, irep->lv);
   mrb_free(mrb, (void *)irep->filename);
   mrb_free(mrb, irep->lines);
   mrb_debug_info_free(mrb, irep->debug_info);
@@ -195,6 +194,7 @@ mrb_str_pool(mrb_state *mrb, mrb_value str)
     ns->as.heap.aux.capa = 0;
   }
   else {
+    ns->flags = 0;
     if (s->flags & MRB_STR_EMBED) {
       ptr = s->as.ary;
       len = (mrb_int)((s->flags & MRB_STR_EMBED_LEN_MASK) >> MRB_STR_EMBED_LEN_SHIFT);
@@ -214,7 +214,6 @@ mrb_str_pool(mrb_state *mrb, mrb_value str)
       ns->as.ary[len] = '\0';
     }
     else {
-      ns->flags = 0;
       ns->as.heap.ptr = (char *)mrb_malloc(mrb, (size_t)len+1);
       ns->as.heap.len = len;
       ns->as.heap.aux.capa = len;

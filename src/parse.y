@@ -999,7 +999,7 @@ heredoc_end(parser_state *p)
     node *nd;
     mrb_sym id;
     int num;
-    unsigned int stack;
+    stack_type stack;
     const struct vtable *vars;
 }
 
@@ -1077,7 +1077,7 @@ heredoc_end(parser_state *p)
 %type <nd> brace_block cmd_brace_block do_block lhs none f_bad_arg
 %type <nd> mlhs mlhs_list mlhs_post mlhs_basic mlhs_item mlhs_node mlhs_inner
 %type <id> fsym sym basic_symbol operation operation2 operation3
-%type <id> cname fname op f_rest_arg f_block_arg opt_f_block_arg f_norm_arg
+%type <id> cname fname op f_rest_arg f_block_arg opt_f_block_arg f_norm_arg f_opt_asgn
 %type <nd> heredoc words symbols
 
 %token tUPLUS             /* unary+ */
@@ -2041,9 +2041,15 @@ primary         : literal
                       p->cmdarg_stack = $<stack>1;
                       $$ = $3;
                     }
-                | tLPAREN_ARG expr {p->lstate = EXPR_ENDARG;} rparen
+                | tLPAREN_ARG
                     {
-                      $$ = $2;
+                      $<stack>1 = p->cmdarg_stack;
+                      p->cmdarg_stack = 0;
+                    }
+                  expr {p->lstate = EXPR_ENDARG;} rparen
+                    {
+                      p->cmdarg_stack = $<stack>1;
+                      $$ = $3;
                     }
                 | tLPAREN_ARG {p->lstate = EXPR_ENDARG;} rparen
                     {
@@ -2222,6 +2228,8 @@ primary         : literal
                     {
                       p->in_def++;
                       $<nd>$ = local_switch(p);
+                      $<stack>1 = p->cmdarg_stack;
+                      p->cmdarg_stack = 0;
                     }
                   f_arglist
                   bodystmt
@@ -2230,12 +2238,15 @@ primary         : literal
                       $$ = new_def(p, $2, $4, $5);
                       local_resume(p, $<nd>3);
                       p->in_def--;
+                      p->cmdarg_stack = $<stack>1;
                     }
                 | keyword_def singleton dot_or_colon {p->lstate = EXPR_FNAME;} fname
                     {
                       p->in_single++;
                       p->lstate = EXPR_ENDFN; /* force for args */
                       $<nd>$ = local_switch(p);
+                      $<stack>1 = p->cmdarg_stack;
+                      p->cmdarg_stack = 0;
                     }
                   f_arglist
                   bodystmt
@@ -2244,6 +2255,7 @@ primary         : literal
                       $$ = new_sdef(p, $2, $5, $7, $8);
                       local_resume(p, $<nd>6);
                       p->in_single--;
+                      p->cmdarg_stack = $<stack>1;
                     }
                 | keyword_break
                     {
@@ -3042,17 +3054,22 @@ f_arg           : f_arg_item
                     }
                 ;
 
-f_opt           : tIDENTIFIER '=' arg_value
+f_opt_asgn      : tIDENTIFIER '='
                     {
                       local_add_f(p, $1);
-                      $$ = cons(nsym($1), $3);
+                      $$ = $1;
                     }
                 ;
 
-f_block_opt     : tIDENTIFIER '=' primary_value
+f_opt           : f_opt_asgn arg_value
                     {
-                      local_add_f(p, $1);
-                      $$ = cons(nsym($1), $3);
+                      $$ = cons(nsym($1), $2);
+                    }
+                ;
+
+f_block_opt     : f_opt_asgn primary_value
+                    {
+                      $$ = cons(nsym($1), $2);
                     }
                 ;
 
@@ -3314,7 +3331,7 @@ backref_error(parser_state *p, node *n)
     yyerror(p, buf);
   }
   else {
-    mrb_bug(p->mrb, "Internal error in backref_error() : n=>car == %d", c);
+    mrb_bug(p->mrb, "Internal error in backref_error() : n=>car == %S", mrb_fixnum_value(c));
   }
 }
 
@@ -3391,25 +3408,30 @@ skip(parser_state *p, char term)
   }
 }
 
-static mrb_bool
-peek_n(parser_state *p, int c, int n)
+static int
+peekc_n(parser_state *p, int n)
 {
   node *list = 0;
   int c0;
 
   do {
     c0 = nextc(p);
-    if (c0 < 0) return FALSE;
+    if (c0 < 0) return c0;
     list = push(list, (node*)(intptr_t)c0);
   } while(n--);
   if (p->pb) {
-    p->pb = append(p->pb, (node*)list);
+    p->pb = append((node*)list, p->pb);
   }
   else {
     p->pb = list;
   }
-  if (c0 == c) return TRUE;
-  return FALSE;
+  return c0;
+}
+
+static mrb_bool
+peek_n(parser_state *p, int c, int n)
+{
+  return peekc_n(p, n) == c && c >= 0;
 }
 #define peek(p,c) peek_n((p), (c), 0)
 
@@ -3428,7 +3450,7 @@ peeks(parser_state *p, const char *s)
   }
   else
 #endif
-    if (p->s && p->s + len >= p->send) {
+    if (p->s && p->s + len <= p->send) {
       if (memcmp(p->s, s, len) == 0) return TRUE;
     }
   return FALSE;
@@ -3444,6 +3466,10 @@ skips(parser_state *p, const char *s)
     for (;;) {
       c = nextc(p);
       if (c < 0) return c;
+      if (c == '\n') {
+        p->lineno++;
+        p->column = 0;
+      }
       if (c == *s) break;
     }
     s++;
@@ -3451,7 +3477,10 @@ skips(parser_state *p, const char *s)
       int len = strlen(s);
 
       while (len--) {
-        nextc(p);
+        if (nextc(p) == '\n') {
+          p->lineno++;
+          p->column = 0;
+        }
       }
       return TRUE;
     }
@@ -4183,9 +4212,23 @@ parser_yylex(parser_state *p)
 
   case '=':
     if (p->column == 1) {
-      if (peeks(p, "begin\n")) {
-        skips(p, "\n=end\n");
-        goto retry;
+      static const char begin[] = "begin";
+      static const char end[] = "\n=end";
+      if (peeks(p, begin)) {
+        c = peekc_n(p, sizeof(begin)-1);
+        if (c < 0 || isspace(c)) {
+          do {
+            if (!skips(p, end)) {
+              yyerror(p, "embedded document meets end of file");
+              return 0;
+            }
+            c = nextc(p);
+          } while (!(c < 0 || isspace(c)));
+          if (c != '\n') skip(p, '\n');
+          p->lineno++;
+          p->column = 0;
+          goto retry;
+        }
       }
     }
     if (p->lstate == EXPR_FNAME || p->lstate == EXPR_DOT) {
@@ -5301,8 +5344,8 @@ static void
 parser_init_cxt(parser_state *p, mrbc_context *cxt)
 {
   if (!cxt) return;
-  if (cxt->lineno) p->lineno = cxt->lineno;
   if (cxt->filename) mrb_parser_set_filename(p, cxt->filename);
+  if (cxt->lineno) p->lineno = cxt->lineno;
   if (cxt->syms) {
     int i;
 
@@ -5348,20 +5391,20 @@ mrb_parser_parse(parser_state *p, mrbc_context *c)
 
   MRB_TRY(p->jmp) {
 
-  p->cmd_start = TRUE;
-  p->in_def = p->in_single = 0;
-  p->nerr = p->nwarn = 0;
-  p->lex_strterm = NULL;
+    p->cmd_start = TRUE;
+    p->in_def = p->in_single = 0;
+    p->nerr = p->nwarn = 0;
+    p->lex_strterm = NULL;
 
-  parser_init_cxt(p, c);
-  yyparse(p);
-  if (!p->tree) {
-    p->tree = new_nil(p);
-  }
-  parser_update_cxt(p, c);
-  if (c && c->dump_result) {
-    mrb_parser_dump(p->mrb, p->tree, 0);
-  }
+    parser_init_cxt(p, c);
+    yyparse(p);
+    if (!p->tree) {
+      p->tree = new_nil(p);
+    }
+    parser_update_cxt(p, c);
+    if (c && c->dump_result) {
+      mrb_parser_dump(p->mrb, p->tree, 0);
+    }
 
   }
   MRB_CATCH(p->jmp) {
@@ -5481,13 +5524,14 @@ mrb_parser_set_filename(struct mrb_parser_state *p, const char *f)
 
   new_table = (mrb_sym*)parser_palloc(p, sizeof(mrb_sym) * p->filename_table_length);
   if (p->filename_table) {
-    memcpy(new_table, p->filename_table, sizeof(mrb_sym) * p->filename_table_length);
+    memmove(new_table, p->filename_table, sizeof(mrb_sym) * p->filename_table_length);
   }
   p->filename_table = new_table;
   p->filename_table[p->filename_table_length - 1] = sym;
 }
 
-char const* mrb_parser_get_filename(struct mrb_parser_state* p, uint16_t idx) {
+char const*
+mrb_parser_get_filename(struct mrb_parser_state* p, uint16_t idx) {
   if (idx >= p->filename_table_length) { return NULL; }
   else {
     return mrb_sym2name_len(p->mrb, p->filename_table[idx], NULL);
