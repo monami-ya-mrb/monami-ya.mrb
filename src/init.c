@@ -21,6 +21,8 @@ void mrb_init_hash(mrb_state*);
 void mrb_init_numeric(mrb_state*);
 void mrb_init_range(mrb_state*);
 void mrb_init_gc(mrb_state*);
+void mrb_init_state(mrb_state*);
+void mrb_init_state_vm(mrb_state*);
 void mrb_init_math(mrb_state*);
 void mrb_init_version(mrb_state*);
 void mrb_init_mrblib(mrb_state*);
@@ -48,6 +50,8 @@ mrb_init_core(mrb_state *mrb)
   mrb_init_numeric(mrb); DONE;
   mrb_init_range(mrb); DONE;
   mrb_init_gc(mrb); DONE;
+  mrb_init_state(mrb); DONE;
+  mrb_init_state_vm(mrb); DONE;
   mrb_init_version(mrb); DONE;
   mrb_init_mrblib(mrb); DONE;
 #ifndef DISABLE_GEMS

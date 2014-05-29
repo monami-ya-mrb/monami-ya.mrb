@@ -10,20 +10,44 @@
 #include "mruby/variable.h"
 #include "mruby/debug.h"
 #include "mruby/string.h"
-
-#include "tlsf.h"
+#include "mruby/panic.h"
 
 #include <stdlib.h>
 void mrb_init_heap(mrb_state*);
 void mrb_init_core(mrb_state*);
 void mrb_final_core(mrb_state*);
 
-#ifdef TLSF_HEAP_SIZE
-static char memory_pool[TLSF_HEAP_SIZE];
-#undef free(p)
-#define free(p)			do { free_ex((p), memory_pool); } while(0)
-#undef realloc(p, size)
-#define realloc(p, size)	(realloc_ex((p), (size), memory_pool))
+#ifdef MRB_USE_TLSF
+#include "tlsf.h"
+
+static tlsf_t tlsf_root_handle = 0;
+
+void
+mrb_tlsf_initialize(void *start, size_t bytes)
+{
+  if (tlsf_root_handle == 0) {
+    tlsf_root_handle = tlsf_create_with_pool(start, bytes);
+  }
+}
+
+/*
+ * In this version, it can set only once.
+ */
+void
+mrb_tlsf_set_pool(mrb_state *mrb, size_t bytes)
+{
+  if (tlsf_root_handle == 0) {
+    mrb_panic(NULL);
+  }
+  if (mrb != NULL) {
+    void *ptr;
+    ptr = tlsf_malloc(tlsf_root_handle, bytes);
+    if (!ptr) {
+      mrb_panic(mrb);
+    }
+    mrb->tlsf_handle = tlsf_create_with_pool(ptr, bytes);
+  }
+}
 #endif
 
 static mrb_value
@@ -54,6 +78,10 @@ mrb_open_allocf(mrb_allocf f, uintptr_t ud)
   mrb->ud = ud;
   mrb->allocf = f;
   mrb->current_white_part = MRB_GC_WHITE_A;
+#ifdef USE_MRB_TLSF
+  mrb->tlsf_handle = 0;
+#endif
+  mrb->stack_limit = MRB_STACK_MAX;
 
 #ifndef MRB_GC_FIXED_ARENA
   mrb->arena = (struct RBasic**)mrb_malloc(mrb, sizeof(struct RBasic*)*MRB_GC_ARENA_SIZE);
@@ -72,6 +100,32 @@ mrb_open_allocf(mrb_allocf f, uintptr_t ud)
 static void*
 allocf(mrb_state *mrb, void *p, size_t size, uintptr_t ud)
 {
+#ifdef MRB_USE_TLSF
+  tlsf_t tlsf;
+  if (mrb == NULL) {
+    if (tlsf_root_handle == 0) {
+      void *global_memory;
+      global_memory = malloc(24 * 1024 * 1024);
+      tlsf_root_handle = tlsf_create_with_pool(global_memory, 24 * 1024 * 1024);
+    }
+    tlsf = tlsf_root_handle;
+  } else {
+    if (mrb->tlsf_handle == 0) {
+      void *ptr;
+      ptr = tlsf_malloc(tlsf_root_handle, 10 * 1024 * 1024);
+      mrb->tlsf_handle = tlsf_create_with_pool(ptr, 10 * 1024 * 1024);
+    }
+    tlsf = mrb->tlsf_handle;
+  } 
+
+  if (size == 0) {
+    tlsf_free(tlsf, p);
+    return NULL;
+  }
+  else {
+    return tlsf_realloc(tlsf, p, size);
+  }
+#else
   if (size == 0) {
     free(p);
     return NULL;
@@ -79,6 +133,7 @@ allocf(mrb_state *mrb, void *p, size_t size, uintptr_t ud)
   else {
     return realloc(p, size);
   }
+#endif
 }
 
 struct alloca_header {
@@ -118,9 +173,6 @@ mrb_open(void)
 {
   mrb_state *mrb;
 
-#ifdef TLSF_HEAP_SIZE
-  init_memory_pool(TLSF_HEAP_SIZE, memory_pool);
-#endif
   mrb = mrb_open_allocf(allocf, (uintptr_t)NULL);
 
   return mrb;
@@ -276,4 +328,38 @@ mrb_top_self(mrb_state *mrb)
     mrb_define_singleton_method(mrb, mrb->top_self, "to_s", inspect_main, MRB_ARGS_NONE());
   }
   return mrb_obj_value(mrb->top_self);
+}
+
+
+
+static mrb_value
+state_stack_limit_get(mrb_state *mrb, mrb_value self)
+{
+  return mrb_fixnum_value(mrb->stack_limit);
+}
+
+static mrb_value
+state_stack_limit_set(mrb_state *mrb, mrb_value obj)
+{
+  mrb_int stack_limit;
+  ptrdiff_t size = mrb->c->stend - mrb->c->stbase;
+
+  mrb_get_args(mrb, "i", &stack_limit);
+  if (stack_limit < size) {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "Smaller than the current stack size.");
+  }
+  mrb->stack_limit = stack_limit;
+
+  return mrb_nil_value();
+}
+
+void
+mrb_init_state(mrb_state *mrb)
+{
+  struct RClass *clazz;
+
+  clazz = mrb_define_module(mrb, "MrbState");
+
+  mrb_define_class_method(mrb, clazz, "stack_limit", state_stack_limit_get, MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, clazz, "stack_limit=", state_stack_limit_set, MRB_ARGS_REQ(1));
 }

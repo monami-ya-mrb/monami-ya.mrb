@@ -288,6 +288,7 @@ module MRuby
       infiles.each do |f|
         _pp "MRBC", f.relative_path, nil, :indent => 2
       end
+      puts "#{filename @command} #{@compile_options % {:funcname => funcname}} #{filename(infiles).join(' ')}";
       IO.popen("#{filename @command} #{@compile_options % {:funcname => funcname}} #{filename(infiles).join(' ')}", 'r+') do |io|
         out.puts io.read
       end

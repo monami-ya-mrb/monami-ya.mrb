@@ -19,6 +19,7 @@
 #include "mruby/variable.h"
 #include "mruby/error.h"
 #include "mruby/opcode.h"
+#include "mruby/panic.h"
 #include "value_array.h"
 #include "mrb_throw.h"
 
@@ -181,9 +182,9 @@ stack_extend_alloc(mrb_state *mrb, int room, int keep)
 
   /* Raise an exception if the new stack size will be too large,
      to prevent infinite recursion. However, do this only after resizing the stack, so mrb_raise has stack space to work with. */
-  if (size > MRB_STACK_MAX) {
+  if (size >= mrb->stack_limit) {
     init_new_stack_space(mrb, room, keep);
-    mrb_raise(mrb, E_RUNTIME_ERROR, "stack level too deep. (limit=" TO_STR(MRB_STACK_MAX) ")");
+    mrb_raisef(mrb, E_RUNTIME_ERROR, "stack level too deep. (limit=%S)", mrb_fixnum_value(mrb->stack_limit));
   }
 }
 
@@ -247,10 +248,10 @@ cipush(mrb_state *mrb)
 
   if (ci + 1 == c->ciend) {
     size_t size = ci - c->cibase;
-
-    c->cibase = (mrb_callinfo *)mrb_realloc(mrb, c->cibase, sizeof(mrb_callinfo)*size*2);
+    c->cibase = (mrb_callinfo *)mrb_realloc_simple(mrb, c->cibase, sizeof(mrb_callinfo)*(size+2));
+    if (!c->cibase) mrb_panic(mrb);
     c->ci = c->cibase + size;
-    c->ciend = c->cibase + size * 2;
+    c->ciend = c->cibase + size + 2;
   }
   ci = ++c->ci;
   ci->nregs = 2;   /* protect method_missing arg and block */
@@ -2426,4 +2427,49 @@ mrb_toplevel_run(mrb_state *mrb, struct RProc *proc)
   cipop(mrb);
 
   return v;
+}
+
+
+
+static mrb_value
+state_stack_size_get(mrb_state *mrb, mrb_value self)
+{
+  mrb_int size = mrb->c->stend - mrb->c->stbase;
+  return mrb_fixnum_value(size);
+}
+
+static mrb_value
+state_allocate_stack(mrb_state *mrb, mrb_value obj)
+{
+  mrb_int new_size;
+  ptrdiff_t size = mrb->c->stend - mrb->c->stbase;
+  ptrdiff_t off  = mrb->c->stack - mrb->c->stbase;
+  mrb_value *oldbase = mrb->c->stbase;
+
+
+  mrb_get_args(mrb, "i", &new_size);
+  if (new_size < size) {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "Smaller than the current stack size.");
+  }
+  if (new_size > mrb->stack_limit) {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "Greater than the current stack limit.");
+  }
+
+  mrb->c->stbase = (mrb_value *)mrb_realloc(mrb, mrb->c->stbase, sizeof(mrb_value) * new_size);
+  mrb->c->stack = mrb->c->stbase + off;
+  mrb->c->stend = mrb->c->stbase + new_size;
+  envadjust(mrb, oldbase, mrb->c->stbase);
+
+  return mrb_nil_value();
+}
+
+void
+mrb_init_state_vm(mrb_state *mrb)
+{
+  struct RClass *clazz;
+
+  clazz = mrb_define_module(mrb, "MrbState");
+
+  mrb_define_class_method(mrb, clazz, "stack_size", state_stack_size_get, MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, clazz, "allocate_stack", state_allocate_stack, MRB_ARGS_REQ(1));
 }
