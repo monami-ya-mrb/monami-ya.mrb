@@ -2428,3 +2428,48 @@ mrb_toplevel_run(mrb_state *mrb, struct RProc *proc)
 
   return v;
 }
+
+
+
+static mrb_value
+state_stack_size_get(mrb_state *mrb, mrb_value self)
+{
+  mrb_int size = mrb->c->stend - mrb->c->stbase;
+  return mrb_fixnum_value(size);
+}
+
+static mrb_value
+state_allocate_stack(mrb_state *mrb, mrb_value obj)
+{
+  mrb_int new_size;
+  ptrdiff_t size = mrb->c->stend - mrb->c->stbase;
+  ptrdiff_t off  = mrb->c->stack - mrb->c->stbase;
+  mrb_value *oldbase = mrb->c->stbase;
+
+
+  mrb_get_args(mrb, "i", &new_size);
+  if (new_size < size) {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "Smaller than the current stack size.");
+  }
+  if (new_size > mrb->stack_limit) {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "Greater than the current stack limit.");
+  }
+
+  mrb->c->stbase = (mrb_value *)mrb_realloc(mrb, mrb->c->stbase, sizeof(mrb_value) * new_size);
+  mrb->c->stack = mrb->c->stbase + off;
+  mrb->c->stend = mrb->c->stbase + new_size;
+  envadjust(mrb, oldbase, mrb->c->stbase);
+
+  return mrb_nil_value();
+}
+
+void
+mrb_init_state_vm(mrb_state *mrb)
+{
+  struct RClass *clazz;
+
+  clazz = mrb_define_module(mrb, "MrbState");
+
+  mrb_define_class_method(mrb, clazz, "stack_size", state_stack_size_get, MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, clazz, "allocate_stack", state_allocate_stack, MRB_ARGS_REQ(1));
+}
