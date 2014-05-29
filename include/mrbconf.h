@@ -50,6 +50,13 @@
 /* page size of memory pool */
 //#define POOL_PAGE_SIZE 16000
 
+/* Define amount of linear stack growth. */
+#define MRB_STACK_GROWTH 128
+
+/* Maximum stack depth. Should be set lower on memory constrained systems.
+The value below allows about 60000 recursive calls in the simplest case. */
+#define MRB_STACK_MAX (0x40000 - MRB_STACK_GROWTH)
+
 /* Use TLSF memory allocator */
 #define MRB_USE_TLSF
 
