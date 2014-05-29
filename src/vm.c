@@ -19,6 +19,7 @@
 #include "mruby/variable.h"
 #include "mruby/error.h"
 #include "mruby/opcode.h"
+#include "mruby/panic.h"
 #include "value_array.h"
 #include "mrb_throw.h"
 
@@ -247,10 +248,10 @@ cipush(mrb_state *mrb)
 
   if (ci + 1 == c->ciend) {
     size_t size = ci - c->cibase;
-
-    c->cibase = (mrb_callinfo *)mrb_realloc(mrb, c->cibase, sizeof(mrb_callinfo)*size*2);
+    c->cibase = (mrb_callinfo *)mrb_realloc_simple(mrb, c->cibase, sizeof(mrb_callinfo)*(size+2));
+    if (!c->cibase) mrb_panic(mrb);
     c->ci = c->cibase + size;
-    c->ciend = c->cibase + size * 2;
+    c->ciend = c->cibase + size + 2;
   }
   ci = ++c->ci;
   ci->nregs = 2;   /* protect method_missing arg and block */
