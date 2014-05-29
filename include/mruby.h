@@ -184,6 +184,8 @@ typedef struct mrb_state {
   void *tlsf_handle;
 #endif
 
+  size_t stack_limit;
+
   uintptr_t ud; /* auxiliary data */
 
 } mrb_state;
