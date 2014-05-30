@@ -308,6 +308,11 @@ mrb_close(mrb_state *mrb)
 #ifndef MRB_GC_FIXED_ARENA
   mrb_free(mrb, mrb->arena);
 #endif
+#ifdef USE_MRB_TLSF
+  if (mrb->tlsf_handle) {
+    tlsf_free(tlsf_root_handle, mrb->tlsf_handle);
+  }
+#endif
   mrb_free(mrb, mrb);
 }
 
