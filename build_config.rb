@@ -94,6 +94,7 @@ end
 
    conf.build_lib_only
 
+   conf.cc.defines << "MRB_USE_TLSF"
    conf.cc.flags << "-mcpu=bf533-any"
    conf.linker.flags << "-mcpu=bf533-any"
 
