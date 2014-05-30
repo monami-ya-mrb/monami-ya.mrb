@@ -119,6 +119,10 @@ allocf(mrb_state *mrb, void *p, size_t size, uintptr_t ud)
     tlsf = mrb->tlsf_handle;
   } 
 
+  if (!tlsf) {
+    mrb_panic(mrb);
+  }
+
   if (size == 0) {
     tlsf_free(tlsf, p);
     return NULL;
