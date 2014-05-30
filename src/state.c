@@ -114,7 +114,7 @@ allocf(mrb_state *mrb, void *p, size_t size, uintptr_t ud)
     tlsf = tlsf_root_handle;
   } else {
     if (mrb->tlsf_handle == 0) {
-      mrb_tlsf_set_pool(mrb, 5 * 1024 * 1024);
+      mrb_tlsf_set_pool(mrb, 3 * 1024 * 1024);
     }
     tlsf = mrb->tlsf_handle;
   } 
