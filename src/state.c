@@ -103,11 +103,14 @@ allocf(mrb_state *mrb, void *p, size_t size, uintptr_t ud)
 #ifdef MRB_USE_TLSF
   tlsf_t tlsf;
   if (mrb == NULL) {
+#if ! defined(MRB_DISABLE_HOSTED)
     if (tlsf_root_handle == 0) {
       void *global_memory;
-      global_memory = malloc(24 * 1024 * 1024);
-      tlsf_root_handle = tlsf_create_with_pool(global_memory, 24 * 1024 * 1024);
+      const size_t size = 24 * 1024 * 1024;
+      global_memory = malloc(size);
+      mrb_tlsf_initialize(global_memory, size);
     }
+#endif
     tlsf = tlsf_root_handle;
   } else {
     if (mrb->tlsf_handle == 0) {
