@@ -58,7 +58,7 @@ The value below allows about 60000 recursive calls in the simplest case. */
 #define MRB_STACK_MAX (0x40000 - MRB_STACK_GROWTH)
 
 /* Use TLSF memory allocator */
-#define MRB_USE_TLSF
+//#define MRB_USE_TLSF
 
 /* initial minimum size for string buffer */
 //#define MRB_STR_BUF_MIN_SIZE 128
