@@ -105,6 +105,9 @@ end
    conf.build_mrbtest_lib_only
 
    conf.gem :github => 'monami-ya-mrb/mruby-bin-mocloudos-shell', :branch => 'master'
+   conf.gem :bitbucket => 'onami_ya_mrb/mruby-toppers-itron'
+   conf.gem :github => 'ShinyaEsu/mruby-direct'
+
 #   conf.gem 'examples/mrbgems/c_and_ruby_extension_example'
 
 #   conf.test_runner.command = 'env'
