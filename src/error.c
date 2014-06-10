@@ -228,9 +228,7 @@ mrb_noreturn void
 mrb_exc_raise(mrb_state *mrb, mrb_value exc)
 {
   mrb->exc = mrb_obj_ptr(exc);
-  if (!mrb->out_of_memory) {
-    exc_debug_info(mrb, mrb->exc);
-  }
+  exc_debug_info(mrb, mrb->exc);
   if (!mrb->jmp) {
     mrb_p(mrb, exc);
     mrb_panic(mrb);
@@ -462,7 +460,7 @@ mrb_no_method_error(mrb_state *mrb, mrb_sym id, mrb_int argc, const mrb_value *a
 void
 mrb_init_exception(mrb_state *mrb)
 {
-  struct RClass *exception, *runtime_error, *script_error;
+  struct RClass *exception, *script_error;
 
   mrb->eException_class = exception = mrb_define_class(mrb, "Exception", mrb->object_class); /* 15.2.22 */
   mrb_define_class_method(mrb, exception, "exception", mrb_instance_new,  MRB_ARGS_ANY());
@@ -475,8 +473,7 @@ mrb_init_exception(mrb_state *mrb)
   mrb_define_method(mrb, exception, "backtrace",       mrb_exc_backtrace, MRB_ARGS_NONE());
 
   mrb->eStandardError_class = mrb_define_class(mrb, "StandardError", mrb->eException_class); /* 15.2.23 */
-  runtime_error = mrb_define_class(mrb, "RuntimeError", mrb->eStandardError_class);          /* 15.2.28 */
-  mrb->nomem_err = mrb_obj_ptr(mrb_exc_new_str(mrb, runtime_error, mrb_str_new_lit(mrb, "Out of memory")));
+  mrb_define_class(mrb, "RuntimeError", mrb->eStandardError_class);                          /* 15.2.28 */
   script_error = mrb_define_class(mrb, "ScriptError", mrb->eException_class);                /* 15.2.37 */
   mrb_define_class(mrb, "SyntaxError", script_error);                                        /* 15.2.38 */
 }

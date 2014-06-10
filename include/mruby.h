@@ -177,7 +177,6 @@ typedef struct mrb_state {
 
   struct RClass *eException_class;
   struct RClass *eStandardError_class;
-  struct RObject *nomem_err;              /* pre-allocated NoMemoryError */
 
   mrb_log_printer log_printer[MRB_LOG_LEVEL_MAX + 1];
 
