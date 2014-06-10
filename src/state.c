@@ -15,7 +15,6 @@
 #include <stdlib.h>
 void mrb_init_heap(mrb_state*);
 void mrb_init_core(mrb_state*);
-void mrb_final_core(mrb_state*);
 
 #ifdef MRB_USE_TLSF
 #include "tlsf.h"
@@ -64,11 +63,7 @@ mrb_open_allocf(mrb_allocf f, uintptr_t ud)
   mrb_state *mrb;
 
 #ifdef MRB_NAN_BOXING
-# ifdef MRB_SUPPORT_STATIC_ASSERT
-  MRB_STATIC_ASSERT(sizeof(void*) == 4, "Can use MRB_NAN_BOXING on (sizeof(void*) == 4) environments only.");
-# else
-  mrb_assert(sizeof(void*) == 4);
-# endif
+  mrb_static_assert(sizeof(void*) == 4, "when using NaN boxing sizeof pointer must be 4 byte");
 #endif
 
   mrb = (mrb_state *)(f)(NULL, NULL, sizeof(mrb_state), ud);
@@ -82,6 +77,7 @@ mrb_open_allocf(mrb_allocf f, uintptr_t ud)
   mrb->tlsf_handle = 0;
 #endif
   mrb->stack_limit = MRB_STACK_MAX;
+  mrb->atexit_stack_len = 0;
 
 #ifndef MRB_GC_FIXED_ARENA
   mrb->arena = (struct RBasic**)mrb_malloc(mrb, sizeof(struct RBasic*)*MRB_GC_ARENA_SIZE);
@@ -292,7 +288,13 @@ mrb_free_context(mrb_state *mrb, struct mrb_context *c)
 void
 mrb_close(mrb_state *mrb)
 {
-  mrb_final_core(mrb);
+  if (mrb->atexit_stack_len > 0) {
+    mrb_int i;
+    for (i = mrb->atexit_stack_len; i > 0; --i) {
+      mrb->atexit_stack[i - 1](mrb);
+    }
+    mrb_free(mrb, mrb->atexit_stack);
+  }
 
   /* free */
   mrb_gc_free_gv(mrb);
@@ -330,6 +332,20 @@ mrb_top_self(mrb_state *mrb)
   return mrb_obj_value(mrb->top_self);
 }
 
+void
+mrb_atexit(mrb_state *mrb, mrb_atexit_func f)
+{
+  size_t stack_size;
+
+  stack_size = sizeof(mrb_atexit_func) * (mrb->atexit_stack_len + 1);
+  if (mrb->atexit_stack_len == 0) {
+    mrb->atexit_stack = (mrb_atexit_func*)mrb_malloc(mrb, stack_size);
+  } else {
+    mrb->atexit_stack = (mrb_atexit_func*)mrb_realloc(mrb, mrb->atexit_stack, stack_size);
+  }
+
+  mrb->atexit_stack[mrb->atexit_stack_len++] = f;
+}
 
 
 static mrb_value

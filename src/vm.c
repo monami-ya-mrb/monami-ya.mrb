@@ -635,7 +635,7 @@ mrb_yield_with_class(mrb_state *mrb, mrb_value b, mrb_int argc, const mrb_value 
     stack_extend(mrb, ci->nregs, 0);
   }
   else {
-    ci->nregs = p->body.irep->nregs + 1;
+    ci->nregs = p->body.irep->nregs;
     stack_extend(mrb, ci->nregs, argc+2);
   }
 
@@ -803,7 +803,7 @@ RETRY_TRY_BLOCK:
   }
   stack_extend(mrb, irep->nregs, stack_keep);
   mrb->c->ci->proc = proc;
-  mrb->c->ci->nregs = irep->nregs + 1;
+  mrb->c->ci->nregs = irep->nregs;
   regs = mrb->c->stack;
   regs[0] = self;
 
@@ -821,7 +821,7 @@ RETRY_TRY_BLOCK:
 
     CASE(OP_LOADL) {
       /* A Bx   R(A) := Pool(Bx) */
-      regs[GETARG_A(i)] =  pool[GETARG_Bx(i)];
+      regs[GETARG_A(i)] = pool[GETARG_Bx(i)];
       NEXT;
     }
 
@@ -2412,23 +2412,28 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
 }
 
 mrb_value
-mrb_toplevel_run(mrb_state *mrb, struct RProc *proc)
+mrb_toplevel_run_keep(mrb_state *mrb, struct RProc *proc, unsigned int stack_keep)
 {
   mrb_callinfo *ci;
   mrb_value v;
 
   if (!mrb->c->cibase || mrb->c->ci == mrb->c->cibase) {
-    return mrb_context_run(mrb, proc, mrb_top_self(mrb), 0);
+    return mrb_context_run(mrb, proc, mrb_top_self(mrb), stack_keep);
   }
   ci = cipush(mrb);
   ci->acc = CI_ACC_SKIP;
   ci->target_class = mrb->object_class;
-  v = mrb_context_run(mrb, proc, mrb_top_self(mrb), 0);
+  v = mrb_context_run(mrb, proc, mrb_top_self(mrb), stack_keep);
   cipop(mrb);
 
   return v;
 }
 
+mrb_value
+mrb_toplevel_run(mrb_state *mrb, struct RProc *proc)
+{
+  return mrb_toplevel_run_keep(mrb, proc, 0);
+}
 
 
 static mrb_value
