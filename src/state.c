@@ -64,11 +64,7 @@ mrb_open_allocf(mrb_allocf f, uintptr_t ud)
   mrb_state *mrb;
 
 #ifdef MRB_NAN_BOXING
-# ifdef MRB_SUPPORT_STATIC_ASSERT
-  MRB_STATIC_ASSERT(sizeof(void*) == 4, "Can use MRB_NAN_BOXING on (sizeof(void*) == 4) environments only.");
-# else
-  mrb_assert(sizeof(void*) == 4);
-# endif
+  mrb_static_assert(sizeof(void*) == 4, "when using NaN boxing sizeof pointer must be 4 byte");
 #endif
 
   mrb = (mrb_state *)(f)(NULL, NULL, sizeof(mrb_state), ud);
@@ -339,8 +335,6 @@ mrb_top_self(mrb_state *mrb)
   }
   return mrb_obj_value(mrb->top_self);
 }
-
-
 
 static mrb_value
 state_stack_limit_get(mrb_state *mrb, mrb_value self)

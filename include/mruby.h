@@ -187,7 +187,6 @@ typedef struct mrb_state {
   size_t stack_limit;
 
   uintptr_t ud; /* auxiliary data */
-
 } mrb_state;
 
 #if __STDC_VERSION__ >= 201112L
@@ -349,8 +348,7 @@ mrb_value mrb_obj_clone(mrb_state *mrb, mrb_value self);
 
 /* need to include <ctype.h> to use these macros */
 #ifndef ISPRINT
-/* #define ISASCII(c) isascii((int)(unsigned char)(c)) */
-#define ISASCII(c) 1
+#define ISASCII(c) (!(((int)(unsigned char)(c)) & ~0x7f))
 #define ISPRINT(c) (ISASCII(c) && isprint((int)(unsigned char)(c)))
 #define ISSPACE(c) (ISASCII(c) && isspace((int)(unsigned char)(c)))
 #define ISUPPER(c) (ISASCII(c) && isupper((int)(unsigned char)(c)))
@@ -441,6 +439,12 @@ void* mrb_alloca(mrb_state *mrb, size_t);
 #else
 #define mrb_assert(p) ((void)0)
 #define mrb_assert_int_fit(t1,n,t2,max) ((void)0)
+#endif
+
+#if __STDC_VERSION__ >= 201112L
+#define mrb_static_assert(exp, str) _Static_assert(exp, str)
+#else
+#define mrb_static_assert(exp, str) mrb_assert(exp)
 #endif
 
 mrb_value mrb_format(mrb_state *mrb, const char *format, ...);

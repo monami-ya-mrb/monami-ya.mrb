@@ -44,11 +44,7 @@ static void backref_error(parser_state *p, node *n);
 static void tokadd(parser_state *p, int32_t c);
 static size_t integer_to_string(char *buf, int n);
 
-#ifndef isascii
-#define isascii(c) (((c) & ~0x7f) == 0)
-#endif
-
-#define identchar(c) (isalnum(c) || (c) == '_' || !isascii(c))
+#define identchar(c) (ISALNUM(c) || (c) == '_' || !ISASCII(c))
 
 typedef unsigned int stack_type;
 
@@ -2877,15 +2873,15 @@ var_ref         : variable
                 | keyword_self
                     {
                       $$ = new_self(p);
-                       }
+                    }
                 | keyword_true
                     {
                       $$ = new_true(p);
-                       }
+                    }
                 | keyword_false
                     {
                       $$ = new_false(p);
-                       }
+                    }
                 | keyword__FILE__
                     {
                       if (!p->filename) {
@@ -3368,7 +3364,9 @@ nextc(parser_state *p)
         c = (unsigned char)*p->s++;
       }
   }
-  p->column++;
+  if (c >= 0) {
+    p->column++;
+  }
   if (c == '\r') {
     c = nextc(p);
     if (c != '\n') {
@@ -3383,16 +3381,17 @@ nextc(parser_state *p)
   if (!p->cxt) return -1;
   else {
     if (p->cxt->partial_hook(p) < 0)
-      return -1;
-    return -2;
+      return -1;                /* end of program(s) */
+    return -2;                  /* end of a file in the program files */
   }
 }
 
 static void
 pushback(parser_state *p, int c)
 {
-  if (c < 0) return;
-  p->column--;
+  if (c >= 0) {
+    p->column--;
+  }
   p->pb = cons((node*)(intptr_t)c, p->pb);
 }
 
@@ -3416,7 +3415,7 @@ peekc_n(parser_state *p, int n)
 
   do {
     c0 = nextc(p);
-    if (c0 < 0) return c0;
+    if (c0 == -1) return c0;    /* do not skip partial EOF */
     list = push(list, (node*)(intptr_t)c0);
   } while(n--);
   if (p->pb) {
@@ -3772,7 +3771,7 @@ read_escape(parser_state *p)
 
     eof:
   case -1:
-  case -2:
+  case -2:                      /* end of a file */
     yyerror(p, "Invalid escape character syntax");
     return '\0';
 
@@ -3911,7 +3910,8 @@ parse_string(parser_state *p)
               return tHD_LITERAL_DELIM;
             }
           }
-        } while (ISSPACE(c = nextc(p)));
+          c = nextc(p);
+        } while (ISSPACE(c));
         pushback(p, c);
         return tLITERAL_DELIM;
       }
@@ -4107,7 +4107,7 @@ parser_yylex(parser_state *p)
   case '#':     /* it's a comment */
     skip(p, '\n');
     /* fall through */
-  case -2:      /* end of partial script. */
+  case -2:      /* end of a file */
   case '\n':
     maybe_heredoc:
     heredoc_treat_nextline(p);
@@ -4142,7 +4142,7 @@ parser_yylex(parser_state *p)
         goto retry;
       }
     case -1:                  /* EOF */
-    case -2:                  /* end of partial script */
+    case -2:                  /* end of a file */
       goto normal_newline;
     default:
       pushback(p, c);
@@ -4216,14 +4216,14 @@ parser_yylex(parser_state *p)
       static const char end[] = "\n=end";
       if (peeks(p, begin)) {
         c = peekc_n(p, sizeof(begin)-1);
-        if (c < 0 || isspace(c)) {
+        if (c < 0 || ISSPACE(c)) {
           do {
             if (!skips(p, end)) {
               yyerror(p, "embedded document meets end of file");
               return 0;
             }
             c = nextc(p);
-          } while (!(c < 0 || isspace(c)));
+          } while (!(c < 0 || ISSPACE(c)));
           if (c != '\n') skip(p, '\n');
           p->lineno++;
           p->column = 0;
@@ -4348,7 +4348,7 @@ parser_yylex(parser_state *p)
       yyerror(p, "incomplete character syntax");
       return 0;
     }
-    if (isspace(c)) {
+    if (ISSPACE(c)) {
       if (!IS_ARG()) {
         int c2;
         switch (c) {
@@ -5245,7 +5245,7 @@ parser_yylex(parser_state *p)
             pushback(p, c);
           }
         }
-        if (result == 0 && isupper((int)(unsigned char)tok(p)[0])) {
+        if (result == 0 && ISUPPER(tok(p)[0])) {
           result = tCONSTANT;
         }
         else {
@@ -5580,6 +5580,7 @@ load_exec(mrb_state *mrb, parser_state *p, mrbc_context *c)
   struct RClass *target = mrb->object_class;
   struct RProc *proc;
   mrb_value v;
+  unsigned int keep = 0;
 
   if (!p) {
     return mrb_undef_value();
@@ -5614,12 +5615,13 @@ load_exec(mrb_state *mrb, parser_state *p, mrbc_context *c)
     if (c->target_class) {
       target = c->target_class;
     }
+    keep = c->slen + 1;
   }
   proc->target_class = target;
   if (mrb->c->ci) {
     mrb->c->ci->target_class = target;
   }
-  v = mrb_toplevel_run(mrb, proc);
+  v = mrb_toplevel_run_keep(mrb, proc, keep);
   if (mrb->exc) return mrb_nil_value();
   return v;
 }
@@ -5913,7 +5915,7 @@ mrb_parser_dump(mrb_state *mrb, node *tree, int offset)
     {
       node *n2 = tree->car;
 
-      if (n2  && (n2->car || n2->cdr)) {
+      if (n2 && (n2->car || n2->cdr)) {
         dump_prefix(offset+1);
         printf("local variables:\n");
         dump_prefix(offset+2);
