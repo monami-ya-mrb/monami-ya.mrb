@@ -106,7 +106,13 @@ static unsigned int IEEE754_INFINITY_BITS_SINGLE = 0x7F800000;
 # include <inttypes.h>
 #endif
 
+#if defined(__STDC__) && (__STDC_VERSION__ >= 199901L)
+/* C99 */
+typedef _Bool mrb_bool;
+#else
 typedef uint8_t mrb_bool;
+#endif
+
 struct mrb_state;
 
 #if defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ >= 6
