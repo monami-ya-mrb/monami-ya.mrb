@@ -441,10 +441,10 @@ void* mrb_alloca(mrb_state *mrb, size_t);
 #define mrb_assert_int_fit(t1,n,t2,max) ((void)0)
 #endif
 
-#if __STDC_VERSION__ >= 201112L
+#if defined(__STDC__) && (__STDC_VERSION__ >= 201112L)
 #define mrb_static_assert(exp, str) _Static_assert(exp, str)
 #else
-#define mrb_static_assert(exp, str) mrb_assert(exp)
+#define mrb_static_assert(exp, str) typedef char mrb_static_assert_ ## __LINE__[(exp) ? 1 : -1];
 #endif
 
 mrb_value mrb_format(mrb_state *mrb, const char *format, ...);

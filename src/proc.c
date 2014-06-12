@@ -196,7 +196,7 @@ mrb_init_proc(mrb_state *mrb)
   mrb_irep *call_irep = (mrb_irep *)mrb_malloc(mrb, sizeof(mrb_irep));
   static const mrb_irep mrb_irep_zero = { 0 };
 
-  MRB_STATIC_ASSERT(call_iseq != NULL, "call_iseq should not be NULL.");
+  mrb_static_assert(call_iseq != NULL, "call_iseq should not be NULL.");
 
   *call_irep = mrb_irep_zero;
   call_irep->flags = MRB_ISEQ_NO_FREE;
