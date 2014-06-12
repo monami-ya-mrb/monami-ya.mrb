@@ -115,16 +115,6 @@ typedef uint8_t mrb_bool;
 
 struct mrb_state;
 
-#if defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ >= 6
-# define MRB_SUPPORT_STATIC_ASSERT (1)
-#endif
-
-#if MRB_SUPPORT_STATIC_ASSERT
-# define MRB_STATIC_ASSERT(cond, mesg) _Static_assert((cond), mesg);
-#else
-# define MRB_STATIC_ASSERT(cond, mesg)
-#endif
-
 #if defined(MRB_NAN_BOXING)
 
 #ifdef MRB_USE_FLOAT
