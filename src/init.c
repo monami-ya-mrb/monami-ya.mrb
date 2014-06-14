@@ -5,6 +5,9 @@
 */
 
 #include "mruby.h"
+#include "mruby/sandbox.h"
+
+extern struct mrb_sandbox_inib mrb_sandbox_inib_array[];
 
 void mrb_init_symtbl(mrb_state*);
 void mrb_init_class(mrb_state*);
@@ -55,7 +58,11 @@ mrb_init_core(mrb_state *mrb)
   mrb_init_version(mrb); DONE;
   mrb_init_mrblib(mrb); DONE;
 #ifndef DISABLE_GEMS
-  mrb_init_mrbgems(mrb); DONE;
+  if (mrb->sandbox_id) {
+    mrb_sandbox_inib_array[mrb->sandbox_id - 1].init(mrb); DONE;
+  } else {
+    mrb_init_mrbgems(mrb); DONE;
+  }
 #endif
 }
 
@@ -63,6 +70,10 @@ void
 mrb_final_core(mrb_state *mrb)
 {
 #ifndef DISABLE_GEMS
-  mrb_final_mrbgems(mrb); DONE;
+  if (mrb->sandbox_id) {
+    mrb_sandbox_inib_array[mrb->sandbox_id - 1].final(mrb); DONE;
+  } else {
+    mrb_final_mrbgems(mrb); DONE;
+  }
 #endif
 }

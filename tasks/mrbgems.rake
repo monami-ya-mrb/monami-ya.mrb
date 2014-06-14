@@ -1,12 +1,15 @@
+require 'pp'
 MRuby.each_target do
   if enable_gems?
     # set up all gems
     gems.each(&:setup)
     gems.check self
 
+    sandboxes.check
+
     # loader all gems
     self.libmruby << objfile("#{build_dir}/mrbgems/gem_init")
-    file objfile("#{build_dir}/mrbgems/gem_init") => ["#{build_dir}/mrbgems/gem_init.c", "#{build_dir}/LEGAL"]
+    file objfile("#{build_dir}/mrbgems/gem_init") => ["#{build_dir}/mrbgems/gem_init.c", "#{build_dir}/LEGAL", "#{build_dir}/mrb_sandbox_id.h"]
     file "#{build_dir}/mrbgems/gem_init.c" => [MRUBY_CONFIG, __FILE__] do |t|
       FileUtils.mkdir_p "#{build_dir}/mrbgems"
       open(t.name, 'w') do |f|
@@ -21,6 +24,7 @@ MRuby.each_target do
         f.puts %Q[ */]
         f.puts %Q[]
         f.puts %Q[#include "mruby.h"]
+        f.puts %Q[#include "mruby/sandbox.h"]
         f.puts %Q[]
         f.puts %Q[#{gems.map{|g| "void GENERATED_TMP_mrb_%s_gem_init(mrb_state* mrb);" % g.funcname}.join("\n")}]
         f.puts %Q[]
@@ -35,6 +39,57 @@ MRuby.each_target do
         f.puts %Q[mrb_final_mrbgems(mrb_state *mrb) {]
         f.puts %Q[#{gems.map{|g| "GENERATED_TMP_mrb_%s_gem_final(mrb);" % g.funcname}.join("\n")}]
         f.puts %Q[}]
+
+        sandboxes.each do |n, gems_in_sandbox|
+          name = n.gsub(/-/, '_')
+          gem_names_sandbox = gems_in_sandbox.map { |g| g.name }
+          box = gems.select do |g|
+            gem_names_sandbox.include? g.name
+          end
+
+          func_prefix = box.map do |g|
+            "GENERATED_TMP_mrb_#{g.funcname}_gem_"
+          end
+          f.puts
+          f.puts %Q[void]
+          f.puts %Q[mrb_init_#{name}_sandbox(mrb_state *mrb) {]
+          func_prefix.each do |prefix|
+            f.puts %Q[  #{prefix}init(mrb);]
+          end
+          f.puts %Q[}]
+          f.puts
+          f.puts %Q[void]
+          f.puts %Q[mrb_final_#{name}_sandbox(mrb_state *mrb) {]
+          func_prefix.each do |prefix|
+            f.puts %Q[  #{prefix}final(mrb);]
+          end
+          f.puts %Q[}]
+        end
+        f.puts
+        f.puts %Q[struct mrb_sandbox_inib mrb_sandbox_inib_array[] = {]
+        sandboxes.each do |n, gems_in_sandbox|
+          name = n.gsub(/-/, '_')
+          f.puts %Q[  {]
+          f.puts %Q[    mrb_init_#{name}_sandbox,]
+          f.puts %Q[    mrb_final_#{name}_sandbox,]
+          f.puts %Q[  },]
+        end
+        f.puts %Q[  { NULL, NULL }]
+        f.puts %Q[};]
+      end
+    end
+  end
+
+  file "#{build_dir}/mrb_sandbox_id.h" => [MRUBY_CONFIG, __FILE__] do |t|
+    open(t.name, 'w+') do |f|
+      f.puts %Q[/*]
+      f.puts %Q[ * IMPORTANT:]
+      f.puts %Q[ *   This file was generated!]
+      f.puts %Q[ *   All manual changes will get lost.]
+      f.puts %Q[ */]
+      f.puts
+      sandboxes.each_key.each_with_index do |name, idx|
+        f.puts %Q[#define MRB_SANDBOX_#{name.upcase.gsub(/-/, '_')} (#{idx + 1}u)]
       end
     end
   end

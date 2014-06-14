@@ -1,5 +1,6 @@
 load "#{MRUBY_ROOT}/tasks/mruby_build_gem.rake"
 load "#{MRUBY_ROOT}/tasks/mruby_build_commands.rake"
+load "#{MRUBY_ROOT}/tasks/mruby_build_sandbox.rake"
 
 module MRuby
   class << self
@@ -43,7 +44,9 @@ module MRuby
     end
     include Rake::DSL
     include LoadGems
+    include Sandbox
     attr_accessor :name, :bins, :exts, :file_separator, :build_dir, :gem_clone_dir
+    attr_reader :sandboxes
     attr_reader :libmruby, :gems
     attr_writer :enable_bintest
 
@@ -84,6 +87,7 @@ module MRuby
         @build_mrbtest_lib_only = false
         @cxx_abi_enabled = false
         @cxx_exception_disabled = false
+        @sandboxes = MRuby::Sandbox::Hash.new
 
         MRuby.targets[@name] = self
       end
