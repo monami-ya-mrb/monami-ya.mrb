@@ -185,6 +185,7 @@ typedef struct mrb_state {
 #endif
 
   size_t stack_limit;
+  unsigned int sandbox_id; /* 0 means no sandbox. */
 
   uintptr_t ud; /* auxiliary data */
 } mrb_state;
@@ -302,6 +303,8 @@ mrb_value mrb_str_new_static(mrb_state *mrb, const char *p, size_t len);
 
 mrb_state* mrb_open(void);
 mrb_state* mrb_open_allocf(mrb_allocf, uintptr_t ud);
+mrb_state* mrb_open_sandbox(unsigned int sandbox_id);
+mrb_state* mrb_open_sandbox_allocf(mrb_allocf, uintptr_t ud, unsigned int sandbox_id);
 void mrb_close(mrb_state*);
 
 mrb_value mrb_top_self(mrb_state *);

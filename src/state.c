@@ -59,6 +59,12 @@ inspect_main(mrb_state *mrb, mrb_value mod)
 mrb_state*
 mrb_open_allocf(mrb_allocf f, uintptr_t ud)
 {
+  mrb_open_sandbox_allocf(f, ud, 0);
+}
+
+mrb_state*
+mrb_open_sandbox_allocf(mrb_allocf f, uintptr_t ud, unsigned int sandbox_id)
+{
   static const mrb_state mrb_state_zero = { 0 };
   static const struct mrb_context mrb_context_zero = { 0 };
   mrb_state *mrb;
@@ -71,6 +77,7 @@ mrb_open_allocf(mrb_allocf f, uintptr_t ud)
   if (mrb == NULL) return NULL;
 
   *mrb = mrb_state_zero;
+  mrb->sandbox_id = sandbox_id;
   mrb->ud = ud;
   mrb->allocf = f;
   mrb->current_white_part = MRB_GC_WHITE_A;
@@ -174,7 +181,17 @@ mrb_open(void)
 {
   mrb_state *mrb;
 
-  mrb = mrb_open_allocf(allocf, (uintptr_t)NULL);
+  mrb = mrb_open_sandbox(0);
+
+  return mrb;
+}
+
+mrb_state*
+mrb_open_sandbox(unsigned int sandbox_id)
+{
+  mrb_state *mrb;
+
+  mrb = mrb_open_sandbox_allocf(allocf, (uintptr_t)NULL, sandbox_id);
 
   return mrb;
 }
