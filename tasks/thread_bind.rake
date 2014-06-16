@@ -6,7 +6,7 @@ MRuby.each_target do
       FileUtils.mkdir_p thread_build_dir
       open(t.name, 'w') do |f|
         f.puts %q[#include "mrb_thread_bind.h"]
-        f.puts %q[INCLUDE("\"mrb_thread_bind.h\"")]
+        f.puts %q[INCLUDE("\"mrb_thread_bind.h\"");]
         f.puts %q[ATT_INI({TA_HLNG, 0, mrb_thread_bind_initialize});]
         thread_binds.each_with_index do |t, i|
           if t.type == :task
@@ -20,8 +20,10 @@ MRuby.each_target do
       FileUtils.mkdir_p thread_build_dir
       open(t.name, 'w') do |f|
         f.puts %Q[#include "itron.h"]
+        f.puts %Q[#ifndef _MACRO_ONLY]
         f.puts %Q[extern void mrb_thread_bind_initialize(VP_INT exinf);]
         f.puts %Q[extern void mrb_thread_bind_entry(VP_INT exinf);]
+        f.puts %Q[#endif]
       end
     end
 
