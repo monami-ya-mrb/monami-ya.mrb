@@ -26,9 +26,9 @@ MRuby.each_target do
     end
 
     thread_binds.each_with_index do |thread, i|
-      FileUtils.mkdir_p thread_build_dir
       file "#{thread_build_dir}/thread_script_#{i}.cinc" =>
         ["#{root}/#{thread.script_path}"] do |t|
+        FileUtils.mkdir_p thread_build_dir
         open(t.name, 'w') do |f|
           mrbc.run f, t.prerequisites, "mrb_thread_script#{i}"
         end
