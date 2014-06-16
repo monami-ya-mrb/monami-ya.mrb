@@ -46,6 +46,16 @@ module MRuby
       end
     end # Hash
 
+    class Pack
+      attr_reader :name
+      attr_reader :sandbox
+
+      def initialize(name, sandbox)
+        @name = name
+        @sanxbox = sandbox
+      end
+    end
+
     class Sandbox
       include Enumerable
 

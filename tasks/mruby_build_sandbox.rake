@@ -6,6 +6,7 @@ module MRuby
       sandbox.config = self
       @sandboxes[name] = sandbox
       sandbox.instance_eval(&block)
+      Pack.new(name, sandbox)
     end
   end
 end
