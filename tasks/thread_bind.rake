@@ -87,7 +87,8 @@ MRuby.each_target do
     file objfile("#{thread_build_dir}/mrb_thread_bind") =>
       ["#{thread_build_dir}/mrb_thread_bind.c",
        "#{thread_build_dir}/mrb_thread_bind.h",
-       "#{thread_build_dir}/mrb_thread_bind.cfg"]
+       "#{thread_build_dir}/mrb_thread_bind.cfg"] +
+      (0..(thread_binds.length - 1)).map { |n| "#{thread_build_dir}/thread_script_#{n}.cinc" }
 
     self.libmruby << objfile("#{thread_build_dir}/mrb_thread_bind")
   end
