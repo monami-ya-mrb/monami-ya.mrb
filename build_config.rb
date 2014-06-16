@@ -87,29 +87,16 @@ MRuby::Build.new do |conf|
 end
 
 # Define cross build settings
- MRuby::CrossBuild.new('jsp-bfin') do |conf|
-   toolchain :gcc_bfin
-
-  conf.gembox 'default'
-
-   conf.build_lib_only
-
-   conf.cc.defines << "MRB_USE_TLSF"
-   conf.cc.flags << "-mcpu=bf533-any"
-   conf.linker.flags << "-mcpu=bf533-any"
-
-   conf.archiver do |archiver|
-     archiver.command = ENV['AR'] || 'bfin-pizzafactory-elf-ar'
-     archiver.archive_options = 'rs %{outfile} %{objs}'
-   end
-   conf.build_mrbtest_lib_only
-
-   conf.gem :github => 'monami-ya-mrb/mruby-bin-mocloudos-shell', :branch => 'master'
-   conf.gem :bitbucket => 'onami_ya_mrb/mruby-toppers-itron'
-   conf.gem :github => 'ShinyaEsu/mruby-direct'
-
+# MRuby::CrossBuild.new('32bit') do |conf|
+#   toolchain :gcc
+#
+#   conf.cc.flags << "-m32"
+#   conf.linker.flags << "-m32"
+#
+#   conf.build_mrbtest_lib_only
+#
 #   conf.gem 'examples/mrbgems/c_and_ruby_extension_example'
-
+#
 #   conf.test_runner.command = 'env'
-
- end
+#
+# end
