@@ -59,10 +59,8 @@ MRuby.each_target do |target|
 
     gem.bins.each do |bin|
       exec = exefile("#{build_dir}/bin/#{bin}")
-      objs = Dir.glob("#{current_dir}/tools/#{bin}/*.{c,cpp,cxx,cc}").map { |f| objfile(f.pathmap("#{current_build_dir}/tools/#{bin}/%n")) }
-      objs += Dir.glob("#{current_dir}/tools/#{bin}/*.{s,asm}").sort.map { |f| objfile(f.pathmap("#{current_build_dir}/tools/#{bin}/%n")) }
 
-      file exec => objs + [libfile("#{build_dir}/lib/libmruby")] do |t|
+      file exec => gem.bin_objs[bin] + [libfile("#{build_dir}/lib/libmruby")] do |t|
         gem_flags = gems.map { |g| g.linker.flags }
         gem_flags_before_libraries = gems.map { |g| g.linker.flags_before_libraries }
         gem_flags_after_libraries = gems.map { |g| g.linker.flags_after_libraries }
@@ -126,4 +124,9 @@ task :deep_clean => ["clean"] do
     FileUtils.rm_rf t.gem_clone_dir, { :verbose => $verbose }
   end
   puts "Cleaned up mrbgems build folder"
+end
+
+desc 'generate document'
+task :doc do
+  load "#{MRUBY_ROOT}/doc/language/generator.rb"
 end

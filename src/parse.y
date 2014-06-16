@@ -255,7 +255,11 @@ local_var_p(parser_state *p, mrb_sym sym)
 static void
 local_add_f(parser_state *p, mrb_sym sym)
 {
-  p->locals->car = push(p->locals->car, nsym(sym));
+  if (p->locals->car && !p->locals->car->car) {
+    p->locals->car->car = nsym(sym);
+  } else {
+    p->locals->car = push(p->locals->car, nsym(sym));
+  }
 }
 
 static void
@@ -4254,7 +4258,6 @@ parser_yylex(parser_state *p)
     return '=';
 
   case '<':
-    last_state = p->lstate;
     c = nextc(p);
     if (c == '<' &&
         p->lstate != EXPR_DOT &&
@@ -4387,7 +4390,7 @@ parser_yylex(parser_state *p)
       p->lstate = EXPR_VALUE;
       return '?';
     }
-    token_column = newtok(p);
+    newtok(p);
     /* need support UTF-8 if configured */
     if ((isalnum(c) || c == '_')) {
       int c2 = nextc(p);
@@ -4551,7 +4554,7 @@ parser_yylex(parser_state *p)
 
     is_float = seen_point = seen_e = nondigit = 0;
     p->lstate = EXPR_END;
-    token_column = newtok(p);
+    newtok(p);
     if (c == '-' || c == '+') {
       tokadd(p, c);
       c = nextc(p);
@@ -5215,7 +5218,6 @@ parser_yylex(parser_state *p)
   {
     int result = 0;
 
-    last_state = p->lstate;
     switch (tok(p)[0]) {
     case '$':
       p->lstate = EXPR_END;

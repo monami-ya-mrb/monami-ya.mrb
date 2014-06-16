@@ -28,12 +28,13 @@ module MRuby
       attr_accessor :rbfiles, :objs
       attr_accessor :test_objs, :test_rbfiles, :test_args
       attr_accessor :test_preload
+      attr_reader :bin_objs
 
       attr_accessor :bins
       alias executables bins
 
       attr_accessor :requirements
-      attr_reader :dependencies
+      attr_reader :dependencies, :conflicts
 
       attr_accessor :export_include_paths
 
@@ -73,7 +74,7 @@ module MRuby
         @bins = []
 
         @requirements = []
-        @dependencies = []
+        @dependencies, @conflicts = [], []
         @export_include_paths = []
         @export_include_paths << "#{dir}/include" if File.directory? "#{dir}/include"
 
@@ -93,6 +94,14 @@ module MRuby
           compiler.include_paths << "#{dir}/include" if File.directory? "#{dir}/include"
         end
 
+	# This need to be evaluted after initializers.
+	@bin_objs = {}
+        @bins.each do |bin|
+          @bin_objs[bin] = Dir.glob("#{dir}/tools/#{bin}/*.{c,cpp,cxx,cc,m,asm,s,S}").map do |f|
+            objfile(f.relative_path_from(dir).to_s.pathmap("#{build_dir}/%X"))
+          end
+        end
+
         define_gem_init_builder
       end
 
@@ -101,6 +110,10 @@ module MRuby
         requirements = ['>= 0.0.0'] if requirements.empty?
         requirements.flatten!
         @dependencies << {:gem => name, :requirements => requirements, :default => default_gem}
+      end
+
+      def add_conflict(name, *req)
+        @conflicts << {:gem => name, :requirements => req.empty? ? nil : req}
       end
 
       def self.bin=(bin)
@@ -327,6 +340,12 @@ module MRuby
               fail "#{name} version should be #{req_versions.join(' and ')} but was '#{dep_g.version}'"
             end
           end
+
+          cfls = g.conflicts.select { |c|
+            cfl_g = gem_table[c[:gem]]
+            cfl_g and cfl_g.version_ok?(c[:requirements] || ['>= 0.0.0'])
+          }.map { |c| "#{c[:gem]}(#{gem_table[c[:gem]].version})" }
+          fail "Conflicts of gem `#{g.name}` found: #{cfls.join ', '}" unless cfls.empty?
         end
 
         class << gem_table
