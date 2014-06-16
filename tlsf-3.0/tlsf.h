@@ -61,6 +61,12 @@ void tlsf_walk_pool(pool_t pool, tlsf_walker walker, void* user);
 int tlsf_check(tlsf_t tlsf);
 int tlsf_check_pool(pool_t pool);
 
+/* For monami-ya.mrb */
+
+typedef struct mrb_state mrb_state;
+void mrb_tlsf_initialize(void *start, size_t bytes);
+void mrb_tlsf_set_pool(mrb_state *mrb, size_t bytes);
+
 #if defined(__cplusplus)
 };
 #endif

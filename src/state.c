@@ -106,20 +106,25 @@ allocf(mrb_state *mrb, void *p, size_t size, uintptr_t ud)
 #ifdef MRB_USE_TLSF
   tlsf_t tlsf;
   if (mrb == NULL) {
+#if ! defined(MRB_DISABLE_HOSTED)
     if (tlsf_root_handle == 0) {
       void *global_memory;
-      global_memory = malloc(24 * 1024 * 1024);
-      tlsf_root_handle = tlsf_create_with_pool(global_memory, 24 * 1024 * 1024);
+      const size_t size = 24 * 1024 * 1024;
+      global_memory = malloc(size);
+      mrb_tlsf_initialize(global_memory, size);
     }
+#endif
     tlsf = tlsf_root_handle;
   } else {
     if (mrb->tlsf_handle == 0) {
-      void *ptr;
-      ptr = tlsf_malloc(tlsf_root_handle, 10 * 1024 * 1024);
-      mrb->tlsf_handle = tlsf_create_with_pool(ptr, 10 * 1024 * 1024);
+      mrb_tlsf_set_pool(mrb, 3 * 1024 * 1024);
     }
     tlsf = mrb->tlsf_handle;
   } 
+
+  if (!tlsf) {
+    mrb_panic(mrb);
+  }
 
   if (size == 0) {
     tlsf_free(tlsf, p);
@@ -315,6 +320,11 @@ mrb_close(mrb_state *mrb)
   mrb_alloca_free(mrb);
 #ifndef MRB_GC_FIXED_ARENA
   mrb_free(mrb, mrb->arena);
+#endif
+#ifdef USE_MRB_TLSF
+  if (mrb->tlsf_handle) {
+    tlsf_free(tlsf_root_handle, mrb->tlsf_handle);
+  }
 #endif
   mrb_free(mrb, mrb);
 }

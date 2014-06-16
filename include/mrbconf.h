@@ -58,7 +58,7 @@ The value below allows about 60000 recursive calls in the simplest case. */
 #define MRB_STACK_MAX (0x40000 - MRB_STACK_GROWTH)
 
 /* Use TLSF memory allocator */
-#define MRB_USE_TLSF
+//#define MRB_USE_TLSF
 
 /* initial minimum size for string buffer */
 //#define MRB_STR_BUF_MIN_SIZE 128
@@ -74,6 +74,7 @@ The value below allows about 60000 recursive calls in the simplest case. */
 
 /* -DDISABLE_XXXX to drop following features */
 //#define DISABLE_STDIO		/* use of stdio */
+//#define MRB_DISABLE_HOSTED	/* C/C++ hosted (not freestanding) environment */
 
 /* -DENABLE_XXXX to enable following features */
 //#define ENABLE_DEBUG		/* hooks for debugger */
@@ -82,15 +83,20 @@ The value below allows about 60000 recursive calls in the simplest case. */
 /* end of configuration */
 
 /* define ENABLE_XXXX from DISABLE_XXX */
-#ifndef DISABLE_STDIO
+#if ! defined(DISABLE_STDIO) && ! defined(MRB_DISABLE_HOSTED)
 #define ENABLE_STDIO
 #endif
+
 #ifndef ENABLE_DEBUG
 #define DISABLE_DEBUG
 #endif
 
 #ifdef ENABLE_STDIO
 # include <stdio.h>
+#endif
+
+#ifndef MRB_DISABLE_HOSTED
+# include <stdlib.h>
 #endif
 
 #ifndef FALSE
