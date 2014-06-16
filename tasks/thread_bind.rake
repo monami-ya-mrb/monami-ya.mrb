@@ -10,7 +10,10 @@ MRuby.each_target do
         f.puts %q[ATT_INI({TA_HLNG, 0, mrb_thread_bind_initialize});]
         thread_binds.each_with_index do |t, i|
           if t.type == :task
-            f.puts %Q[CRE_TSK(MRB_TASK#{i}, { TA_HLNG #{ "|TA_ACT" if t.activate } }, #{i}, mrb_thread_bind_entry, #{t.priority}, #{t.stack_size}, NULL);]
+            stack_size = t.stack_size
+            stack_size = 16384 if stack_size < 16384
+            priority = (t.priority <= 0) ? 1 : t.priority
+            f.puts %Q[CRE_TSK(MRB_TASK#{i}, { TA_HLNG #{ "|TA_ACT" if t.activate }, #{i}, mrb_thread_bind_entry, #{priority}, #{stack_size}, NULL});]
           end
         end
       end
