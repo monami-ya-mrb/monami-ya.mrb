@@ -24,6 +24,10 @@ module MRuby
         @hash.each_key(&block)
       end
 
+      def names
+        @hash.keys
+      end
+
       def check
         sandbox_names = @hash.keys
         sandbox_names.each do |name|

@@ -9,6 +9,7 @@ load "#{MRUBY_ROOT}/tasks/ruby_ext.rake"
 load "#{MRUBY_ROOT}/tasks/mruby_build.rake"
 load "#{MRUBY_ROOT}/tasks/mrbgem_spec.rake"
 load "#{MRUBY_ROOT}/tasks/sandbox.rake"
+load "#{MRUBY_ROOT}/tasks/thread_bind_spec.rake"
 
 # load configuration file
 MRUBY_CONFIG = (ENV['MRUBY_CONFIG'] && ENV['MRUBY_CONFIG'] != '') ? ENV['MRUBY_CONFIG'] : "#{MRUBY_ROOT}/build_config.rb"
@@ -25,6 +26,7 @@ load "#{MRUBY_ROOT}/mrblib/mrblib.rake"
 load "#{MRUBY_ROOT}/tools/mrbc/mrbc.rake"
 
 load "#{MRUBY_ROOT}/tasks/mrbgems.rake"
+load "#{MRUBY_ROOT}/tasks/thread_bind.rake"
 load "#{MRUBY_ROOT}/tasks/libmruby.rake"
 
 load "#{MRUBY_ROOT}/tasks/mrbgems_test.rake"
