@@ -380,6 +380,9 @@ mrb_init_state(mrb_state *mrb)
   struct RClass *clazz;
 
   clazz = mrb_define_module(mrb, "MrbState");
+=======
+#endif
+>>>>>>> support/matz
 
   mrb_define_class_method(mrb, clazz, "stack_limit", state_stack_limit_get, MRB_ARGS_NONE());
   mrb_define_class_method(mrb, clazz, "stack_limit=", state_stack_limit_set, MRB_ARGS_REQ(1));

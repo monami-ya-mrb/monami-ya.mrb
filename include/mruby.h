@@ -54,6 +54,10 @@ typedef int (*mrb_log_printer)(const char *);
 #define MRB_GC_ARENA_SIZE 100
 #endif
 
+#ifndef MRB_FIXED_STATE_ATEXIT_STACK_SIZE
+#define MRB_FIXED_STATE_ATEXIT_STACK_SIZE 5
+#endif
+
 typedef struct {
   mrb_sym mid;
   struct RProc *proc;
