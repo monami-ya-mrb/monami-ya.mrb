@@ -46,7 +46,7 @@ typedef uint32_t mrb_aspec;
 struct mrb_irep;
 struct mrb_state;
 
-typedef void* (*mrb_allocf) (struct mrb_state *mrb, void*, size_t, uintptr_t ud);
+typedef void* (*mrb_allocf) (struct mrb_state *mrb, void*, size_t, void *ud);
 typedef void (*mrb_panic_hook) (struct mrb_state *mrb);
 typedef int (*mrb_log_printer)(const char *);
 
@@ -191,7 +191,7 @@ typedef struct mrb_state {
   size_t stack_limit;
   unsigned int sandbox_id; /* 0 means no sandbox. */
 
-  uintptr_t ud; /* auxiliary data */
+  void *ud; /* auxiliary data */
 } mrb_state;
 
 #if __STDC_VERSION__ >= 201112L
@@ -306,10 +306,14 @@ mrb_value mrb_str_new_static(mrb_state *mrb, const char *p, size_t len);
 #define mrb_str_new_lit(mrb, lit) mrb_str_new_static(mrb, (lit), mrb_strlen_lit(lit))
 
 mrb_state* mrb_open(void);
-mrb_state* mrb_open_allocf(mrb_allocf, uintptr_t ud);
+mrb_state* mrb_open_allocf(mrb_allocf, void *ud);
+mrb_state* mrb_open_core(mrb_allocf, void *ud);
+mrb_state* mrb_open_allocf(mrb_allocf, void *ud);
 mrb_state* mrb_open_sandbox(unsigned int sandbox_id);
-mrb_state* mrb_open_sandbox_allocf(mrb_allocf, uintptr_t ud, unsigned int sandbox_id);
+mrb_state* mrb_open_sandbox_allocf(mrb_allocf, void *ud, unsigned int sandbox_id);
 void mrb_close(mrb_state*);
+
+void* mrb_default_allocf(mrb_state*, void*, size_t, void*);
 
 mrb_value mrb_top_self(mrb_state *);
 mrb_value mrb_run(mrb_state*, struct RProc*, mrb_value);

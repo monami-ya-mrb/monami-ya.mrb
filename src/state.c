@@ -4,6 +4,7 @@
 ** See Copyright Notice in mruby.h
 */
 
+#include <stdlib.h>
 #include <string.h>
 #include "mruby.h"
 #include "mruby/irep.h"
@@ -11,11 +12,14 @@
 #include "mruby/debug.h"
 #include "mruby/string.h"
 #include "mruby/panic.h"
+#include "mruby/sandbox.h"
 
-#include <stdlib.h>
+extern struct mrb_sandbox_inib mrb_sandbox_inib_array[];
+
 void mrb_init_heap(mrb_state*);
 void mrb_init_core(mrb_state*);
-void mrb_final_core(mrb_state*);
+void mrb_init_mrbgems(mrb_state*);
+void mrb_final_mrbgems(mrb_state*);
 
 #ifdef MRB_USE_TLSF
 #include "tlsf.h"
@@ -57,13 +61,7 @@ inspect_main(mrb_state *mrb, mrb_value mod)
 }
 
 mrb_state*
-mrb_open_allocf(mrb_allocf f, uintptr_t ud)
-{
-  mrb_open_sandbox_allocf(f, ud, 0);
-}
-
-mrb_state*
-mrb_open_sandbox_allocf(mrb_allocf f, uintptr_t ud, unsigned int sandbox_id)
+mrb_open_sandbox_core(mrb_allocf f, void *ud, unsigned int sandbox_id)
 {
   static const mrb_state mrb_state_zero = { 0 };
   static const struct mrb_context mrb_context_zero = { 0 };
@@ -95,13 +93,20 @@ mrb_open_sandbox_allocf(mrb_allocf f, uintptr_t ud, unsigned int sandbox_id)
   mrb->c = (struct mrb_context*)mrb_malloc(mrb, sizeof(struct mrb_context));
   *mrb->c = mrb_context_zero;
   mrb->root_c = mrb->c;
+
   mrb_init_core(mrb);
 
   return mrb;
 }
 
-static void*
-allocf(mrb_state *mrb, void *p, size_t size, uintptr_t ud)
+mrb_state*
+mrb_open_core(mrb_allocf f, void *ud)
+{
+  return mrb_open_sandbox_core(f, ud, 0);
+}
+
+void*
+mrb_default_allocf(mrb_state *mrb, void *p, size_t size, void *ud)
 {
 #ifdef MRB_USE_TLSF
   tlsf_t tlsf;
@@ -120,7 +125,7 @@ allocf(mrb_state *mrb, void *p, size_t size, uintptr_t ud)
       mrb_tlsf_set_pool(mrb, 3 * 1024 * 1024);
     }
     tlsf = mrb->tlsf_handle;
-  } 
+  }
 
   if (!tlsf) {
     mrb_panic(mrb);
@@ -177,21 +182,42 @@ mrb_alloca_free(mrb_state *mrb)
 }
 
 mrb_state*
-mrb_open(void)
+mrb_open_sandbox(unsigned int sandbox_id)
 {
-  mrb_state *mrb;
-
-  mrb = mrb_open_sandbox(0);
+  mrb_state *mrb = mrb_open_sandbox_allocf(mrb_default_allocf, NULL, sandbox_id);
 
   return mrb;
 }
 
 mrb_state*
-mrb_open_sandbox(unsigned int sandbox_id)
+mrb_open_sandbox_allocf(mrb_allocf f, void *ud, unsigned int sandbox_id)
 {
-  mrb_state *mrb;
+  mrb_state *mrb = mrb_open_sandbox_core(f, ud, sandbox_id);
 
-  mrb = mrb_open_sandbox_allocf(allocf, (uintptr_t)NULL, sandbox_id);
+#ifndef DISABLE_GEMS
+  if (mrb->sandbox_id) {
+    mrb_sandbox_inib_array[mrb->sandbox_id - 1].init(mrb);
+  } else {
+    mrb_init_mrbgems(mrb);
+  }
+  mrb_gc_arena_restore(mrb, 0);
+#endif
+
+  return mrb;
+}
+
+mrb_state*
+mrb_open(void)
+{
+  mrb_state *mrb = mrb_open_sandbox_allocf(mrb_default_allocf, NULL, 0);
+
+  return mrb;
+}
+
+mrb_state*
+mrb_open_allocf(mrb_allocf f, void *ud)
+{
+  mrb_state *mrb = mrb_open_sandbox_allocf(f, ud, 0);
 
   return mrb;
 }
@@ -310,7 +336,14 @@ mrb_free_context(mrb_state *mrb, struct mrb_context *c)
 void
 mrb_close(mrb_state *mrb)
 {
-  mrb_final_core(mrb);
+#ifndef DISABLE_GEMS
+  if (mrb->sandbox_id) {
+    mrb_sandbox_inib_array[mrb->sandbox_id - 1].final(mrb);
+  } else {
+    mrb_final_mrbgems(mrb);
+  }
+  mrb_gc_arena_restore(mrb, 0);
+#endif
 
   /* free */
   mrb_gc_free_gv(mrb);
@@ -380,9 +413,6 @@ mrb_init_state(mrb_state *mrb)
   struct RClass *clazz;
 
   clazz = mrb_define_module(mrb, "MrbState");
-=======
-#endif
->>>>>>> support/matz
 
   mrb_define_class_method(mrb, clazz, "stack_limit", state_stack_limit_get, MRB_ARGS_NONE());
   mrb_define_class_method(mrb, clazz, "stack_limit=", state_stack_limit_set, MRB_ARGS_REQ(1));

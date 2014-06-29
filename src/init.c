@@ -29,8 +29,6 @@ void mrb_init_state_vm(mrb_state*);
 void mrb_init_math(mrb_state*);
 void mrb_init_version(mrb_state*);
 void mrb_init_mrblib(mrb_state*);
-void mrb_init_mrbgems(mrb_state*);
-void mrb_final_mrbgems(mrb_state*);
 
 #define DONE mrb_gc_arena_restore(mrb, 0);
 void
@@ -57,23 +55,4 @@ mrb_init_core(mrb_state *mrb)
   mrb_init_state_vm(mrb); DONE;
   mrb_init_version(mrb); DONE;
   mrb_init_mrblib(mrb); DONE;
-#ifndef DISABLE_GEMS
-  if (mrb->sandbox_id) {
-    mrb_sandbox_inib_array[mrb->sandbox_id - 1].init(mrb); DONE;
-  } else {
-    mrb_init_mrbgems(mrb); DONE;
-  }
-#endif
-}
-
-void
-mrb_final_core(mrb_state *mrb)
-{
-#ifndef DISABLE_GEMS
-  if (mrb->sandbox_id) {
-    mrb_sandbox_inib_array[mrb->sandbox_id - 1].final(mrb); DONE;
-  } else {
-    mrb_final_mrbgems(mrb); DONE;
-  }
-#endif
 }
