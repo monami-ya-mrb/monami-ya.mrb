@@ -104,14 +104,7 @@ largest value of required alignment.
 
 ## State atexit configuration.
 
-`MRB_FIXED_STATE_ATEXIT_STACK`
-* If defined enables fixed size `mrb_state` atexit stack.
-* Raises `RuntimeError` when `mrb_state_atexit` call count to same `mrb_state` exceeds
-`MRB_FIXED_STATE_ATEXIT_STACK_SIZE`'s value.
-
-`MRB_FIXED_STATE_ATEXIT_STACK_SIZE`
-* Default value is `5`.
-* If `MRB_FIXED_STATE_ATEXIT_STACK` isn't defined this macro is ignored.
+State atexit is not supported by Monami-ya.mrb.
 
 ## `mrb_value` configuration.
 
