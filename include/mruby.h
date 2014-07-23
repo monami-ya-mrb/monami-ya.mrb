@@ -339,11 +339,11 @@ int mrb_gc_arena_save(mrb_state*);
 void mrb_gc_arena_restore(mrb_state*,int);
 void mrb_gc_mark(mrb_state*,struct RBasic*);
 #define mrb_gc_mark_value(mrb,val) do {\
-  if (MRB_TT_HAS_BASIC_P(mrb_type(val))) mrb_gc_mark((mrb), mrb_basic_ptr(val)); \
+  if (!mrb_immediate_p(val)) mrb_gc_mark((mrb), mrb_basic_ptr(val)); \
 } while (0)
 void mrb_field_write_barrier(mrb_state *, struct RBasic*, struct RBasic*);
 #define mrb_field_write_barrier_value(mrb, obj, val) do{\
-  if (MRB_TT_HAS_BASIC_P(mrb_type(val))) mrb_field_write_barrier((mrb), (obj), mrb_basic_ptr(val)); \
+  if (!mrb_immediate_p(val)) mrb_field_write_barrier((mrb), (obj), mrb_basic_ptr(val)); \
 } while (0)
 void mrb_write_barrier(mrb_state *, struct RBasic*);
 
@@ -399,6 +399,7 @@ void mrb_print_error(mrb_state *mrb);
 #define E_SYNTAX_ERROR              (mrb_class_get(mrb, "SyntaxError"))
 #define E_LOCALJUMP_ERROR           (mrb_class_get(mrb, "LocalJumpError"))
 #define E_REGEXP_ERROR              (mrb_class_get(mrb, "RegexpError"))
+#define E_SYSSTACK_ERROR            (mrb_class_get(mrb, "SystemStackError"))
 
 #define E_NOTIMP_ERROR              (mrb_class_get(mrb, "NotImplementedError"))
 #define E_FLOATDOMAIN_ERROR         (mrb_class_get(mrb, "FloatDomainError"))

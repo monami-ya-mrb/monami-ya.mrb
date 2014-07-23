@@ -459,6 +459,7 @@ obj_iv_p(mrb_value obj)
     case MRB_TT_SCLASS:
     case MRB_TT_HASH:
     case MRB_TT_DATA:
+    case MRB_TT_EXCEPTION:
       return TRUE;
     default:
       return FALSE;
@@ -1085,7 +1086,7 @@ retry:
   return FALSE;
 }
 
-int
+mrb_bool
 mrb_const_defined_at(mrb_state *mrb, struct RClass *klass, mrb_sym id)
 {
   return mrb_const_defined_0(mrb, klass, id, TRUE, FALSE);

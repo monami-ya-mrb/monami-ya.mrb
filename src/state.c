@@ -67,10 +67,6 @@ mrb_open_sandbox_core(mrb_allocf f, void *ud, unsigned int sandbox_id)
   static const struct mrb_context mrb_context_zero = { 0 };
   mrb_state *mrb;
 
-#ifdef MRB_NAN_BOXING
-  mrb_static_assert(sizeof(void*) == 4, "when using NaN boxing sizeof pointer must be 4 byte");
-#endif
-
   mrb = (mrb_state *)(f)(NULL, NULL, sizeof(mrb_state), ud);
   if (mrb == NULL) return NULL;
 
@@ -283,7 +279,7 @@ mrb_str_pool(mrb_state *mrb, mrb_value str)
   ns->tt = MRB_TT_STRING;
   ns->c = mrb->string_class;
 
-  if (s->flags & MRB_STR_NOFREE) {
+  if (RSTR_NOFREE_P(s)) {
     ns->flags = MRB_STR_NOFREE;
     ns->as.heap.ptr = s->as.heap.ptr;
     ns->as.heap.len = s->as.heap.len;
@@ -291,9 +287,9 @@ mrb_str_pool(mrb_state *mrb, mrb_value str)
   }
   else {
     ns->flags = 0;
-    if (s->flags & MRB_STR_EMBED) {
+    if (RSTR_EMBED_P(s)) {
       ptr = s->as.ary;
-      len = (mrb_int)((s->flags & MRB_STR_EMBED_LEN_MASK) >> MRB_STR_EMBED_LEN_SHIFT);
+      len = RSTR_EMBED_LEN(s);
     }
     else {
       ptr = s->as.heap.ptr;
@@ -301,9 +297,8 @@ mrb_str_pool(mrb_state *mrb, mrb_value str)
     }
 
     if (len < RSTRING_EMBED_LEN_MAX) {
-      ns->flags |= MRB_STR_EMBED;
-      ns->flags &= ~MRB_STR_EMBED_LEN_MASK;
-      ns->flags |= (size_t)len << MRB_STR_EMBED_LEN_SHIFT;
+      RSTR_SET_EMBED_FLAG(ns);
+      RSTR_SET_EMBED_LEN(ns, len);
       if (ptr) {
         memcpy(ns->as.ary, ptr, len);
       }

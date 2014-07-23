@@ -16,6 +16,7 @@
 #include "mruby/variable.h"
 #include "mruby/debug.h"
 #include "mruby/error.h"
+#include "mruby/class.h"
 #include "mrb_throw.h"
 
 mrb_value
@@ -441,6 +442,7 @@ mrb_init_exception(mrb_state *mrb)
   struct RClass *exception, *script_error;
 
   mrb->eException_class = exception = mrb_define_class(mrb, "Exception", mrb->object_class); /* 15.2.22 */
+  MRB_SET_INSTANCE_TT(exception, MRB_TT_EXCEPTION);
   mrb_define_class_method(mrb, exception, "exception", mrb_instance_new,  MRB_ARGS_ANY());
   mrb_define_method(mrb, exception, "exception",       exc_exception,     MRB_ARGS_ANY());
   mrb_define_method(mrb, exception, "initialize",      exc_initialize,    MRB_ARGS_ANY());
@@ -453,4 +455,5 @@ mrb_init_exception(mrb_state *mrb)
   mrb_define_class(mrb, "RuntimeError", mrb->eStandardError_class);                          /* 15.2.28 */
   script_error = mrb_define_class(mrb, "ScriptError", mrb->eException_class);                /* 15.2.37 */
   mrb_define_class(mrb, "SyntaxError", script_error);                                        /* 15.2.38 */
+  mrb_define_class(mrb, "SystemStackError", exception);
 }

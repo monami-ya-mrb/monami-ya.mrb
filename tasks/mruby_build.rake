@@ -50,7 +50,7 @@ module MRuby
     attr_accessor :name, :bins, :exts, :file_separator, :build_dir, :gem_clone_dir
     attr_reader :sandboxes
     attr_reader :thread_binds
-    attr_reader :libmruby, :gems
+    attr_reader :libmruby, :gems, :toolchains
     attr_writer :enable_bintest
 
     COMPILERS = %w(cc cxx objc asm)
@@ -93,6 +93,7 @@ module MRuby
         @cxx_exception_disabled = false
         @sandboxes = MRuby::Sandbox::Hash.new
         @thread_binds = MRuby::ThreadBind::List.new
+        @toolchains = []
 
         MRuby.targets[@name] = self
       end
@@ -133,6 +134,11 @@ module MRuby
       tc = Toolchain.toolchains[name.to_s]
       fail "Unknown #{name} toolchain" unless tc
       tc.setup(self)
+      @toolchains.unshift name.to_s
+    end
+
+    def primary_toolchain
+      @toolchains.first
     end
 
     def root

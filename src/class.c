@@ -1206,7 +1206,7 @@ mrb_bob_missing(mrb_state *mrb, mrb_value mod)
     /* method missing in inspect; avoid recursion */
     repr = mrb_any_to_s(mrb, mod);
   }
-  else if (mrb_respond_to(mrb, mod, inspect)) {
+  else if (mrb_respond_to(mrb, mod, inspect) && mrb->c->ci - mrb->c->cibase < 64) {
     repr = mrb_funcall_argv(mrb, mod, inspect, 0, 0);
     if (RSTRING_LEN(repr) > 64) {
       repr = mrb_any_to_s(mrb, mod);
@@ -1500,7 +1500,7 @@ undef_method(mrb_state *mrb, struct RClass *c, mrb_sym a)
     mrb_name_error(mrb, a, "undefined method '%S' for class '%S'", mrb_sym2str(mrb, a), mrb_obj_value(c));
   }
   else {
-    MRB_SET_VALUE(m, MRB_TT_PROC, value.p, 0);
+    SET_PROC_VALUE(m, 0);
     mrb_define_method_vm(mrb, c, a, m);
   }
 }
