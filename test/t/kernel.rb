@@ -588,7 +588,7 @@ assert('stack extend') do
   assert_equal 6, recurse(0, 5)
   limit = MrbState.stack_limit
   MrbState.stack_limit = 1024
-  assert_raise RuntimeError do
+  assert_raise SystemStackError do
     recurse(0, 100000)
   end
   MrbState.stack_limit = limit

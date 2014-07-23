@@ -72,6 +72,7 @@ fiber_init(mrb_state *mrb, mrb_value self)
   mrb_callinfo *ci;
   mrb_value blk;
   size_t slen;
+  int i;
 
   mrb_get_args(mrb, "&", &blk);
 
