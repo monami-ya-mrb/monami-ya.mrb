@@ -45,7 +45,10 @@ MRuby.each_target do
           f.puts %Q[  int ai;]
           g.test_rbfiles.count.times do |i|
             f.puts %Q[  ai = mrb_gc_arena_save(mrb);]
-            f.puts %Q[  mrb2 = mrb_open();]
+            f.puts %Q[  mrb2 = mrb_open_core(mrb_default_allocf, NULL);]
+            dep_list.each do |d|
+              f.puts %Q[  GENERATED_TMP_mrb_#{d.funcname}_gem_init(mrb2);]
+            end
             f.puts %Q[  mrb_init_test_driver(mrb2, mrb_test(mrb_gv_get(mrb, mrb_intern_lit(mrb, "$mrbtest_verbose"))));]
             if test_preload.nil?
               f.puts %Q[  mrb_load_irep(mrb2, mrbtest_assert_irep);]
@@ -74,6 +77,9 @@ MRuby.each_target do
             f.puts %Q[  ]
 
             f.puts %Q[  mrb_t_pass_result(mrb, mrb2);]
+            dep_list.each do |d|
+              f.puts %Q[  GENERATED_TMP_mrb_#{d.funcname}_gem_final(mrb2);]
+            end
             f.puts %Q[  mrb_close(mrb2);]
             f.puts %Q[  mrb_gc_arena_restore(mrb, ai);]
           end
