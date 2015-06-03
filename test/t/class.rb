@@ -370,3 +370,21 @@ assert('clone Class') do
 
   Foo.clone.new.func
 end
+
+assert('class variable and class << self style class method') do
+  class ClassVariableTest
+    @@class_variable = "value"
+    class << self
+      def class_variable
+        @@class_variable
+      end
+    end
+  end
+
+  assert_equal("value", ClassVariableTest.class_variable)
+end
+
+assert('class with non-class/module outer raises TypeError') do
+  assert_raise(TypeError) { class 0::C1; end }
+  assert_raise(TypeError) { class []::C2; end }
+end

@@ -17,16 +17,16 @@
 #include "mruby/debug.h"
 #include "mruby/error.h"
 #include "mruby/class.h"
-#include "mrb_throw.h"
+#include "mruby/throw.h"
 
-mrb_value
-mrb_exc_new(mrb_state *mrb, struct RClass *c, const char *ptr, long len)
+MRB_API mrb_value
+mrb_exc_new(mrb_state *mrb, struct RClass *c, const char *ptr, size_t len)
 {
   mrb_value arg = mrb_str_new(mrb, ptr, len);
   return mrb_obj_new(mrb, c, 1, &arg);
 }
 
-mrb_value
+MRB_API mrb_value
 mrb_exc_new_str(mrb_state *mrb, struct RClass* c, mrb_value str)
 {
   str = mrb_str_to_str(mrb, str);
@@ -203,7 +203,7 @@ exc_debug_info(mrb_state *mrb, struct RObject *exc)
   }
 }
 
-mrb_noreturn void
+MRB_API mrb_noreturn void
 mrb_exc_raise(mrb_state *mrb, mrb_value exc)
 {
   mrb->exc = mrb_obj_ptr(exc);
@@ -215,7 +215,7 @@ mrb_exc_raise(mrb_state *mrb, mrb_value exc)
   MRB_THROW(mrb->jmp);
 }
 
-mrb_noreturn void
+MRB_API mrb_noreturn void
 mrb_raise(mrb_state *mrb, struct RClass *c, const char *msg)
 {
   mrb_value mesg;
@@ -223,7 +223,7 @@ mrb_raise(mrb_state *mrb, struct RClass *c, const char *msg)
   mrb_exc_raise(mrb, mrb_exc_new_str(mrb, c, mesg));
 }
 
-mrb_value
+MRB_API mrb_value
 mrb_vformat(mrb_state *mrb, const char *format, va_list ap)
 {
   const char *p = format;
@@ -260,11 +260,11 @@ mrb_vformat(mrb_state *mrb, const char *format, va_list ap)
   else {
     size = p - b;
     mrb_ary_push(mrb, ary, mrb_str_new(mrb, b, size));
-    return mrb_ary_join(mrb, ary, mrb_str_new(mrb,NULL,0));
+    return mrb_ary_join(mrb, ary, mrb_str_new(mrb, NULL, 0));
   }
 }
 
-mrb_value
+MRB_API mrb_value
 mrb_format(mrb_state *mrb, const char *format, ...)
 {
   va_list ap;
@@ -277,7 +277,7 @@ mrb_format(mrb_state *mrb, const char *format, ...)
   return str;
 }
 
-mrb_noreturn void
+MRB_API mrb_noreturn void
 mrb_raisef(mrb_state *mrb, struct RClass *c, const char *fmt, ...)
 {
   va_list args;
@@ -289,7 +289,7 @@ mrb_raisef(mrb_state *mrb, struct RClass *c, const char *fmt, ...)
   mrb_exc_raise(mrb, mrb_exc_new_str(mrb, c, mesg));
 }
 
-mrb_noreturn void
+MRB_API mrb_noreturn void
 mrb_name_error(mrb_state *mrb, mrb_sym id, const char *fmt, ...)
 {
   mrb_value exc;
@@ -305,7 +305,7 @@ mrb_name_error(mrb_state *mrb, mrb_sym id, const char *fmt, ...)
   mrb_exc_raise(mrb, exc);
 }
 
-void
+MRB_API void
 mrb_warn(mrb_state *mrb, const char *fmt, ...)
 {
 #ifdef ENABLE_STDIO
@@ -320,7 +320,7 @@ mrb_warn(mrb_state *mrb, const char *fmt, ...)
 #endif
 }
 
-mrb_noreturn void
+MRB_API mrb_noreturn void
 mrb_bug(mrb_state *mrb, const char *fmt, ...)
 {
 #ifdef ENABLE_STDIO
@@ -395,13 +395,13 @@ exception_call:
   return mesg;
 }
 
-mrb_value
+MRB_API mrb_value
 mrb_make_exception(mrb_state *mrb, int argc, const mrb_value *argv)
 {
   return make_exception(mrb, argc, argv, TRUE);
 }
 
-void
+MRB_API void
 mrb_sys_fail(mrb_state *mrb, const char *mesg)
 {
   struct RClass *sce;
@@ -422,7 +422,7 @@ mrb_sys_fail(mrb_state *mrb, const char *mesg)
   }
 }
 
-mrb_noreturn void
+MRB_API mrb_noreturn void
 mrb_no_method_error(mrb_state *mrb, mrb_sym id, mrb_int argc, const mrb_value *argv, char const* fmt, ...)
 {
   mrb_value exc;

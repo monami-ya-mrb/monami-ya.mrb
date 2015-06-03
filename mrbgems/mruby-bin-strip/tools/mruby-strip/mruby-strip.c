@@ -31,8 +31,8 @@ irep_remove_lv(mrb_state *mrb, mrb_irep *irep)
 static void
 print_usage(const char *f)
 {
-  printf("Usage: %s [options] irepfiles\n", f);
-  printf("options:\n");
+  printf("Usage: %s [switches] irepfiles\n", f);
+  printf("switches:\n");
   printf("  -l, --lvar   remove LVAR section too.\n");
 }
 
@@ -142,7 +142,7 @@ main(int argc, char **argv)
     print_usage(argv[0]);
     return EXIT_FAILURE;
   }
-  mrb = mrb_open();
+  mrb = mrb_open_core(mrb_default_allocf, NULL);
   if (mrb == NULL) {
     fputs("Invalid mrb_state, exiting mruby-strip\n", stderr);
     return EXIT_FAILURE;

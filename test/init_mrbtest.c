@@ -19,6 +19,10 @@ mrb_init_mrbtest(mrb_state *mrb)
   mrb_load_irep(mrb, mrbtest_assert_irep);
 
   core_test = mrb_open_core(mrb_default_allocf, NULL);
+  if (core_test == NULL) {
+    fprintf(stderr, "Invalid mrb_state, exiting %s", __FUNCTION__);
+    exit(EXIT_FAILURE);
+  }
   mrb_capitest_init(core_test);
   mrb_init_test_driver(core_test, mrb_test(mrb_gv_get(mrb, mrb_intern_lit(mrb, "$mrbtest_verbose"))));
   mrb_load_irep(core_test, mrbtest_assert_irep);
@@ -33,5 +37,6 @@ mrb_init_mrbtest(mrb_state *mrb)
     mrb_print_error(mrb);
     mrb_panic(mrb);
   }
+  mrb_close(core_test);
 }
 

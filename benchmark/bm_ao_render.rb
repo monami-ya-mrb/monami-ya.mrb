@@ -1,13 +1,12 @@
 # AO render benchmark
 # Original program (C) Syoyo Fujita in Javascript (and other languages)
-#      http://lucille.atso-net.jp/blog/?p=642
-#      http://lucille.atso-net.jp/blog/?p=711
+#      https://code.google.com/p/aobench/
 # Ruby(yarv2llvm) version by Hideki Miura
 # mruby version by Hideki Miura
 #
 
-IMAGE_WIDTH = 256
-IMAGE_HEIGHT = 256
+IMAGE_WIDTH = 64
+IMAGE_HEIGHT = 64
 NSUBSAMPLES = 2
 NAO_SAMPLES = 8
 

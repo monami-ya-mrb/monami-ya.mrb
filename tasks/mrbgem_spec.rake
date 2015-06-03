@@ -38,6 +38,8 @@ module MRuby
 
       attr_accessor :export_include_paths
 
+      attr_reader :generate_functions
+
       attr_block MRuby::Build::COMMANDS
 
       def initialize(name, &block)
@@ -58,7 +60,9 @@ module MRuby
         @objs = Dir.glob("#{dir}/src/*.{c,cpp,cxx,cc,m,asm,s,S}").map do |f|
           objfile(f.relative_path_from(@dir).to_s.pathmap("#{build_dir}/%X"))
         end
-        @objs << objfile("#{build_dir}/gem_init")
+
+        @generate_functions = !(@rbfiles.empty? && @objs.empty?)
+        @objs << objfile("#{build_dir}/gem_init") if @generate_functions
 
         @test_rbfiles = Dir.glob("#{dir}/test/*.rb")
         @test_objs = Dir.glob("#{dir}/test/*.{c,cpp,cxx,cc,m,asm,s,S}").map do |f|
@@ -99,7 +103,7 @@ module MRuby
           end
         end
 
-        define_gem_init_builder
+        define_gem_init_builder if @generate_functions
       end
 
       def add_dependency(name, *requirements)
@@ -190,6 +194,7 @@ module MRuby
 
       def print_gem_test_header(f)
         print_gem_comment(f)
+        f.puts %Q[#include <stdio.h>]
         f.puts %Q[#include <stdlib.h>]
         f.puts %Q[#include "mruby.h"]
         f.puts %Q[#include "mruby/irep.h"]
@@ -307,7 +312,7 @@ module MRuby
         @ary.empty?
       end
 
-      def generate_gem_table
+      def generate_gem_table build
         gem_table = @ary.reduce({}) { |res,v| res[v.name] = v; res }
 
         default_gems = []
@@ -390,7 +395,7 @@ module MRuby
       end
 
       def check(build)
-        gem_table = generate_gem_table
+        gem_table = generate_gem_table build
 
         @ary = tsort_dependencies gem_table.keys, gem_table, true
 
