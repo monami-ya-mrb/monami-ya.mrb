@@ -30,6 +30,7 @@ main(void)
   mrb_funcall(mrb, obj, "method_name", 1, mrb_float_value(mrb, f));
   fclose(fp);
   mrb_close(mrb);
+  return 0;
 }
 
 ```
@@ -37,10 +38,10 @@ main(void)
 test.rb
 ```Ruby
 class My_Class
-	def method_name(s)
-		puts s
-		puts s.class
-	end
+  def method_name(s)
+    puts s
+    puts s.class
+  end
 end
 a = My_Class.new
 ```
@@ -77,6 +78,7 @@ main(void)
   mrb_funcall(mrb, obj, "method_name", 1, mrb_fixnum_value(i));
   fclose(fp);
   mrb_close(mrb);
+  return 0;
 }
 
 ```
@@ -84,10 +86,10 @@ main(void)
 test.rb
 ```Ruby
 class My_Class
-	def method_name(s)
-		puts s
-		puts s.class
-	end
+  def method_name(s)
+    puts s
+    puts s.class
+  end
 end
 a = My_Class.new
 ```
@@ -124,6 +126,7 @@ main(void)
   mrb_funcall(mrb, obj, "method_name", 1, mrb_nil_value());
   fclose(fp);
   mrb_close(mrb);
+  return 0;
 }
 
 ```
@@ -131,10 +134,10 @@ main(void)
 test.rb
 ```Ruby
 class My_Class
-	def method_name(s)
-		puts s
-		puts s.class
-	end
+  def method_name(s)
+    puts s
+    puts s.class
+  end
 end
 a = My_Class.new
 ```
@@ -170,6 +173,7 @@ main(void)
   mrb_funcall(mrb, obj, "method_name", 1, mrb_false_value());
   fclose(fp);
   mrb_close(mrb);
+  return 0;
 }
 
 ```
@@ -177,10 +181,10 @@ main(void)
 test.rb
 ```Ruby
 class My_Class
-	def method_name(s)
-		puts s
-		puts s.class
-	end
+  def method_name(s)
+    puts s
+    puts s.class
+  end
 end
 a = My_Class.new
 ```
@@ -217,6 +221,7 @@ main(void)
   mrb_funcall(mrb, obj, "method_name", 1, mrb_true_value());
   fclose(fp);
   mrb_close(mrb);
+  return 0;
 }
 
 ```
@@ -224,10 +229,10 @@ main(void)
 test.rb
 ```Ruby
 class My_Class
-	def method_name(s)
-		puts s
-		puts s.class
-	end
+  def method_name(s)
+    puts s
+    puts s.class
+  end
 end
 a = My_Class.new
 ```

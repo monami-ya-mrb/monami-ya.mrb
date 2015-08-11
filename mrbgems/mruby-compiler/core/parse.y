@@ -2156,6 +2156,7 @@ primary         : literal
                       $$ = new_lambda(p, $3, $5);
                       local_unnest(p);
                       p->cmdarg_stack = $<stack>4;
+                      CMDARG_LEXPOP();
                     }
                 | keyword_if expr_value then
                   compstmt
@@ -2943,7 +2944,7 @@ backref         : tNTH_REF
                 | tBACK_REF
                 ;
 
-superclass      : term
+superclass      : /* term */
                     {
                       $$ = 0;
                     }
@@ -2955,12 +2956,12 @@ superclass      : term
                   expr_value term
                     {
                       $$ = $3;
-                    }
+                    } /* 
                 | error term
                     {
                       yyerrok;
                       $$ = 0;
-                    }
+                    } */
                 ;
 
 f_arglist       : '(' f_args rparen
@@ -3595,10 +3596,13 @@ toklast(parser_state *p)
 static void
 tokfix(parser_state *p)
 {
-  if (p->bidx >= MRB_PARSER_BUF_SIZE) {
+  int i = p->bidx, imax = MRB_PARSER_BUF_SIZE - 1;
+
+  if (i > imax) {
+    i = imax;
     yyerror(p, "string too long (truncated)");
   }
-  p->buf[p->bidx] = '\0';
+  p->buf[i] = '\0';
 }
 
 static const char*
@@ -4215,7 +4219,7 @@ parser_yylex(parser_state *p)
       }
       pushback(p, c);
       if (IS_SPCARG(c)) {
-        yywarning(p, "`*' interpreted as argument prefix");
+        yywarning(p, "'*' interpreted as argument prefix");
         c = tSTAR;
       }
       else if (IS_BEG()) {
@@ -4468,7 +4472,7 @@ parser_yylex(parser_state *p)
     }
     pushback(p, c);
     if (IS_SPCARG(c)) {
-      yywarning(p, "`&' interpreted as argument prefix");
+      yywarning(p, "'&' interpreted as argument prefix");
       c = tAMPER;
     }
     else if (IS_BEG()) {
@@ -4774,7 +4778,7 @@ parser_yylex(parser_state *p)
         nondigit = c;
         break;
 
-      case '_':       /* `_' in number just ignored */
+      case '_':       /* '_' in number just ignored */
         if (nondigit) goto decode_num;
         nondigit = c;
         break;
@@ -4791,7 +4795,7 @@ parser_yylex(parser_state *p)
 #define MSG1_TRAILING "trailing `"
       trailing_uc:
       {
-        static const char msg[] = MSG1_TRAILING ". in number";
+        static const char msg[] = MSG1_TRAILING ".' in number";
         char buf[sizeof(msg)];
         memcpy(buf, msg, sizeof(msg));
         buf[sizeof(MSG1_TRAILING) - 1] = nondigit;
@@ -4843,6 +4847,7 @@ parser_yylex(parser_state *p)
   case ')':
   case ']':
     p->paren_nest--;
+    /* fall through */
   case '}':
     COND_LEXPOP();
     CMDARG_LEXPOP();
@@ -5176,6 +5181,7 @@ parser_yylex(parser_state *p)
         pushback(p,  c);
         return '$';
       }
+      /* fall through */
     case '0':
       tokadd(p, '$');
     }
@@ -5200,7 +5206,7 @@ parser_yylex(parser_state *p)
       }
       else if (isdigit(c)) {
         if (p->bidx == 1) {
-           static const char msg[] = "`@.' is not allowed as an instance variable name";
+          static const char msg[] = "`@.' is not allowed as an instance variable name";
           char buf[sizeof(msg)] = { 0 };
           memcpy(buf, msg, sizeof(buf));
           buf[2] = c;
@@ -5226,16 +5232,16 @@ parser_yylex(parser_state *p)
       break;
 
   default:
-    if (!identchar(c)) {
+      if (!identchar(c)) {
 #define MSG1_INVALID_CHAR "Invalid char `\\x"
-      static const char msg[] = MSG1_INVALID_CHAR "..' in expression";
-      char buf[sizeof(msg)] = { 0 };
-      memcpy(buf, msg, sizeof(buf));
-      buf[sizeof(MSG1_INVALID_CHAR) - 1] = '0' + c / 10;
-      buf[sizeof(MSG1_INVALID_CHAR)] = '0' + c % 10;
-      yyerror(p, buf);
-      goto retry;
-    }
+        static const char msg[] = MSG1_INVALID_CHAR "..' in expression";
+        char buf[sizeof(msg)] = { 0 };
+        memcpy(buf, msg, sizeof(buf));
+        buf[sizeof(MSG1_INVALID_CHAR) - 1] = '0' + c / 10;
+        buf[sizeof(MSG1_INVALID_CHAR)] = '0' + c % 10;
+        yyerror(p, buf);
+        goto retry;
+      }
 
       token_column = newtok(p);
       break;

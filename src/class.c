@@ -212,7 +212,7 @@ MRB_API struct RClass*
 mrb_define_class_id(mrb_state *mrb, mrb_sym name, struct RClass *super)
 {
   if (!super) {
-    mrb_warn(mrb, "no super class for `%S', Object assumed", mrb_sym2str(mrb, name));
+    mrb_warn(mrb, "no super class for '%S', Object assumed", mrb_sym2str(mrb, name));
   }
   return define_class(mrb, name, super, mrb->object_class);
 }
@@ -311,7 +311,7 @@ mrb_define_class_under(mrb_state *mrb, struct RClass *outer, const char *name, s
 
 #if 0
   if (!super) {
-    mrb_warn(mrb, "no super class for `%S::%S', Object assumed",
+    mrb_warn(mrb, "no super class for '%S::%S', Object assumed",
              mrb_obj_value(outer), mrb_sym2str(mrb, id));
   }
 #endif
@@ -435,12 +435,12 @@ to_sym(mrb_state *mrb, mrb_value ss)
     ----------------------------------------------------------------------------------------------
     o:      Object         [mrb_value]
     C:      class/module   [mrb_value]
-    S:      String         [mrb_value]
-    A:      Array          [mrb_value]
-    H:      Hash           [mrb_value]
-    s:      String         [char*,mrb_int]        Receive two arguments.
-    z:      String         [char*]                NUL terminated string.
-    a:      Array          [mrb_value*,mrb_int]   Receive two arguments.
+    S:      String         [mrb_value]            when ! follows, the value may be nil
+    A:      Array          [mrb_value]            when ! follows, the value may be nil
+    H:      Hash           [mrb_value]            when ! follows, the value may be nil
+    s:      String         [char*,mrb_int]        Receive two arguments; s! gives (NULL,0) for nil
+    z:      String         [char*]                NUL terminated string; z! gives NULL for nil
+    a:      Array          [mrb_value*,mrb_int]   Receive two arguments; a! gives (NULL,0) for nil
     f:      Float          [mrb_float]
     i:      Integer        [mrb_int]
     b:      Boolean        [mrb_bool]
@@ -525,6 +525,14 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
         mrb_value *p;
 
         p = va_arg(ap, mrb_value*);
+        if (*format == '!') {
+          format++;
+          if (i < argc && mrb_nil_p(*sp)) {
+            *p = *sp++;
+            i++;
+            break;
+          }
+        }
         if (i < argc) {
           *p = to_str(mrb, *sp++);
           i++;
@@ -536,6 +544,14 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
         mrb_value *p;
 
         p = va_arg(ap, mrb_value*);
+        if (*format == '!') {
+          format++;
+          if (i < argc && mrb_nil_p(*sp)) {
+            *p = *sp++;
+            i++;
+            break;
+          }
+        }
         if (i < argc) {
           *p = to_ary(mrb, *sp++);
           i++;
@@ -547,6 +563,14 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
         mrb_value *p;
 
         p = va_arg(ap, mrb_value*);
+        if (*format == '!') {
+          format++;
+          if (i < argc && mrb_nil_p(*sp)) {
+            *p = *sp++;
+            i++;
+            break;
+          }
+        }
         if (i < argc) {
           *p = to_hash(mrb, *sp++);
           i++;
@@ -561,6 +585,15 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
 
         ps = va_arg(ap, char**);
         pl = va_arg(ap, mrb_int*);
+        if (*format == '!') {
+          format++;
+          if (i < argc && mrb_nil_p(*sp)) {
+            *ps = NULL;
+            *pl = 0;
+            i++;
+            break;
+          }
+        }
         if (i < argc) {
           ss = to_str(mrb, *sp++);
           *ps = RSTRING_PTR(ss);
@@ -575,6 +608,14 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
         const char **ps;
 
         ps = va_arg(ap, const char**);
+        if (*format == '!') {
+          format++;
+          if (i < argc && mrb_nil_p(*sp)) {
+            *ps = NULL;
+            i++;
+            break;
+          }
+        }
         if (i < argc) {
           ss = to_str(mrb, *sp++);
           *ps = mrb_string_value_cstr(mrb, &ss);
@@ -591,6 +632,15 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
 
         pb = va_arg(ap, mrb_value**);
         pl = va_arg(ap, mrb_int*);
+        if (*format == '!') {
+          format++;
+          if (i < argc && mrb_nil_p(*sp)) {
+            *pb = 0;
+            *pl = 0;
+            i++;
+            break;
+          }
+        }
         if (i < argc) {
           aa = to_ary(mrb, *sp++);
           a = mrb_ary_ptr(aa);
@@ -676,6 +726,14 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
 
         datap = va_arg(ap, void**);
         type = va_arg(ap, struct mrb_data_type const*);
+        if (*format == '!') {
+          format++;
+          if (i < argc && mrb_nil_p(*sp)) {
+            *datap = 0;
+            i++;
+            break;
+          }
+        }
         if (i < argc) {
           *datap = mrb_data_get_ptr(mrb, *sp++, type);
           ++i;
@@ -1174,11 +1232,11 @@ mrb_instance_alloc(mrb_state *mrb, mrb_value cv)
  *  call-seq:
  *     class.new(args, ...)    ->  obj
  *
- *  Calls <code>allocate</code> to create a new object of
- *  <i>class</i>'s class, then invokes that object's
- *  <code>initialize</code> method, passing it <i>args</i>.
- *  This is the method that ends up getting called whenever
- *  an object is constructed using .new.
+ *  Creates a new object of <i>class</i>'s class, then
+ *  invokes that object's <code>initialize</code> method,
+ *  passing it <i>args</i>. This is the method that ends
+ *  up getting called whenever an object is constructed using
+ *  `.new`.
  *
  */
 
@@ -1262,6 +1320,31 @@ mrb_bob_not(mrb_state *mrb, mrb_value cv)
   return mrb_bool_value(!mrb_test(cv));
 }
 
+void
+mrb_method_missing(mrb_state *mrb, mrb_sym name, mrb_value self, mrb_value args)
+{
+  mrb_sym inspect;
+  mrb_value repr;
+
+  inspect = mrb_intern_lit(mrb, "inspect");
+  if (mrb->c->ci > mrb->c->cibase && mrb->c->ci[-1].mid == inspect) {
+    /* method missing in inspect; avoid recursion */
+    repr = mrb_any_to_s(mrb, self);
+  }
+  else if (mrb_respond_to(mrb, self, inspect) && mrb->c->ci - mrb->c->cibase < 64) {
+    repr = mrb_funcall_argv(mrb, self, inspect, 0, 0);
+    if (mrb_string_p(repr) && RSTRING_LEN(repr) > 64) {
+      repr = mrb_any_to_s(mrb, self);
+    }
+  }
+  else {
+    repr = mrb_any_to_s(mrb, self);
+  }
+
+  mrb_no_method_error(mrb, name, args, "undefined method '%S' for %S",
+                      mrb_sym2str(mrb, name), repr);
+}
+
 /* 15.3.1.3.30 */
 /*
  *  call-seq:
@@ -1301,27 +1384,9 @@ mrb_bob_missing(mrb_state *mrb, mrb_value mod)
   mrb_sym name;
   mrb_value *a;
   mrb_int alen;
-  mrb_sym inspect;
-  mrb_value repr;
 
   mrb_get_args(mrb, "n*", &name, &a, &alen);
-
-  inspect = mrb_intern_lit(mrb, "inspect");
-  if (mrb->c->ci > mrb->c->cibase && mrb->c->ci[-1].mid == inspect) {
-    /* method missing in inspect; avoid recursion */
-    repr = mrb_any_to_s(mrb, mod);
-  }
-  else if (mrb_respond_to(mrb, mod, inspect) && mrb->c->ci - mrb->c->cibase < 64) {
-    repr = mrb_funcall_argv(mrb, mod, inspect, 0, 0);
-    if (mrb_string_p(repr) && RSTRING_LEN(repr) > 64) {
-      repr = mrb_any_to_s(mrb, mod);
-    }
-  }
-  else {
-    repr = mrb_any_to_s(mrb, mod);
-  }
-
-  mrb_no_method_error(mrb, name, alen, a, "undefined method '%S' for %S", mrb_sym2str(mrb, name), repr);
+  mrb_method_missing(mrb, name, mod, mrb_ary_new_from_values(mrb, alen, a));
   /* not reached */
   return mrb_nil_value();
 }
@@ -1543,10 +1608,10 @@ mrb_mod_to_s(mrb_state *mrb, mrb_value klass)
       case MRB_TT_CLASS:
       case MRB_TT_MODULE:
       case MRB_TT_SCLASS:
-        mrb_str_append(mrb, str, mrb_inspect(mrb, v));
+        mrb_str_cat_str(mrb, str, mrb_inspect(mrb, v));
         break;
       default:
-        mrb_str_append(mrb, str, mrb_any_to_s(mrb, v));
+        mrb_str_cat_str(mrb, str, mrb_any_to_s(mrb, v));
         break;
     }
     return mrb_str_cat_lit(mrb, str, ">");
@@ -1658,7 +1723,7 @@ check_cv_name_str(mrb_state *mrb, mrb_value str)
   mrb_int len = RSTRING_LEN(str);
 
   if (len < 3 || !(s[0] == '@' && s[1] == '@')) {
-    mrb_name_error(mrb, mrb_intern_str(mrb, str), "`%S' is not allowed as a class variable name", str);
+    mrb_name_error(mrb, mrb_intern_str(mrb, str), "'%S' is not allowed as a class variable name", str);
   }
 }
 
@@ -1846,7 +1911,7 @@ remove_method(mrb_state *mrb, mrb_value mod, mrb_sym mid)
     }
   }
 
-  mrb_name_error(mrb, mid, "method `%S' not defined in %S",
+  mrb_name_error(mrb, mid, "method '%S' not defined in %S",
     mrb_sym2str(mrb, mid), mod);
 }
 
