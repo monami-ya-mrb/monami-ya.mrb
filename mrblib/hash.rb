@@ -74,8 +74,8 @@ class Hash
   #
   # If no block is given, an enumerator is returned instead.
   #
-  #  h = { "a" => 100, "b" => 200 }
-  #  h.each {|key, value| puts "#{key} is #{value}" }
+  #     h = { "a" => 100, "b" => 200 }
+  #     h.each {|key, value| puts "#{key} is #{value}" }
   #
   # <em>produces:</em>
   #
@@ -154,6 +154,7 @@ class Hash
   #
   # ISO 15.2.13.4.23
   def replace(hash)
+    raise TypeError, "can't convert argument into Hash" unless hash.respond_to?(:to_hash)
     self.clear
     hash = hash.to_hash
     hash.each_key{|k|
@@ -317,6 +318,29 @@ class Hash
       end
     }
     h
+  end
+
+  ##
+  #  call-seq:
+  #    hsh.rehash -> hsh
+  #
+  #  Rebuilds the hash based on the current hash values for each key. If
+  #  values of key objects have changed since they were inserted, this
+  #  method will reindex <i>hsh</i>.
+  #
+  #     h = {"AAA" => "b"}
+  #     h.keys[0].chop!
+  #     h          #=> {"AA"=>"b"}
+  #     h["AA"]    #=> nil
+  #     h.rehash   #=> {"AA"=>"b"}
+  #     h["AA"]    #=> "b"
+  #
+  def rehash
+    h = {}
+    self.each{|k,v|
+      h[k] = v
+    }
+    self.replace(h)
   end
 
   def __update(h)

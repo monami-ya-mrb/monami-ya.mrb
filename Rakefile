@@ -29,16 +29,13 @@ load "#{MRUBY_ROOT}/tasks/mrbgems.rake"
 load "#{MRUBY_ROOT}/tasks/thread_bind.rake"
 load "#{MRUBY_ROOT}/tasks/libmruby.rake"
 
-load "#{MRUBY_ROOT}/tasks/mrbgems_test.rake"
-load "#{MRUBY_ROOT}/test/mrbtest.rake"
-
 load "#{MRUBY_ROOT}/tasks/benchmark.rake"
 
 ##############################
 # generic build targets, rules
 task :default => :all
 
-bin_path = "#{MRUBY_ROOT}/bin"
+bin_path = ENV['INSTALL_DIR'] || "#{MRUBY_ROOT}/bin"
 FileUtils.mkdir_p bin_path, { :verbose => $verbose }
 
 depfiles = MRuby.targets['host'].bins.map do |bin|
@@ -76,7 +73,7 @@ MRuby.each_target do |target|
       end
 
       if target == MRuby.targets['host']
-        install_path = MRuby.targets['host'].exefile("#{MRUBY_ROOT}/bin/#{bin}")
+        install_path = MRuby.targets['host'].exefile("#{bin_path}/#{bin}")
 
         file install_path => exec do |t|
           FileUtils.rm_f t.name, { :verbose => $verbose }
@@ -85,7 +82,7 @@ MRuby.each_target do |target|
         depfiles += [ install_path ]
       elsif target == MRuby.targets['host-debug']
         unless MRuby.targets['host'].gems.map {|g| g.bins}.include?([bin])
-          install_path = MRuby.targets['host-debug'].exefile("#{MRUBY_ROOT}/bin/#{bin}")
+          install_path = MRuby.targets['host-debug'].exefile("#{bin_path}/#{bin}")
 
           file install_path => exec do |t|
             FileUtils.rm_f t.name, { :verbose => $verbose }
@@ -119,9 +116,9 @@ task :all => depfiles do
 end
 
 desc "run all mruby tests"
-task :test => ["all"] + MRuby.targets.values.map { |t| t.build_mrbtest_lib_only? ? t.libfile("#{t.build_dir}/test/mrbtest") : t.exefile("#{t.build_dir}/test/mrbtest") } do
+task :test => ["all"] do
   MRuby.each_target do
-    run_test unless build_mrbtest_lib_only?
+    run_test if test_enabled?
   end
 end
 
@@ -144,5 +141,10 @@ end
 
 desc 'generate document'
 task :doc do
-  load "#{MRUBY_ROOT}/doc/language/generator.rb"
+  begin
+    sh "mrbdoc"
+  rescue
+    puts "ERROR: To generate documents, you should install yard-mruby gem."
+    puts "  $ gem install yard-mruby"
+  end
 end

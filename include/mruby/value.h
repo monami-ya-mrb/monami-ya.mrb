@@ -7,12 +7,14 @@
 #ifndef MRUBY_VALUE_H
 #define MRUBY_VALUE_H
 
-#include "mruby.h"
+#include "common.h"
 
-#include <stdint.h>
-#include <stddef.h>
+/**
+ * MRuby Value definition functions and macros.
+ */
+MRB_BEGIN_DECL
 
-typedef short mrb_sym;
+typedef uint32_t mrb_sym;
 typedef uint8_t mrb_bool;
 struct mrb_state;
 
@@ -20,21 +22,44 @@ struct mrb_state;
 # error "You can't define MRB_INT16 and MRB_INT64 at the same time."
 #endif
 
+#if defined _MSC_VER && _MSC_VER < 1800
+# define PRIo64 "llo"
+# define PRId64 "lld"
+# define PRIx64 "llx"
+# define PRIo16 "ho"
+# define PRId16 "hd"
+# define PRIx16 "hx"
+# define PRIo32 "o"
+# define PRId32 "d"
+# define PRIx32 "x"
+#else
+# include <inttypes.h>
+#endif
+
 #if defined(MRB_INT64)
   typedef int64_t mrb_int;
 # define MRB_INT_BIT 64
 # define MRB_INT_MIN (INT64_MIN>>MRB_FIXNUM_SHIFT)
 # define MRB_INT_MAX (INT64_MAX>>MRB_FIXNUM_SHIFT)
+# define MRB_PRIo PRIo64
+# define MRB_PRId PRId64
+# define MRB_PRIx PRIx64
 #elif defined(MRB_INT16)
   typedef int16_t mrb_int;
 # define MRB_INT_BIT 16
 # define MRB_INT_MIN (INT16_MIN>>MRB_FIXNUM_SHIFT)
 # define MRB_INT_MAX (INT16_MAX>>MRB_FIXNUM_SHIFT)
+# define MRB_PRIo PRIo16
+# define MRB_PRId PRId16
+# define MRB_PRIx PRIx16
 #else
   typedef int32_t mrb_int;
 # define MRB_INT_BIT 32
 # define MRB_INT_MIN (INT32_MIN>>MRB_FIXNUM_SHIFT)
 # define MRB_INT_MAX (INT32_MAX>>MRB_FIXNUM_SHIFT)
+# define MRB_PRIo PRIo32
+# define MRB_PRId PRId32
+# define MRB_PRIx PRIx32
 #endif
 
 #ifdef MRB_USE_FLOAT
@@ -94,7 +119,23 @@ enum mrb_vtype {
   MRB_TT_MAXDEFINE    /*  23 */
 };
 
-#include "mruby/object.h"
+#include <mruby/object.h>
+
+#ifdef MRB_DOCUMENTATION_BLOCK
+
+/**
+ * @abstract
+ * MRuby value boxing.
+ *
+ * Actual implementation depends on configured boxing type.
+ *
+ * @see mruby/boxing_no.h Default boxing representation
+ * @see mruby/boxing_word.h Word representation
+ * @see mruby/boxing_nan.h Boxed double representation
+ */
+typedef void mrb_value;
+
+#endif
 
 #if defined(MRB_NAN_BOXING)
 #include "boxing_nan.h"
@@ -126,8 +167,10 @@ enum mrb_vtype {
 #define mrb_test(o)   mrb_bool(o)
 MRB_API mrb_bool mrb_regexp_p(struct mrb_state*, mrb_value);
 
-static inline mrb_value
-mrb_float_value(struct mrb_state *mrb, mrb_float f)
+/*
+ * Returns a float in Ruby.
+ */
+MRB_INLINE mrb_value mrb_float_value(struct mrb_state *mrb, mrb_float f)
 {
   mrb_value v;
   (void) mrb;
@@ -144,8 +187,10 @@ mrb_cptr_value(struct mrb_state *mrb, void *p)
   return v;
 }
 
-static inline mrb_value
-mrb_fixnum_value(mrb_int i)
+/*
+ * Returns a fixnum in Ruby.
+ */
+MRB_INLINE mrb_value mrb_fixnum_value(mrb_int i)
 {
   mrb_value v;
   SET_INT_VALUE(v, i);
@@ -168,24 +213,34 @@ mrb_obj_value(void *p)
   return v;
 }
 
-static inline mrb_value
-mrb_nil_value(void)
+
+/*
+ * Get a nil mrb_value object.
+ *
+ * @return
+ *      nil mrb_value object reference.
+ */
+MRB_INLINE mrb_value mrb_nil_value(void)
 {
   mrb_value v;
   SET_NIL_VALUE(v);
   return v;
 }
 
-static inline mrb_value
-mrb_false_value(void)
+/*
+ * Returns false in Ruby.
+ */
+MRB_INLINE mrb_value mrb_false_value(void)
 {
   mrb_value v;
   SET_FALSE_VALUE(v);
   return v;
 }
 
-static inline mrb_value
-mrb_true_value(void)
+/*
+ * Returns true in Ruby.
+ */
+MRB_INLINE mrb_value mrb_true_value(void)
 {
   mrb_value v;
   SET_TRUE_VALUE(v);
@@ -230,5 +285,7 @@ mrb_ro_data_p(const char *p)
 #else
 # define mrb_ro_data_p(p) FALSE
 #endif
+
+MRB_END_DECL
 
 #endif  /* MRUBY_VALUE_H */

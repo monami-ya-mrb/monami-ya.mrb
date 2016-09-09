@@ -26,6 +26,9 @@
 /* represent mrb_value as a word (natural unit of data for the processor) */
 //#define MRB_WORD_BOXING
 
+/* string class to handle UTF-8 encoding */
+//#define MRB_UTF8_STRING
+
 /* argv max size in mrb_funcall */
 //#define MRB_FUNCALL_ARGC_MAX 16
 
@@ -79,26 +82,26 @@ The value below allows about 60000 recursive calls in the simplest case. */
 /* Default panic behavior */
 //#define MRB_PANIC_ABORT() abort()
 
-/* -DDISABLE_XXXX to drop following features */
-//#define DISABLE_STDIO		/* use of stdio */
+/* -DMRB_DISABLE_XXXX to drop following features */
+//#define MRB_DISABLE_STDIO	/* use of stdio */
 //#define MRB_DISABLE_HOSTED	/* C/C++ hosted (not freestanding) environment */
 
-/* -DENABLE_XXXX to enable following features */
-//#define ENABLE_DEBUG		/* hooks for debugger */
-//#define MRB_ENABLE_ROMED	/* ROMed targets support */
+/* -DMRB_ENABLE_XXXX to enable following features */
+//#define MRB_ENABLE_DEBUG_HOOK	/* hooks for debugger */
 
 /* end of configuration */
 
-/* define ENABLE_XXXX from DISABLE_XXX */
-#if ! defined(DISABLE_STDIO) && ! defined(MRB_DISABLE_HOSTED)
-#define ENABLE_STDIO
+/* define MRB_DISABLE_XXXX from DISABLE_XXX (for compatibility) */
+#if defined(DISABLE_STDIO) || defined(MRB_DISABLE_HOSTED)
+#define MRB_DISABLE_STDIO
 #endif
 
-#ifndef ENABLE_DEBUG
-#define DISABLE_DEBUG
+/* define MRB_ENABLE_XXXX from ENABLE_XXX (for compatibility) */
+#ifdef ENABLE_DEBUG
+#define MRB_ENABLE_DEBUG_HOOK
 #endif
 
-#ifdef ENABLE_STDIO
+#ifndef MRB_DISABLE_STDIO
 # include <stdio.h>
 #endif
 
@@ -112,17 +115,6 @@ The value below allows about 60000 recursive calls in the simplest case. */
 
 #ifndef TRUE
 # define TRUE 1
-#endif
-
-#if defined(MRB_BUILD_AS_DLL)
-
-#if defined(MRB_CORE) || defined(MRB_LIB)
-#define MRB_API __declspec(dllexport)
-#else
-#define MRB_API __declspec(dllimport)
-#endif
-#else
-#define MRB_API extern
 #endif
 
 #endif  /* MRUBYCONF_H */

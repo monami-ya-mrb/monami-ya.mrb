@@ -7,37 +7,102 @@
 #ifndef MRUBY_VERSION_H
 #define MRUBY_VERSION_H
 
-#define MRUBY_RUBY_VERSION "1.9"
-#define MRUBY_RUBY_ENGINE  "mruby (monami-ya.mrb)"
+#include "common.h"
 
+/**
+ * mruby version definition macros
+ */
+MRB_BEGIN_DECL
+
+/*
+ * A passed in expression.
+ */
 #define MRB_STRINGIZE0(expr) #expr
+
+/*
+ * Passes in an expression to MRB_STRINGIZE0.
+ */
 #define MRB_STRINGIZE(expr) MRB_STRINGIZE0(expr)
 
-#define MRUBY_VERSION "1.1.0"
-#define MRUBY_RELEASE_MAJOR 1
-#define MRUBY_RELEASE_MINOR 1
-#define MRUBY_RELEASE_TEENY 1
-#define MRUBY_RELEASE_NO 10101
-#define MRUBY_RELEASE_YEAR 2014
-#define MRUBY_RELEASE_MONTH 11
-#define MRUBY_RELEASE_DAY 19
-#define MRUBY_RELEASE_DATE \
-  MRB_STRINGIZE(MRUBY_RELEASE_YEAR) "-" \
-  MRB_STRINGIZE(MRUBY_RELEASE_MONTH) "-" \
-  MRB_STRINGIZE(MRUBY_RELEASE_DAY)
+/*
+ * The version of Ruby used by mruby.
+ */
+#define MRUBY_RUBY_VERSION "1.9"
 
+/*
+ * Ruby engine.
+ */
+#define MRUBY_RUBY_ENGINE  "mruby (monami-ya.mrb)"
+
+/*
+ * Major release version number.
+ */
+#define MRUBY_RELEASE_MAJOR 1
+
+/*
+ * Minor release version number.
+ */
+#define MRUBY_RELEASE_MINOR 2
+
+/*
+ * Tiny release version number.
+ */
+#define MRUBY_RELEASE_TEENY 0
+
+/*
+ * The mruby version.
+ */
+#define MRUBY_VERSION MRB_STRINGIZE(MRUBY_RELEASE_MAJOR) "." MRB_STRINGIZE(MRUBY_RELEASE_MINOR) "." MRB_STRINGIZE(MRUBY_RELEASE_TEENY)
+
+/*
+ * Release number.
+ */
+#define MRUBY_RELEASE_NO (MRUBY_RELEASE_MAJOR * 100 * 100 + MRUBY_RELEASE_MINOR * 100 + MRUBY_RELEASE_TEENY)
+
+/*
+ * Release year.
+ */
+#define MRUBY_RELEASE_YEAR 2015
+
+/*
+ * Release month.
+ */
+#define MRUBY_RELEASE_MONTH 11
+
+/*
+ * Release day.
+ */
+#define MRUBY_RELEASE_DAY 17
+
+/*
+ * Release date as a string.
+ */
+#define MRUBY_RELEASE_DATE MRB_STRINGIZE(MRUBY_RELEASE_YEAR) "-" MRB_STRINGIZE(MRUBY_RELEASE_MONTH) "-" MRB_STRINGIZE(MRUBY_RELEASE_DAY)
+
+/*
+ * The year mruby was first created.
+ */
 #define MRUBY_BIRTH_YEAR 2010
 
+/*
+ * MRuby's authors.
+ */
 #define MRUBY_AUTHOR "mruby developers"
 
 #define MONAMI_YA_MRB_RELEASE "1.1.0-SNAPSHOT"
 #define MONAMI_YA_MRB_RELEASE_YEAR 2015
 #define MONAMI_YA_MRB_AUTHOR "monami-ya.mrb developers"
 
+/*
+ * mruby's version, and release date.
+ */
 #define MRUBY_DESCRIPTION      \
   "monami-ya.mrb " MRUBY_VERSION       \
   " (" MRUBY_RELEASE_DATE ") " \
 
+/*
+ * mruby's copyright information.
+ */
 #define MRUBY_COPYRIGHT                \
   "mruby - Copyright (c) "             \
   MRB_STRINGIZE(MRUBY_BIRTH_YEAR)"-"   \
@@ -47,5 +112,7 @@
   "2012-"                                      \
   MRB_STRINGIZE(MONAMI_YA_MRB_RELEASE_YEAR) " "\
   MONAMI_YA_MRB_AUTHOR
+
+MRB_END_DECL
 
 #endif  /* MRUBY_VERSION_H */

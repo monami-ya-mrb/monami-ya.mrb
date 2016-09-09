@@ -67,7 +67,7 @@ toolchain :clang
 Toolchain configuration for Visual Studio on Windows. If you use the
 [Visual Studio Command Prompt](http://msdn.microsoft.com/en-us/library/ms229859\(v=vs.110\).aspx),
 you normally do not have to specify this manually, since it gets automatically detected by our build process.
-```
+```ruby
 toolchain :visualcpp
 ```
 
@@ -75,7 +75,7 @@ toolchain :visualcpp
 
 Toolchain configuration for Android.
 ```ruby
-toolchain :androideabi
+toolchain :android
 ```
 
 Requires the custom standalone Android NDK and the toolchain path
@@ -476,7 +476,7 @@ can't be disabled for the main build.
 MRuby::CrossBuild.new('Minimal') do |conf|
   toolchain :gcc
 
-  conf.cc.defines = %w(DISABLE_STDIO)
+  conf.cc.defines = %w(MRB_DISABLE_STDIO)
   conf.bins = []
 end
 ```

@@ -7,13 +7,13 @@
 #ifndef MRUBY_IREP_H
 #define MRUBY_IREP_H
 
-#include "mruby.h"
+#include "common.h"
+#include <mruby/compile.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
-#include "mruby/compile.h"
+/**
+ * Compiled mruby scripts.
+ */
+MRB_BEGIN_DECL
 
 enum irep_pool_type {
   IREP_TT_STRING,
@@ -55,8 +55,6 @@ void mrb_irep_free(mrb_state*, struct mrb_irep*);
 void mrb_irep_incref(mrb_state*, struct mrb_irep*);
 void mrb_irep_decref(mrb_state*, struct mrb_irep*);
 
-#if defined(__cplusplus)
-}  /* extern "C" { */
-#endif
+MRB_END_DECL
 
 #endif  /* MRUBY_IREP_H */

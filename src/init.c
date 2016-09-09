@@ -4,8 +4,8 @@
 ** See Copyright Notice in mruby.h
 */
 
-#include "mruby.h"
-#include "mruby/sandbox.h"
+#include <mruby.h>
+#include <mruby/sandbox.h>
 
 extern struct mrb_sandbox_inib mrb_sandbox_inib_array[];
 

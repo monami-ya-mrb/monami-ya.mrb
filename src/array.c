@@ -4,11 +4,11 @@
 ** See Copyright Notice in mruby.h
 */
 
-#include "mruby.h"
-#include "mruby/array.h"
-#include "mruby/class.h"
-#include "mruby/string.h"
-#include "mruby/range.h"
+#include <mruby.h>
+#include <mruby/array.h>
+#include <mruby/class.h>
+#include <mruby/string.h>
+#include <mruby/range.h>
 #include "value_array.h"
 
 #define ARY_DEFAULT_LEN   4
@@ -19,7 +19,6 @@
 static inline mrb_value
 ary_elt(mrb_value ary, mrb_int offset)
 {
-  if (RARRAY_LEN(ary) == 0) return mrb_nil_value();
   if (offset < 0 || RARRAY_LEN(ary) <= offset) {
     return mrb_nil_value();
   }
@@ -892,14 +891,31 @@ mrb_ary_rindex_m(mrb_state *mrb, mrb_value self)
 MRB_API mrb_value
 mrb_ary_splat(mrb_state *mrb, mrb_value v)
 {
+  mrb_value a, recv_class;
+
   if (mrb_array_p(v)) {
     return v;
   }
-  if (mrb_respond_to(mrb, v, mrb_intern_lit(mrb, "to_a"))) {
-    return mrb_funcall(mrb, v, "to_a", 0);
+
+  if (!mrb_respond_to(mrb, v, mrb_intern_lit(mrb, "to_a"))) {
+    return mrb_ary_new_from_values(mrb, 1, &v);
+  }
+
+  a = mrb_funcall(mrb, v, "to_a", 0);
+  if (mrb_array_p(a)) {
+    return a;
+  }
+  else if (mrb_nil_p(a)) {
+    return mrb_ary_new_from_values(mrb, 1, &v);
   }
   else {
-    return mrb_ary_new_from_values(mrb, 1, &v);
+    recv_class = mrb_obj_value(mrb_obj_class(mrb, v));
+    mrb_raisef(mrb, E_TYPE_ERROR, "can't convert %S to Array (%S#to_a gives %S)",
+      recv_class,
+      recv_class,
+      mrb_obj_value(mrb_obj_class(mrb, a))
+    );
+    return mrb_undef_value();
   }
 }
 
@@ -1069,7 +1085,7 @@ mrb_init_array(mrb_state *mrb)
 {
   struct RClass *a;
 
-  a = mrb->array_class = mrb_define_class(mrb, "Array", mrb->object_class);            /* 15.2.12 */
+  mrb->array_class = a = mrb_define_class(mrb, "Array", mrb->object_class);            /* 15.2.12 */
   MRB_SET_INSTANCE_TT(a, MRB_TT_ARRAY);
 
   mrb_define_class_method(mrb, a, "[]",        mrb_ary_s_create,     MRB_ARGS_ANY());  /* 15.2.12.4.1 */
@@ -1102,4 +1118,5 @@ mrb_init_array(mrb_state *mrb)
 
   mrb_define_method(mrb, a, "__ary_eq",        mrb_ary_eq,           MRB_ARGS_REQ(1));
   mrb_define_method(mrb, a, "__ary_cmp",       mrb_ary_cmp,          MRB_ARGS_REQ(1));
+  mrb_define_method(mrb, a, "__ary_index",     mrb_ary_index_m,      MRB_ARGS_REQ(1)); /* kept for mruby-array-ext */
 }

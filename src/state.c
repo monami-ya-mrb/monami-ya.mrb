@@ -6,17 +6,16 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "mruby.h"
-#include "mruby/irep.h"
-#include "mruby/variable.h"
-#include "mruby/debug.h"
-#include "mruby/string.h"
-#include "mruby/panic.h"
-#include "mruby/sandbox.h"
+#include <mruby.h>
+#include <mruby/irep.h>
+#include <mruby/variable.h>
+#include <mruby/debug.h>
+#include <mruby/string.h>
+#include <mruby/panic.h>
+#include <mruby/sandbox.h>
 
 extern struct mrb_sandbox_inib mrb_sandbox_inib_array[];
 
-void mrb_init_heap(mrb_state*);
 void mrb_init_core(mrb_state*);
 void mrb_init_mrbgems(mrb_state*);
 void mrb_final_mrbgems(mrb_state*);
@@ -54,6 +53,9 @@ mrb_tlsf_set_pool(mrb_state *mrb, size_t bytes)
 }
 #endif
 
+void mrb_gc_init(mrb_state*, mrb_gc *gc);
+void mrb_gc_destroy(mrb_state*, mrb_gc *gc);
+
 static mrb_value
 inspect_main(mrb_state *mrb, mrb_value mod)
 {
@@ -79,13 +81,11 @@ mrb_open_sandbox_core(mrb_allocf f, void *ud, unsigned int sandbox_id)
   mrb->tlsf_handle = 0;
 #endif
   mrb->stack_limit = MRB_STACK_MAX;
-
-#ifndef MRB_GC_FIXED_ARENA
-  mrb->arena = (struct RBasic**)mrb_malloc(mrb, sizeof(struct RBasic*)*MRB_GC_ARENA_SIZE);
-  mrb->arena_capa = MRB_GC_ARENA_SIZE;
+#ifdef MRB_ENABLE_ATEXIT
+  mrb->atexit_stack_len = 0;
 #endif
 
-  mrb_init_heap(mrb);
+  mrb_gc_init(mrb, &mrb->gc);
   mrb->c = (struct mrb_context*)mrb_malloc(mrb, sizeof(struct mrb_context));
   *mrb->c = mrb_context_zero;
   mrb->root_c = mrb->c;
@@ -223,7 +223,6 @@ mrb_open_allocf(mrb_allocf f, void *ud)
 }
 
 void mrb_free_symtbl(mrb_state *mrb);
-void mrb_free_heap(mrb_state *mrb);
 
 void
 mrb_irep_incref(mrb_state *mrb, mrb_irep *irep)
@@ -247,7 +246,7 @@ mrb_irep_free(mrb_state *mrb, mrb_irep *irep)
 
   if (!(irep->flags & MRB_ISEQ_NO_FREE))
     mrb_free(mrb, irep->iseq);
-  for (i=0; i<irep->plen; i++) {
+  if (irep->pool) for (i=0; i<irep->plen; i++) {
     if (mrb_type(irep->pool[i]) == MRB_TT_STRING) {
       mrb_gc_free_str(mrb, RSTRING(irep->pool[i]));
       mrb_free(mrb, mrb_obj_ptr(irep->pool[i]));
@@ -321,6 +320,8 @@ mrb_str_pool(mrb_state *mrb, mrb_value str)
   return mrb_obj_value(ns);
 }
 
+void mrb_free_backtrace(mrb_state *mrb);
+
 MRB_API void
 mrb_free_context(mrb_state *mrb, struct mrb_context *c)
 {
@@ -335,30 +336,39 @@ mrb_free_context(mrb_state *mrb, struct mrb_context *c)
 MRB_API void
 mrb_close(mrb_state *mrb)
 {
-#ifndef DISABLE_GEMS
+  if (!mrb) return;
+#ifdef MRB_DISABLE_ATEXIT
   if (mrb->sandbox_id) {
     mrb_sandbox_inib_array[mrb->sandbox_id - 1].final(mrb);
   } else {
     mrb_final_mrbgems(mrb);
   }
-  mrb_gc_arena_restore(mrb, 0);
+#else
+  if (mrb->atexit_stack_len > 0) {
+    mrb_int i;
+    for (i = mrb->atexit_stack_len; i > 0; --i) {
+      mrb->atexit_stack[i - 1](mrb);
+    }
+#ifndef MRB_FIXED_STATE_ATEXIT_STACK
+    mrb_free(mrb, mrb->atexit_stack);
 #endif
+  }
+#endif
+  mrb_gc_arena_restore(mrb, 0);
 
   /* free */
   mrb_gc_free_gv(mrb);
+  mrb_free_backtrace(mrb);
   mrb_free_context(mrb, mrb->root_c);
   mrb_free_symtbl(mrb);
-  mrb_free_heap(mrb);
   mrb_alloca_free(mrb);
-#ifndef MRB_GC_FIXED_ARENA
-  mrb_free(mrb, mrb->arena);
-#endif
+  mrb_gc_destroy(mrb, &mrb->gc);
+  mrb_free(mrb, mrb);
 #ifdef USE_MRB_TLSF
   if (mrb->tlsf_handle) {
     tlsf_free(tlsf_root_handle, mrb->tlsf_handle);
   }
 #endif
-  mrb_free(mrb, mrb);
 }
 
 MRB_API mrb_irep*

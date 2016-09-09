@@ -9,10 +9,10 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include "mruby.h"
-#include "mruby/array.h"
-#include "mruby/numeric.h"
-#include "mruby/string.h"
+#include <mruby.h>
+#include <mruby/array.h>
+#include <mruby/numeric.h>
+#include <mruby/string.h>
 
 #ifdef MRB_USE_FLOAT
 #define floor(f) floorf(f)
@@ -541,10 +541,6 @@ int_to_i(mrb_state *mrb, mrb_value num)
   return num;
 }
 
-/*tests if N*N would overflow*/
-#define SQRT_INT_MAX ((mrb_int)1<<((MRB_INT_BIT-1-MRB_FIXNUM_SHIFT)/2))
-#define FIT_SQRT_INT(n) (((n)<SQRT_INT_MAX)&&((n)>=-SQRT_INT_MAX))
-
 mrb_value
 mrb_fixnum_mul(mrb_state *mrb, mrb_value x, mrb_value y)
 {
@@ -552,18 +548,14 @@ mrb_fixnum_mul(mrb_state *mrb, mrb_value x, mrb_value y)
 
   a = mrb_fixnum(x);
   if (mrb_fixnum_p(y)) {
-    mrb_float c;
-    mrb_int b;
+    mrb_int b, c;
 
     if (a == 0) return x;
     b = mrb_fixnum(y);
-    if (FIT_SQRT_INT(a) && FIT_SQRT_INT(b))
-      return mrb_fixnum_value(a*b);
-    c = a * b;
-    if ((a != 0 && c/a != b) || !FIXABLE(c)) {
-      return mrb_float_value(mrb, (mrb_float)a*(mrb_float)b);
+    if (mrb_int_mul_overflow(a, b, &c)) {
+      return mrb_float_value(mrb, (mrb_float)a * (mrb_float)b);
     }
-    return mrb_fixnum_value((mrb_int)c);
+    return mrb_fixnum_value(c);
   }
   return mrb_float_value(mrb, (mrb_float)a * mrb_to_flo(mrb, y));
 }
@@ -820,19 +812,35 @@ fix_xor(mrb_state *mrb, mrb_value x)
 static mrb_value
 lshift(mrb_state *mrb, mrb_int val, mrb_int width)
 {
-  mrb_assert(width >= 0);
-  if (width > NUMERIC_SHIFT_WIDTH_MAX) {
-    mrb_raisef(mrb, E_RANGE_ERROR, "width(%S) > (%S:MRB_INT_BIT-1)",
-               mrb_fixnum_value(width),
-               mrb_fixnum_value(NUMERIC_SHIFT_WIDTH_MAX));
+  mrb_assert(width > 0);
+  if (val > 0) {
+    if ((width > NUMERIC_SHIFT_WIDTH_MAX) ||
+        (val   > (MRB_INT_MAX >> width))) {
+      goto bit_overflow;
+    }
+  } else {
+    if ((width > NUMERIC_SHIFT_WIDTH_MAX) ||
+        (val   < (MRB_INT_MIN >> width))) {
+      goto bit_overflow;
+    }
   }
+
   return mrb_fixnum_value(val << width);
+
+bit_overflow:
+  {
+    mrb_float f = (mrb_float)val;
+    while (width--) {
+      f *= 2;
+    }
+    return mrb_float_value(mrb, f);
+  }
 }
 
 static mrb_value
 rshift(mrb_int val, mrb_int width)
 {
-  mrb_assert(width >= 0);
+  mrb_assert(width > 0);
   if (width >= NUMERIC_SHIFT_WIDTH_MAX) {
     if (val < 0) {
       return mrb_fixnum_value(-1);
@@ -854,7 +862,7 @@ fix_shift_get_width(mrb_state *mrb, mrb_int *width)
 /* 15.2.8.3.12 */
 /*
  * call-seq:
- *   fix << count  ->  integer
+ *   fix << count  ->  integer or float
  *
  * Shifts _fix_ left _count_ positions (right if _count_ is negative).
  */
@@ -879,7 +887,7 @@ fix_lshift(mrb_state *mrb, mrb_value x)
 /* 15.2.8.3.13 */
 /*
  * call-seq:
- *   fix >> count  ->  integer
+ *   fix >> count  ->  integer or float
  *
  * Shifts _fix_ right _count_ positions (left if _count_ is negative).
  */
@@ -948,7 +956,12 @@ mrb_flo_to_fixnum(mrb_state *mrb, mrb_value x)
     if (isnan(d)) {
       mrb_raise(mrb, E_FLOATDOMAIN_ERROR, "NaN");
     }
-    z = (mrb_int)d;
+    if (FIXABLE(d)) {
+      z = (mrb_int)d;
+    }
+    else {
+      mrb_raisef(mrb, E_ARGUMENT_ERROR, "number (%S) too big for integer", x);
+    }
   }
   return mrb_fixnum_value(z);
 }
@@ -1159,7 +1172,7 @@ mrb_init_numeric(mrb_state *mrb)
   mrb_define_method(mrb, integer, "to_int", int_to_i, MRB_ARGS_NONE());
 
   /* Fixnum Class */
-  fixnum = mrb->fixnum_class = mrb_define_class(mrb, "Fixnum", integer);
+  mrb->fixnum_class = fixnum = mrb_define_class(mrb, "Fixnum", integer);
   mrb_define_method(mrb, fixnum,  "+",        fix_plus,          MRB_ARGS_REQ(1)); /* 15.2.8.3.1  */
   mrb_define_method(mrb, fixnum,  "-",        fix_minus,         MRB_ARGS_REQ(1)); /* 15.2.8.3.2  */
   mrb_define_method(mrb, fixnum,  "*",        fix_mul,           MRB_ARGS_REQ(1)); /* 15.2.8.3.3  */
@@ -1179,7 +1192,7 @@ mrb_init_numeric(mrb_state *mrb)
   mrb_define_method(mrb, fixnum,  "divmod",   fix_divmod,        MRB_ARGS_REQ(1)); /* 15.2.8.3.30 (x) */
 
   /* Float Class */
-  fl = mrb->float_class = mrb_define_class(mrb, "Float", numeric);                 /* 15.2.9 */
+  mrb->float_class = fl = mrb_define_class(mrb, "Float", numeric);                 /* 15.2.9 */
   mrb_undef_class_method(mrb,  fl, "new");
   mrb_define_method(mrb, fl,      "+",         flo_plus,         MRB_ARGS_REQ(1)); /* 15.2.9.3.1  */
   mrb_define_method(mrb, fl,      "-",         flo_minus,        MRB_ARGS_REQ(1)); /* 15.2.9.3.2  */

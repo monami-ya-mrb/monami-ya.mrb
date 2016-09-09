@@ -1,6 +1,6 @@
 assert('__FILE__') do
-  file = __FILE__
-  assert_true 'test/t/syntax.rb' == file || 'test\t\syntax.rb' == file
+  file = __FILE__[-9, 9]
+  assert_equal 'syntax.rb', file
 end
 
 assert('__LINE__') do
@@ -37,6 +37,13 @@ end
 assert('yield', '11.3.5') do
   assert_raise LocalJumpError do
     yield
+  end
+  assert_raise LocalJumpError do
+    o = Object.new
+    def o.foo
+      yield
+    end
+    o.foo
   end
 end
 
@@ -298,6 +305,36 @@ assert('Return values of no expression case statement') do
     end
 
   assert_equal 1, when_value
+end
+
+assert('splat object in assignment') do
+  o = Object.new
+  def o.to_a
+    nil
+  end
+  assert_equal [o], (a = *o)
+
+  def o.to_a
+    1
+  end
+  assert_raise(TypeError) { a = *o }
+
+  def o.to_a
+    [2]
+  end
+  assert_equal [2], (a = *o)
+end
+
+assert('splat object in case statement') do
+  o = Object.new
+  def o.to_a
+    nil
+  end
+  a = case o
+  when *o
+    1
+  end
+  assert_equal 1, a
 end
 
 assert('splat in case statement') do

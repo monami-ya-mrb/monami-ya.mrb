@@ -17,7 +17,8 @@ module MRuby
       attr_accessor :name, :dir, :build
       alias mruby build
       attr_accessor :build_config_initializer
-
+      attr_accessor :mrblib_dir, :objs_dir
+      
       attr_accessor :version
       attr_accessor :description, :summary
       attr_accessor :homepage
@@ -46,6 +47,8 @@ module MRuby
         @name = name
         @initializer = block
         @version = "0.0.0"
+        @mrblib_dir = "mrblib"
+        @objs_dir = "src"
         MRuby::Gem.current = self
       end
 
@@ -54,17 +57,17 @@ module MRuby
         MRuby::Build::COMMANDS.each do |command|
           instance_variable_set("@#{command}", @build.send(command).clone)
         end
-        @linker = LinkerConfig.new([], [], [], [])
+        @linker = LinkerConfig.new([], [], [], [], [])
 
-        @rbfiles = Dir.glob("#{dir}/mrblib/*.rb").sort
-        @objs = Dir.glob("#{dir}/src/*.{c,cpp,cxx,cc,m,asm,s,S}").map do |f|
+        @rbfiles = Dir.glob("#{@dir}/#{@mrblib_dir}/**/*.rb").sort
+        @objs = Dir.glob("#{@dir}/#{@objs_dir}/*.{c,cpp,cxx,cc,m,asm,s,S}").map do |f|
           objfile(f.relative_path_from(@dir).to_s.pathmap("#{build_dir}/%X"))
         end
 
         @generate_functions = !(@rbfiles.empty? && @objs.empty?)
         @objs << objfile("#{build_dir}/gem_init") if @generate_functions
 
-        @test_rbfiles = Dir.glob("#{dir}/test/*.rb")
+        @test_rbfiles = Dir.glob("#{dir}/test/**/*.rb")
         @test_objs = Dir.glob("#{dir}/test/*.{c,cpp,cxx,cc,m,asm,s,S}").map do |f|
           objfile(f.relative_path_from(dir).to_s.pathmap("#{build_dir}/%X"))
         end
@@ -111,6 +114,10 @@ module MRuby
         requirements = ['>= 0.0.0'] if requirements.empty?
         requirements.flatten!
         @dependencies << {:gem => name, :requirements => requirements, :default => default_gem}
+      end
+
+      def add_test_dependency(*args)
+        add_dependency(*args) if build.test_enabled?
       end
 
       def add_conflict(name, *req)
@@ -187,22 +194,22 @@ module MRuby
       def print_gem_init_header(f)
         print_gem_comment(f)
         f.puts %Q[#include <stdlib.h>] unless rbfiles.empty?
-        f.puts %Q[#include "mruby.h"]
-        f.puts %Q[#include "mruby/irep.h"] unless rbfiles.empty?
-        f.puts %Q[#include "mruby/panic.h"]
+        f.puts %Q[#include <mruby.h>]
+        f.puts %Q[#include <mruby/irep.h>] unless rbfiles.empty?
+        f.puts %Q[#include <mruby/panic.h>]
       end
 
       def print_gem_test_header(f)
         print_gem_comment(f)
         f.puts %Q[#include <stdio.h>]
         f.puts %Q[#include <stdlib.h>]
-        f.puts %Q[#include "mruby.h"]
-        f.puts %Q[#include "mruby/irep.h"]
-        f.puts %Q[#include "mruby/string.h"]
-        f.puts %Q[#include "mruby/panic.h"]
-        f.puts %Q[#include "mruby/proc.h"]
-        f.puts %Q[#include "mruby/variable.h"]
-        f.puts %Q[#include "mruby/hash.h"] unless test_args.empty?
+        f.puts %Q[#include <mruby.h>]
+        f.puts %Q[#include <mruby/irep.h>]
+        f.puts %Q[#include <mruby/string.h>]
+        f.puts %Q[#include <mruby/panic.h>]
+        f.puts %Q[#include <mruby/proc.h>]
+        f.puts %Q[#include <mruby/variable.h>]
+        f.puts %Q[#include <mruby/hash.h>] unless test_args.empty?
       end
 
       def test_dependencies
@@ -423,9 +430,12 @@ module MRuby
           # as circular dependency has already detected in the caller.
           import_include_paths(dep_g)
 
+          dep_g.export_include_paths.uniq!
           g.compilers.each do |compiler|
             compiler.include_paths += dep_g.export_include_paths
             g.export_include_paths += dep_g.export_include_paths
+            compiler.include_paths.uniq!
+            g.export_include_paths.uniq!
           end
         end
       end

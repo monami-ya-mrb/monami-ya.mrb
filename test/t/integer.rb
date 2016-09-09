@@ -148,10 +148,11 @@ assert('Integer#<<', '15.2.8.3.12') do
   # Left Shift by a negative is Right Shift
   assert_equal 23, 46 << -1
 
-  # Raise when shift is too large
-  assert_raise(RangeError) do
-    2 << 128
-  end
+  # Left Shift by 31 is bitShift overflow to SignedInt
+  assert_equal 2147483648, 1 << 31
+
+  # -3 Left Shift by 30 is bitShift overflow to SignedInt
+  assert_equal(-3221225472, -3 << 30)
 end
 
 assert('Integer#>>', '15.2.8.3.13') do
@@ -165,11 +166,6 @@ assert('Integer#>>', '15.2.8.3.13') do
 
   # Don't raise on large Right Shift
   assert_equal 0, 23 >> 128
-
-  # Raise when shift is too large
-  assert_raise(RangeError) do
-    2 >> -128
-  end
 end
 
 assert('Integer#ceil', '15.2.8.3.14') do
