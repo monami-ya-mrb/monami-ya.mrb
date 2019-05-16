@@ -1,0 +1,37 @@
+# https://che-banco.camino.pizzafactory.jp/f?url=
+specVersion: 0.0.1
+name: monami-ya-mrb
+projects:
+  - name: monami-ya.mrb
+    source:
+      type: git
+      location: 'https://github.com/monami-ya-mrb/monami-ya.mrb.git'
+attributes:
+  persistVolumes: false
+components:
+  - alias: theia-editor
+    type: cheEditor
+    id: eclipse/che-theia/next
+  - alias: exec-plugin
+    type: chePlugin
+    id: eclipse/che-machine-exec-plugin/0.0.1
+  - alias: workspace
+    type: dockerimage
+    image: camino.azurecr.io/cantinona/mruby
+    memoryLimit: 512Mi
+    volumes:
+    - containerPath: /projects
+      name: projects
+commands:
+  - name: "build"
+    actions:
+      - type: exec
+        component: workspace
+        command: make
+        workdir: ${CHE_PROJECTS_ROOT}/monami-ya.mrb
+  - name: "run mrbtest"
+    actions:
+      - type: exec
+        component: workspace
+        command: build/test/bin/mrbtest
+        workdir: ${CHE_PROJECTS_ROOT}/monami-ya.mrb
